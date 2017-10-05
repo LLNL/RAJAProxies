@@ -2878,8 +2878,6 @@ void LagrangeLeapFrog()
 
 int main(int argc, char *argv[])
 {
-   (void) argc;
-   (void) argv;
 
    RAJA::Timer timer_main;
    RAJA::Timer timer_cycle;
@@ -2920,9 +2918,6 @@ int main(int argc, char *argv[])
    Index_t nidx, zidx ;
    Index_t domElems, domNodes ;
 
-   /* get run options to measure various metrics */
-
-   /* ... */
 
    /****************************/
    /*   Initialize Sedov Mesh  */
@@ -3038,6 +3033,17 @@ int main(int argc, char *argv[])
    domain.dtmax()     = Real_t(1.0e-2) ;
    domain.time()    = Real_t(0.) ;
    domain.cycle()   = 0 ;
+
+   /****************************/
+   /*  Print run parameters    */
+   /****************************/
+   printf("LULESH parallel run parameters:\n");
+   printf("\t stop time = %e\n", double(domain.stoptime())) ;
+   printf("\t CFL-controlled: initial time step = %e\n",
+            double(domain.deltatime())) ;
+   printf("\t Mesh size = %i x %i x %i\n",
+          edgeElems, edgeElems, edgeElems) ;
+   printf("\t Tiling mode is 'Canonical'\n");
 
    domain.e_cut() = Real_t(1.0e-7) ;
    domain.p_cut() = Real_t(1.0e-7) ;
@@ -3157,8 +3163,10 @@ int main(int argc, char *argv[])
       LagrangeLeapFrog() ;
       /* problem->commNodes->Transfer(CommNodes::syncposvel) ; */
       if (show_run_progress != 0) {
-         printf("time = %e, dt=%e\n",
-                double(domain.time()), double(domain.deltatime()) ) ;
+         printf("cycle = %d, time = %e, dt=%e\n",
+                int(domain.cycle()),
+                double(domain.time()), 
+                double(domain.deltatime()) ) ;
       }
    }
    timer_cycle.stop("timer_cycle");
