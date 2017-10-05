@@ -6,7 +6,7 @@ This repository contains RAJA versions of some Department of Energy proxy
 applications. 
 
 If you want to build the applications, take a look at the
-:doc:`getting_started` guide`
+:doc:`getting_started` guide.
 
 Questions? Contact raja-dev@llnl.gov
 
