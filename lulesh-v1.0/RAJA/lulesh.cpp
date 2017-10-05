@@ -3472,7 +3472,9 @@ int main(int argc, char *argv[])
       /* problem->commNodes->Transfer(CommNodes::syncposvel) ; */
       if ( show_run_progress ) {
          printf("cycle = %d, time = %e, dt=%e\n",
-                int(domain->cycle),double(domain->time), double(domain->deltatime) ) ;
+                int(domain->cycle),
+                double(domain->time), 
+                double(domain->deltatime) ) ;
       }
    }
    timer_cycle.stop("timer_cycle");

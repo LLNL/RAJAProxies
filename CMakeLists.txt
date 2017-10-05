@@ -29,6 +29,7 @@ if (ENABLE_LULESH_ONE)
   add_subdirectory(lulesh-v1.0)
 endif ()
 
+message (STATUS "ENABLE_LULESH_TWO = ${ENABLE_LULESH_TWO}")
 if (ENABLE_LULESH_2)
   message(STATUS "Building LULESH v2.0")
   add_subdirectory(lulesh-v2.0)
