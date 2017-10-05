@@ -20,7 +20,7 @@ cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -C ${RAJA_PROXIES_DIR}/host-configs/chaos/clang_3_8_1.cmake \
   -DENABLE_OPENMP=On \
-  -DPROXIES_ENABLE_WARNING=Off \
+  -DPROXIES_ENABLE_WARNINGS=Off \
   -DENABLE_ALL_WARNINGS=Off \
   -DCMAKE_INSTALL_PREFIX=../install_chaos-clang-3.8.1 \
   "$@" \

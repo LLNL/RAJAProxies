@@ -21,7 +21,7 @@ cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -C ${RAJA_PROXIES_DIR}/host-configs/toss3/gcc_4_9_3.cmake \
   -DENABLE_OPENMP=On \
-  -DPROXIES_ENABLE_WARNING=Off \
+  -DPROXIES_ENABLE_WARNINGS=Off \
   -DENABLE_ALL_WARNINGS=Off \
   -DCMAKE_INSTALL_PREFIX=../install_toss3-gcc-4.9.3 \
   "$@" \

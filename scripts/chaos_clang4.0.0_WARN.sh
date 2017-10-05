@@ -20,7 +20,7 @@ cmake \
   -DCMAKE_BUILD_TYPE=Debug \
   -C ${RAJA_PROXIES_DIR}/host-configs/chaos/clang_4_0_0.cmake \
   -DENABLE_OPENMP=On \
-  -DPROXIES_ENABLE_WARNING=On \
+  -DPROXIES_ENABLE_WARNINGS=On \
   -DENABLE_ALL_WARNINGS=Off \
   -DCMAKE_INSTALL_PREFIX=../install_chaos-clang-4.0.0_debug \
   "$@" \

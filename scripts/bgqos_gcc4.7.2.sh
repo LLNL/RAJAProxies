@@ -20,7 +20,7 @@ cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -C ${RAJA_PROXIES_DIR}/host-configs/bgqos/gcc_4_7_2.cmake \
   -DENABLE_OPENMP=On \
-  -DPROXIES_ENABLE_WARNING=Off \
+  -DPROXIES_ENABLE_WARNINGS=Off \
   -DENABLE_ALL_WARNINGS=Off \
   -DCMAKE_INSTALL_PREFIX=../install-bgqos_gcc-4.7.2 \
   "$@" \
