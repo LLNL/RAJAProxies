@@ -1,0 +1,6 @@
+[submodule "blt"]
+	path = blt
+	url = git@github.com:LLNL/blt.git
+[submodule "tpl/RAJA"]
+	path = tpl/RAJA
+	url = git@github.com:LLNL/RAJA.git
