@@ -23,6 +23,10 @@ include(${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
 
 add_subdirectory(tpl/RAJA)
 
+if (ENABLE_DOCUMENTATION)
+  add_subdirectory(docs)
+endif ()
+
 message (STATUS "ENABLE_LULESH_ONE = ${ENABLE_LULESH_ONE}")
 if (ENABLE_LULESH_ONE)
   message(STATUS "Building LULESH v1.0")

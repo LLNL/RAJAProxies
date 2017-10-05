@@ -1,0 +1,1 @@
+blt_add_sphinx_target(proxy_docs)
