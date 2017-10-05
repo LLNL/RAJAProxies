@@ -30,5 +30,6 @@ if (ENABLE_LULESH_ONE)
 endif ()
 
 if (ENABLE_LULESH_2)
-  add_subdirectory()
+  message(STATUS "Building LULESH v2.0")
+  add_subdirectory(lulesh-v2.0)
 endif ()
