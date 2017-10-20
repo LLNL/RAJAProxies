@@ -663,7 +663,7 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
         nset[nidx++] = planeInc + j ;
       }
     }
-    m_domYSymNodeISet.push_back( RAJA::ListSegment(nset, edgeNodes*edgeNodes) );
+    m_domYSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes) );
     delete [] nset ;
   }
   if (m_colLoc == 0) {
@@ -675,7 +675,7 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
         nset[nidx++] = planeInc + j*edgeNodes ;
       }
     }
-    m_domXSymNodeISet.push_back( RAJA::ListSegment(nset, edgeNodes*edgeNodes) );
+    m_domXSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes) );
     delete [] nset ;
   }
 }

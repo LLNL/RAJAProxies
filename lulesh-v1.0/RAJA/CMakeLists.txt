@@ -10,53 +10,72 @@
 #
 ###############################################################################
 
+set (lulesh_depends
+  RAJA)
+
+if (ENABLE_OPEMP)
+  set (lulesh_depends
+    ${lulesh_depends}
+    openmp)
+endif ()
+
+if (ENABLE_CUDA)
+  set (lulesh_depends
+    ${lulesh_depends}
+    cuda)
+endif ()
+
 blt_add_executable(
   NAME lulesh-v1.0-RAJA-seq.exe
   SOURCES lulesh.cpp
-  DEPENDS_ON RAJA)
+  DEPENDS_ON ${lulesh_depends})
 
 target_compile_definitions(
   lulesh-v1.0-RAJA-seq.exe
-  PRIVATE
+  PUBLIC
   -DUSE_CASE=1
 )
 
 target_compile_options(
   lulesh-v1.0-RAJA-seq.exe
-  PRIVATE
+  PUBLIC
   -Wno-unknown-pragmas)
 
 target_include_directories(
   lulesh-v1.0-RAJA-seq.exe
-  PRIVATE
+  PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (ENABLE_OPENMP)
   blt_add_executable(
     NAME lulesh-v1.0-RAJA-omp.exe
     SOURCES lulesh.cpp
-    DEPENDS_ON RAJA openmp)
+    DEPENDS_ON ${lulesh_depends})
 
   target_include_directories(
     lulesh-v1.0-RAJA-omp.exe
-    PRIVATE
+    PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR})
 endif ()
 
 if (ENABLE_CUDA)
+  configure_file(
+    lulesh.cpp
+    lulesh_cuda.cpp COPYONLY)
+
   blt_add_executable(
     NAME lulesh-v1.0-RAJA-cuda.exe
-    SOURCES lulesh.cpp
-    DEPENDS_ON RAJA openmp cuda)
+    SOURCES ${CMAKE_CURRENT_BINARY_DIR}/lulesh_cuda.cpp
+    DEPENDS_ON ${lulesh_depends})
 
   target_compile_definitions(
     lulesh-v1.0-RAJA-cuda.exe
-    PRIVATE
+    PUBLIC
     -DUSE_CASE=9
   )
 
   target_include_directories(
     lulesh-v1.0-RAJA-cuda.exe
-    PRIVATE
+    PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR})
 endif ()
