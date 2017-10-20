@@ -159,7 +159,7 @@ Additional BSD Notice
 # include <omp.h>
 #endif
 
-#include "lulesh.h"
+#include "lulesh.hpp"
 
 #include "RAJA/util/Timer.hpp"
 

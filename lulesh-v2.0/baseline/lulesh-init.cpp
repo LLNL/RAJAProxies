@@ -10,7 +10,7 @@
 #include <string.h>
 #include <limits.h>
 #include <cstdlib>
-#include "lulesh.h"
+#include "lulesh.hpp"
 
 /////////////////////////////////////////////////////////////////////
 Domain::Domain(Int_t numRanks, Index_t colLoc,

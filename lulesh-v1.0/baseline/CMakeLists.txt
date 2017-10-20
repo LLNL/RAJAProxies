@@ -10,9 +10,19 @@
 #
 ###############################################################################
 
+blt_add_executable(
+  NAME lulesh-v1.0-baseline-seq.exe
+  SOURCES lulesh.cpp
+  DEPENDS_ON RAJA)
+
+target_compile_options(
+  lulesh-v1.0-baseline-seq.exe
+  PRIVATE
+  -Wno-unknown-pragmas)
+
 if(ENABLE_OPENMP)
   blt_add_executable(
-    NAME lulesh-v1.0-baseline.exe
+    NAME lulesh-v1.0-baseline-omp.exe
     SOURCES lulesh.cpp
     DEPENDS_ON RAJA openmp)
 endif()

@@ -18,38 +18,51 @@ set (lulesh_sources
   lulesh-viz.cpp)
 
 blt_add_executable(
-  NAME lulesh-v2.0-baseline-seq.exe
+  NAME lulesh-v2.0-RAJA-seq.exe
   SOURCES ${lulesh_sources}
-  DEPENDS_ON RAJA)
-
-target_compile_definitions(
-  lulesh-v2.0-baseline-seq.exe
-  PRIVATE 
-  -DUSE_OMP=0)
+  DEPENDS_ON RAJA
+)
 
 target_compile_options(
-  lulesh-v2.0-baseline-seq.exe
+  lulesh-v2.0-RAJA-seq.exe
   PRIVATE
   -Wno-unknown-pragmas)
 
 target_compile_definitions(
-  lulesh-v2.0-baseline-seq.exe
+  lulesh-v2.0-RAJA-seq.exe
   PRIVATE 
   -DUSE_MPI=0)
 
-if(ENABLE_OPENMP)
+target_compile_definitions(
+  lulesh-v2.0-RAJA-seq.exe
+  PRIVATE
+  -DUSE_CASE=1)
+
+if (ENABLE_OPENMP)
   blt_add_executable(
-    NAME lulesh-v2.0-baseline-omp.exe
+    NAME lulesh-v2.0-RAJA-omp.exe
     SOURCES ${lulesh_sources}
     DEPENDS_ON RAJA openmp)
 
   target_compile_definitions(
-    lulesh-v2.0-baseline-omp.exe
-    PRIVATE 
-    -DUSE_OMP=1)
-
-  target_compile_definitions(
-    lulesh-v2.0-baseline-omp.exe
+    lulesh-v2.0-RAJA-omp.exe
     PRIVATE 
     -DUSE_MPI=0)
-endif()
+endif ()
+
+if (ENABLE_CUDA)
+  blt_add_executable(
+    NAME lulesh-v2.0-RAJA-cuda.exe
+    SOURCES ${lulesh_sources}
+    DEPENDS_ON RAJA openmp cuda)
+
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-cuda.exe
+    PRIVATE
+    -DUSE_CASE=9)
+
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-cuda.exe
+    PRIVATE 
+    -DUSE_MPI=0)
+endif ()

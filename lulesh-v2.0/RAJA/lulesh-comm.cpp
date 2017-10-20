@@ -1,4 +1,4 @@
-#include "lulesh.h"
+#include "lulesh.hpp"
 
 // If no MPI, then this whole file is stubbed out
 #if USE_MPI

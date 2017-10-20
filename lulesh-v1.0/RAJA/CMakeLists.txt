@@ -33,30 +33,30 @@ target_include_directories(
 
 if (ENABLE_OPENMP)
   blt_add_executable(
-    NAME lulesh-v1.0-RAJA-OMP.exe
+    NAME lulesh-v1.0-RAJA-omp.exe
     SOURCES lulesh.cpp
     DEPENDS_ON RAJA openmp)
 
   target_include_directories(
-    lulesh-v1.0-RAJA-OMP.exe
+    lulesh-v1.0-RAJA-omp.exe
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR})
 endif ()
 
 if (ENABLE_CUDA)
   blt_add_executable(
-    NAME lulesh-v1.0-RAJA-CUDA.exe
+    NAME lulesh-v1.0-RAJA-cuda.exe
     SOURCES lulesh.cpp
-    DEPENDS_ON RAJA openmp)
+    DEPENDS_ON RAJA openmp cuda)
 
   target_compile_definitions(
-    lulesh-v1.0-RAJA-CUDA.exe
+    lulesh-v1.0-RAJA-cuda.exe
     PRIVATE
     -DUSE_CASE=9
   )
 
   target_include_directories(
-    lulesh-v1.0-RAJA-CUDA.exe
+    lulesh-v1.0-RAJA-cuda.exe
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR})
 endif ()

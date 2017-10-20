@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
-#include "lulesh.h"
+#include "lulesh.hpp"
 
 #if defined(VIZ_MESH)
 

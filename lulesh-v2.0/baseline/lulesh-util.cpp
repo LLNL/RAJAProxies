@@ -5,7 +5,7 @@
 #if USE_MPI
 #include <mpi.h>
 #endif
-#include "lulesh.h"
+#include "lulesh.hpp"
 
 /* Helper function for converting strings to ints, with error checking */
 int StrToInt(const char *token, int *retVal)
