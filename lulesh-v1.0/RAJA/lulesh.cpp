@@ -3484,6 +3484,35 @@ int main(int argc, char *argv[])
    printf("Total Cycle Time (sec) = %f\n", timer_cycle.elapsed() );
    printf("Total main Time (sec) = %f\n", timer_main.elapsed() );
 
+
+   Real_t   maxAbsDiff = Real_t(0.0);
+   Real_t totalAbsDiff = Real_t(0.0);
+   Real_t   maxRelDiff = Real_t(0.0);
+
+   for (Index_t j=0; j < edgeElems; ++j) {
+     for (Index_t k=j+1; k < edgeElems; ++k) {
+       Real_t absDiff = FABS(domain->e[j*edgeElems+k] - domain->e[k*edgeElems+j]);
+
+       totalAbsDiff += absDiff;
+
+       if (maxAbsDiff < absDiff) {
+         maxAbsDiff = absDiff;
+       }
+
+       if (domain->e[k*edgeElems+j] != 0.0) {
+         Real_t relDiff = absDiff / domain->e[k*edgeElems+j];
+         if (maxRelDiff < relDiff) {
+           maxRelDiff = relDiff;
+         }
+       }
+     }
+   }
+
+   printf("   Testing Plane 0 of Energy Array on rank 0:\n");
+   printf("        maxAbsDiff   = %12.6e\n",   maxAbsDiff   );
+   printf("        totalAbsDiff = %12.6e\n",   totalAbsDiff );
+   printf("        maxRelDiff   = %12.6e\n\n", maxRelDiff   );
+
    Release(&domain) ;
 
    return 0 ;

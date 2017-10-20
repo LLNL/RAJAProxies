@@ -21,6 +21,11 @@ target_compile_definitions(
   -DUSE_CASE=1
 )
 
+target_compile_options(
+  lulesh-v1.0-RAJA-seq.exe
+  PRIVATE
+  -Wno-unknown-pragmas)
+
 target_include_directories(
   lulesh-v1.0-RAJA-seq.exe
   PRIVATE
