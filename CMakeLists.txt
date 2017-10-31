@@ -23,6 +23,8 @@ include(${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
 
 add_subdirectory(tpl/RAJA)
 
+set(CUDA_NVCC_FLAGS ${RAJA_NVCC_FLAGS})
+
 if (ENABLE_DOCUMENTATION)
   add_subdirectory(docs)
 endif ()

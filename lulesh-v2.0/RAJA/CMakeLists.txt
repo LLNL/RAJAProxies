@@ -17,11 +17,25 @@ set (lulesh_sources
   lulesh-util.cpp
   lulesh-viz.cpp)
 
+set (lulesh_depends
+  RAJA)
+
+if (ENABLE_OPENMP)
+  set (lulesh_depends
+    ${lulesh_depends}
+    openmp)
+endif ()
+
+if (ENABLE_CUDA)
+  set (lulesh_depends
+    ${lulesh_depends}
+    cuda)
+endif ()
+
 blt_add_executable(
   NAME lulesh-v2.0-RAJA-seq.exe
   SOURCES ${lulesh_sources}
-  DEPENDS_ON RAJA
-)
+  DEPENDS_ON ${lulesh_depends})
 
 target_compile_options(
   lulesh-v2.0-RAJA-seq.exe
@@ -42,7 +56,7 @@ if (ENABLE_OPENMP)
   blt_add_executable(
     NAME lulesh-v2.0-RAJA-omp.exe
     SOURCES ${lulesh_sources}
-    DEPENDS_ON RAJA openmp)
+    DEPENDS_ON ${lulesh_depends})
 
   target_compile_definitions(
     lulesh-v2.0-RAJA-omp.exe
@@ -51,10 +65,32 @@ if (ENABLE_OPENMP)
 endif ()
 
 if (ENABLE_CUDA)
+  configure_file(
+    lulesh.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-cuda.cpp COPYONLY)
+
+  configure_file(
+    lulesh-comm.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-comm-cuda.cpp COPYONLY)
+  configure_file(
+    lulesh-init.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-init-cuda.cpp COPYONLY)
+  configure_file(
+    lulesh-util.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-util-cuda.cpp COPYONLY)
+  configure_file(
+    lulesh-viz.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-viz-cuda.cpp COPYONLY)
+
   blt_add_executable(
     NAME lulesh-v2.0-RAJA-cuda.exe
-    SOURCES ${lulesh_sources}
-    DEPENDS_ON RAJA openmp cuda)
+    SOURCES 
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-cuda.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-comm-cuda.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-init-cuda.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-util-cuda.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-viz-cuda.cpp
+    DEPENDS_ON ${lulesh_depends})
 
   target_compile_definitions(
     lulesh-v2.0-RAJA-cuda.exe
@@ -65,4 +101,9 @@ if (ENABLE_CUDA)
     lulesh-v2.0-RAJA-cuda.exe
     PRIVATE 
     -DUSE_MPI=0)
+
+  target_include_directories(
+    lulesh-v2.0-RAJA-cuda.exe
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR})
 endif ()

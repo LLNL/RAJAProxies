@@ -36,31 +36,31 @@ typedef float        real4 ;
 typedef double       real8 ;
 typedef long double  real10 ;  // 10 bytes on x86
 
-typedef int    Index_t ; // array subscript and loop index
+typedef RAJA::Index_type    Index_t ; // array subscript and loop index
 typedef real8  Real_t ;  // floating point representation
 typedef int    Int_t ;   // integer representation
 
 enum { VolumeError = -1, QStopError = -2 } ;
 
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real4  SQRT(real4  arg) { return sqrtf(arg) ; }
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real8  SQRT(real8  arg) { return sqrt(arg) ; }
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real10 SQRT(real10 arg) { return sqrtl(arg) ; }
 
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real4  CBRT(real4  arg) { return cbrtf(arg) ; }
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real8  CBRT(real8  arg) { return cbrt(arg) ; }
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real10 CBRT(real10 arg) { return cbrtl(arg) ; }
 
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real4  FABS(real4  arg) { return fabsf(arg) ; }
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real8  FABS(real8  arg) { return fabs(arg) ; }
-inline RAJA_DEVICE
+inline RAJA_HOST_DEVICE
 real10 FABS(real10 arg) { return fabsl(arg) ; }
 
 

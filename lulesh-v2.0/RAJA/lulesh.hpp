@@ -16,7 +16,7 @@
 #if !defined(LULESH_HEADER)
 #include "lulesh_stl.hpp"
 #elif (LULESH_HEADER == 1)
-#include "lulesh_ptr.h"
+#include "lulesh_ptr.hpp"
 #else
-#include "lulesh_tuple.h"
+#include "lulesh_tuple.hpp"
 #endif
