@@ -30,8 +30,9 @@ To clone the repo into your local working space, use the command:
    $ git clone --recursive https://github.com/LLNL/RAJA-Proxies.git 
 
 The ``--recursive`` argument is used to download the repository's submodules,
-`RAJA <>`_ and `BLT <>`_.  Once this command has run, the ``master`` branch
-will be cloned into the ``RAJA-Proxies`` directory.
+`RAJA <https://github.com/LLNL/RAJA>`_ and `BLT
+<https://github.com/LLNL/blt>`_.  Once this command has run, the ``master``
+branch will be cloned into the ``RAJA-Proxies`` directory.
 
 
 ^^^^^^^^^^^^^
@@ -39,7 +40,7 @@ Building RAJA
 ^^^^^^^^^^^^^
 
 RAJA uses CMake and BLT to handle builds. From the root of the repository,
-configuration looks like:
+configuration looks like this:
 
 .. code-block:: bash
 
