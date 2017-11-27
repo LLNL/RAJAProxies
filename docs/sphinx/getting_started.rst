@@ -39,7 +39,7 @@ branch will be cloned into the ``RAJA-Proxies`` directory.
 Building RAJA
 ^^^^^^^^^^^^^
 
-RAJA uses CMake and BLT to handle builds. From the root of the repository,
+RAJA uses CMake and BLT to handle builds. From the root of the repository
 configuration looks like this:
 
 .. code-block:: bash
@@ -68,13 +68,12 @@ Running the Proxy Applications
 
 Each application will be built in the ``bin`` directory. The binary names will
 include the version and features of each application. To run the application,
-simply run the relevant executable. For example:
+simply run the relevant executable. For example the following command would
+run the RAJA version of LULESH v1.0 with the OpenMP backend: 
 
 .. code-block:: bash
 
   $ ./bin/lulesh-v1.0-RAJA-OMP.exe
-
-would run the RAJA version of LULESH v1.0 with the OpenMP backend.
 
 For more detail on the input parameters supported by each application, take a
 look at :doc:`applications`.
