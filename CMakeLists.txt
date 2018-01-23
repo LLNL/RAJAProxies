@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.4)
 project(RajaProxies LANGUAGES CXX)
 
 option(ENABLE_LULESH_ONE "Build LULESH v1.0" On)
-option(ENABLE_LULESH_TWO "Build LULESH v2.0" Off)
+option(ENABLE_LULESH_TWO "Build LULESH v2.0" On)
 
 if (PROXIES_ENABLE_WARNINGS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
