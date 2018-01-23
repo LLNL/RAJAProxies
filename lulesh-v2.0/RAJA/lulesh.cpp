@@ -13,8 +13,7 @@ Please also read this link -- http://www.opensource.org/licenses/index.php
 //////////////
 DIFFERENCES BETWEEN THIS VERSION (2.x) AND EARLIER VERSIONS:
 * Addition of regions to make work more representative of multi-material codes
-* Default size of each domain is 30^3 (27000 elem) instead of 45^3. This is
-  more representative of our actual working set sizes
+* Default size of each domain is 45^3 (91125 elem).
 * Single source distribution supports pure serial, pure OpenMP, MPI-only, 
   and MPI+OpenMP
 * Addition of ability to visualize the mesh using VisIt 
@@ -73,7 +72,6 @@ lulesh-util.cc - Non-timed functions
 *   with the silo library, which in turn can be read by VisIt.
 * Enabled variable timestep calculation by default (courant condition), which
 *   results in an additional reduction.
-* Default domain (mesh) size reduced from 45^3 to 30^3
 * Command line options to allow numerous test cases without needing to recompile
 * Performance optimizations and code cleanup beyond LULESH 1.0
 * Added a "Figure of Merit" calculation (elements solved per microsecond) and
@@ -2518,7 +2516,7 @@ int main(int argc, char *argv[])
 
    /* Set defaults that can be overridden by command line opts */
    opts.its = 9999999;
-   opts.nx  = 30;
+   opts.nx  = 45;
    opts.numReg = 11;
    opts.numFiles = (int)(numRanks+10)/9;
    opts.showProg = 0;
