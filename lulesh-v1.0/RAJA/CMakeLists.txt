@@ -13,7 +13,7 @@
 set (lulesh_depends
   RAJA)
 
-if (ENABLE_OPEMP)
+if (ENABLE_OPENMP)
   set (lulesh_depends
     ${lulesh_depends}
     openmp)
@@ -56,6 +56,11 @@ if (ENABLE_OPENMP)
     lulesh-v1.0-RAJA-omp.exe
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR})
+
+  target_compile_definitions(
+    lulesh-v1.0-RAJA-seq.exe
+    PUBLIC
+    -DUSE_CASE=2)
 endif ()
 
 if (ENABLE_CUDA)
