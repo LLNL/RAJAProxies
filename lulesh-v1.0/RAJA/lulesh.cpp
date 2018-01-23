@@ -68,6 +68,7 @@ Additional BSD Notice
 #include <cstring>
 #include <cctype>
 
+
 #include "RAJA/RAJA.hpp"
 
 #include "RAJA/util/defines.hpp"
@@ -100,7 +101,7 @@ const double lulesh_stop_time = 1.0e-2;
 const double lulesh_time_step = -1.0e-7;
 
 //
-// Set mesh size (physical domain size is fixed).
+// Set default mesh size (physical domain size is fixed).
 //
 // Mesh will be lulesh_edge_elems^3.
 //
@@ -2746,16 +2747,11 @@ int main(int argc, char *argv[])
    Index_t nidx, zidx ;
    int maxIter = 1024*1024 ;
 
-   //
-   // Allocate domain so it can be accessed from host or device code.
-   //
-   Domain* domain = Allocate<Domain>(1);
-
    Index_t edgeElems = lulesh_edge_elems ;
 
    for (int i=1; i<argc; ++i) {
       if (strcmp(argv[i], "-p") == 0) {
-         show_run_progress = true ;
+         show_run_progress = 1 ;
       }
       else if (strcmp(argv[i], "-i") == 0) {
          if ((i+1 < argc) && isdigit(argv[i+1][0])) {
@@ -2765,7 +2761,7 @@ int main(int argc, char *argv[])
          else  {
             printf("Iteration (-i) option has bad argument -- ignoring\n") ;
          }
-      }     
+      }
       else if (strcmp(argv[i], "-s") == 0) {
          if ((i+1 < argc) && isdigit(argv[i+1][0])) {
             edgeElems = atoi(argv[i+1]) ;
@@ -2775,26 +2771,29 @@ int main(int argc, char *argv[])
             printf("Size (-s) option has bad argument -- ignoring\n") ;
          }
       }
+      else if (strcmp(argv[i], "-h") == 0) {
+         printf("Usage: %s [opts]\n", argv[0]);
+         printf(" where [opts] is one or more of:\n");
+         printf(" -i <iterations> : number of cycles to run\n");
+         printf(" -s <size>       : length of cube mesh along side\n");
+         printf(" -p              : Print run progress\n");
+         printf(" -h              : This help message\n");
+         printf("\n\n");
+
+         exit(0);
+      }
    }
+
+
+   //
+   // Allocate domain so it can be accessed from host or device code.
+   //
+   Domain* domain = Allocate<Domain>(1);
 
    Index_t edgeNodes = edgeElems+1 ;
 
    Index_p perm = 0 ;
    Index_p iperm = 0 ;
-
-   /****************************/
-   /*  Print run parameters    */
-   /****************************/
-   printf("LULESH parallel run parameters:\n");
-   printf("\t stop time = %e\n", double(lulesh_stop_time)) ;
-   if ( lulesh_time_step > 0 ) {
-     printf("\t Fixed time step = %e\n", double(lulesh_time_step)) ;
-   } else {
-     printf("\t CFL-controlled: initial time step = %e\n", 
-            double(-lulesh_time_step)) ;
-   }
-   printf("\t Mesh size = %i x %i x %i\n", 
-          edgeElems, edgeElems, edgeElems) ;
 
    switch (lulesh_tiling_mode) {
       case Canonical:
@@ -3204,6 +3203,25 @@ int main(int argc, char *argv[])
    domain->time    = Real_t(0.) ;
    domain->cycle   = 0 ;
 
+   /****************************/
+   /*  Print run parameters    */
+   /****************************/
+   printf("Running problem size %d^3 per domain until completion\n", edgeElems);
+#if defined(_OPENMP)
+   printf("Num threads: %d\n", omp_get_max_threads());
+#endif
+   printf("Total number of elements: %lld\n\n", (long long int)(edgeElems*edgeElems*edgeElems));
+   printf("\t stop time = %e\n", double(lulesh_stop_time)) ;
+   if ( lulesh_time_step > 0 ) {
+     printf("\t Fixed time step = %e\n\n", double(lulesh_time_step)) ;
+   } else {
+     printf("\t CFL-controlled: initial time step = %e\n\n", 
+            double(-lulesh_time_step)) ;
+   }
+   printf("To run other sizes, use -s <integer>.\n");
+   printf("To set max iterations to run, use -i <integer>.\n");
+   printf("To print out progress, use -p\n");
+   printf("See help (-h) for more options\n\n");
    domain->e_cut = Real_t(1.0e-7) ;
    domain->p_cut = Real_t(1.0e-7) ;
    domain->q_cut = Real_t(1.0e-7) ;
@@ -3484,6 +3502,10 @@ int main(int argc, char *argv[])
    printf("Total Cycle Time (sec) = %f\n", timer_cycle.elapsed() );
    printf("Total main Time (sec) = %f\n", timer_main.elapsed() );
 
+   Real_t grindTime = ((timer_cycle.elapsed()*1e6)/domain->cycle)/(edgeElems*edgeElems*edgeElems);
+
+   printf("\nGrind time (us/z/c)  = %10.8g \n", grindTime);
+   printf("FOM                  = %10.8g (z/s)\n\n", 1000.0/grindTime); // zones per second
 
    Real_t   maxAbsDiff = Real_t(0.0);
    Real_t totalAbsDiff = Real_t(0.0);
