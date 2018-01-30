@@ -52,6 +52,12 @@ target_compile_definitions(
   PRIVATE
   -DUSE_CASE=1)
 
+target_compile_definitions(
+  lulesh-v2.0-RAJA-seq.exe
+  PUBLIC
+  -DLULESH_DEVICE= 
+)
+
 if (ENABLE_OPENMP)
   blt_add_executable(
     NAME lulesh-v2.0-RAJA-omp.exe
@@ -62,6 +68,12 @@ if (ENABLE_OPENMP)
     lulesh-v2.0-RAJA-omp.exe
     PRIVATE 
     -DUSE_MPI=0)
+
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-omp.exe
+    PUBLIC
+    -DLULESH_DEVICE= 
+  )
 endif ()
 
 if (ENABLE_CUDA)
@@ -101,6 +113,12 @@ if (ENABLE_CUDA)
     lulesh-v2.0-RAJA-cuda.exe
     PRIVATE 
     -DUSE_MPI=0)
+
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-cuda.exe
+    PUBLIC
+    -DLULESH_DEVICE=__device__
+  )
 
   target_include_directories(
     lulesh-v2.0-RAJA-cuda.exe

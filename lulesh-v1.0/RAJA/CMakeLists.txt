@@ -39,7 +39,7 @@ target_compile_definitions(
 target_compile_definitions(
   lulesh-v1.0-RAJA-seq.exe
   PUBLIC
-  -DLULESH_DEVICE
+  -DLULESH_DEVICE= 
 )
 
 target_compile_options(
@@ -71,7 +71,7 @@ if (ENABLE_OPENMP)
   target_compile_definitions(
     lulesh-v1.0-RAJA-omp.exe
     PUBLIC
-    -DLULESH_DEVICE
+    -DLULESH_DEVICE= 
   )
 endif ()
 
