@@ -36,6 +36,12 @@ target_compile_definitions(
   -DUSE_CASE=1
 )
 
+target_compile_definitions(
+  lulesh-v1.0-RAJA-seq.exe
+  PUBLIC
+  -DLULESH_DEVICE= 
+)
+
 target_compile_options(
   lulesh-v1.0-RAJA-seq.exe
   PUBLIC
@@ -58,9 +64,15 @@ if (ENABLE_OPENMP)
     ${CMAKE_CURRENT_SOURCE_DIR})
 
   target_compile_definitions(
-    lulesh-v1.0-RAJA-seq.exe
+    lulesh-v1.0-RAJA-omp.exe
     PUBLIC
     -DUSE_CASE=2)
+
+  target_compile_definitions(
+    lulesh-v1.0-RAJA-omp.exe
+    PUBLIC
+    -DLULESH_DEVICE= 
+  )
 endif ()
 
 if (ENABLE_CUDA)
@@ -77,6 +89,12 @@ if (ENABLE_CUDA)
     lulesh-v1.0-RAJA-cuda.exe
     PUBLIC
     -DUSE_CASE=9
+  )
+
+  target_compile_definitions(
+    lulesh-v1.0-RAJA-cuda.exe
+    PUBLIC
+    -DLULESH_DEVICE=__device__
   )
 
   target_include_directories(

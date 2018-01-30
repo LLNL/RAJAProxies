@@ -409,7 +409,7 @@ void InitStressTermsForElems(Real_p p, Real_p q,
    // pull in the stresses appropriate to the hydro integration
    //
 
-   RAJA::forall<elem_exec_policy>(*domElemList, [=] RAJA_HOST_DEVICE (int idx) {
+   RAJA::forall<elem_exec_policy>(*domElemList, [=] LULESH_DEVICE (int idx) {
       sigxx[idx] = sigyy[idx] = sigzz[idx] =  - p[idx] - q[idx] ;
      }
    ) ;
@@ -676,7 +676,7 @@ void IntegrateStressForElems( Index_p nodelist,
 #endif
 
   // loop over all elements
-  RAJA::forall<elem_exec_policy>(*domElemList, [=] RAJA_HOST_DEVICE (int k) {
+  RAJA::forall<elem_exec_policy>(*domElemList, [=] LULESH_DEVICE (int k) {
     Real_t B[3][8] __attribute__((aligned(32))) ;// shape function derivatives
     Real_t x_local[8] ;
     Real_t y_local[8] ;
@@ -726,7 +726,7 @@ void IntegrateStressForElems( Index_p nodelist,
   ) ;
 
 #if defined(OMP_FINE_SYNC)
-  RAJA::forall<node_exec_policy>(*domNodeList, [=] RAJA_HOST_DEVICE (int gnode) {
+  RAJA::forall<node_exec_policy>(*domNodeList, [=] LULESH_DEVICE (int gnode) {
      Index_t count = nodeElemStart[gnode+1] - nodeElemStart[gnode] ;
      Index_t *cornerList = &nodeElemCornerList[nodeElemStart[gnode]] ;
      Real_t fx_sum = Real_t(0.0) ;
@@ -1094,7 +1094,7 @@ void CalcFBHourglassForceForElems( Index_p nodelist,
 /*************************************************/
 /*    compute the hourglass modes */
 
-   RAJA::forall<elem_exec_policy>(*domElemList, [=] RAJA_HOST_DEVICE (int i2) {
+   RAJA::forall<elem_exec_policy>(*domElemList, [=] LULESH_DEVICE (int i2) {
 #if !defined(OMP_FINE_SYNC)
       Real_t hgfx[8], hgfy[8], hgfz[8] ;
 #endif
@@ -1270,7 +1270,7 @@ void CalcFBHourglassForceForElems( Index_p nodelist,
    ) ;
 
 #if defined(OMP_FINE_SYNC)
-   RAJA::forall<node_exec_policy>(*domNodeList, [=] RAJA_HOST_DEVICE (int gnode) {
+   RAJA::forall<node_exec_policy>(*domNodeList, [=] LULESH_DEVICE (int gnode) {
       Index_t count = nodeElemStart[gnode+1] - nodeElemStart[gnode] ;
       Index_t *cornerList = &nodeElemCornerList[nodeElemStart[gnode]] ;
       Real_t fx_sum = Real_t(0.0) ;
@@ -1312,7 +1312,7 @@ void CalcHourglassControlForElems(Domain *domain,
    RAJA::ReduceMin<reduce_policy, Real_t> minvol(Real_t(1.0e+20));
 
    /* start loop over elements */
-   RAJA::forall<elem_exec_policy>(*domain->domElemList, [=] RAJA_HOST_DEVICE (int idx) {
+   RAJA::forall<elem_exec_policy>(*domain->domElemList, [=] LULESH_DEVICE (int idx) {
 
       Index_p elemToNode = &domain->nodelist[8*idx];
       CollectDomainNodesToElemNodes(domain->x, domain->y, domain->z, elemToNode,
@@ -1395,7 +1395,7 @@ void CalcVolumeForceForElems(Domain *domain)
 
       // check for negative element volume
       RAJA::ReduceMin<reduce_policy, Real_t> minvol(Real_t(1.0e+20));
-      RAJA::forall<elem_exec_policy>(*domain->domElemList, [=] RAJA_HOST_DEVICE (int k) {
+      RAJA::forall<elem_exec_policy>(*domain->domElemList, [=] LULESH_DEVICE (int k) {
          minvol.min(determ[k]);
        }
       ) ;
@@ -1416,7 +1416,7 @@ void CalcVolumeForceForElems(Domain *domain)
 RAJA_STORAGE
 void CalcForceForNodes(Domain *domain)
 {
-  RAJA::forall<node_exec_policy>(*domain->domNodeList, [=] RAJA_HOST_DEVICE (int i) {
+  RAJA::forall<node_exec_policy>(*domain->domNodeList, [=] LULESH_DEVICE (int i) {
      domain->fx[i] = Real_t(0.0) ;
      domain->fy[i] = Real_t(0.0) ;
      domain->fz[i] = Real_t(0.0) ;
@@ -1436,7 +1436,7 @@ void CalcAccelerationForNodes(Real_p xdd, Real_p ydd, Real_p zdd,
                               Real_p fx, Real_p fy, Real_p fz,
                               Real_p nodalMass, RAJA::IndexSet *domNodeList)
 {
-   RAJA::forall<node_exec_policy>(*domNodeList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<node_exec_policy>(*domNodeList, [=] LULESH_DEVICE (int i) {
       xdd[i] = fx[i] / nodalMass[i];
       ydd[i] = fy[i] / nodalMass[i];
       zdd[i] = fz[i] / nodalMass[i];
@@ -1451,15 +1451,15 @@ void ApplyAccelerationBoundaryConditionsForNodes(Real_p xdd, Real_p ydd,
                                                  RAJA::IndexSet *symmY,
                                                  RAJA::IndexSet *symmZ)
 {
-   RAJA::forall<symnode_exec_policy>(*symmX, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<symnode_exec_policy>(*symmX, [=] LULESH_DEVICE (int i) {
       xdd[i] = Real_t(0.0) ;
    } );
 
-   RAJA::forall<symnode_exec_policy>(*symmY, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<symnode_exec_policy>(*symmY, [=] LULESH_DEVICE (int i) {
       ydd[i] = Real_t(0.0) ;
    } );
 
-   RAJA::forall<symnode_exec_policy>(*symmZ, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<symnode_exec_policy>(*symmZ, [=] LULESH_DEVICE (int i) {
       zdd[i] = Real_t(0.0) ;
    } );
 }
@@ -1470,7 +1470,7 @@ void CalcVelocityForNodes(Real_p xd,  Real_p yd,  Real_p zd,
                           const Real_t dt, const Real_t u_cut,
                           RAJA::IndexSet *domNodeList)
 {
-   RAJA::forall<node_exec_policy>( *domNodeList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<node_exec_policy>( *domNodeList, [=] LULESH_DEVICE (int i) {
 
      Real_t xdtmp = xd[i] + xdd[i] * dt ;
      if( FABS(xdtmp) < u_cut ) xdtmp = Real_t(0.0);
@@ -1492,7 +1492,7 @@ void CalcPositionForNodes(Real_p x,  Real_p y,  Real_p z,
                           Real_p xd, Real_p yd, Real_p zd,
                           const Real_t dt, RAJA::IndexSet *domNodeList)
 {
-   RAJA::forall<node_exec_policy>( *domNodeList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<node_exec_policy>( *domNodeList, [=] LULESH_DEVICE (int i) {
      x[i] += xd[i] * dt ;
      y[i] += yd[i] * dt ;
      z[i] += zd[i] * dt ;
@@ -1767,7 +1767,7 @@ void CalcKinematicsForElems( Index_p nodelist,
                              Real_t deltaTime, RAJA::IndexSet *domElemList )
 {
   // loop over all elements
-  RAJA::forall<elem_exec_policy>(*domElemList, [=] RAJA_HOST_DEVICE (int k) {
+  RAJA::forall<elem_exec_policy>(*domElemList, [=] LULESH_DEVICE (int k) {
     Real_t B[3][8] ; /** shape function derivatives */
     Real_t D[6] ;
     Real_t x_local[8] ;
@@ -1856,7 +1856,7 @@ void CalcLagrangeElements(Domain *domain)
       RAJA::ReduceMin<reduce_policy, Real_t> minvol(Real_t(1.0e+20));
 
       // element loop to do some stuff not included in the elemlib function.
-      RAJA::forall<elem_exec_policy>( *domain->domElemList, [=] RAJA_HOST_DEVICE (int k) {
+      RAJA::forall<elem_exec_policy>( *domain->domElemList, [=] LULESH_DEVICE (int k) {
         // calc strain rate and apply as constraint (only done in FB element)
         Real_t vdov = domain->dxx[k] + domain->dyy[k] + domain->dzz[k] ;
         Real_t vdovthird = vdov/Real_t(3.0) ;
@@ -1896,7 +1896,7 @@ void CalcMonotonicQGradientsForElems(Real_p x,  Real_p y,  Real_p z,
 {
 #define SUM4(a,b,c,d) (a + b + c + d)
 
-   RAJA::forall<elem_exec_policy>(*domElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<elem_exec_policy>(*domElemList, [=] LULESH_DEVICE (int i) {
       const Real_t ptiny = Real_t(1.e-36) ;
       Real_t ax,ay,az ;
       Real_t dxv,dyv,dzv ;
@@ -2054,7 +2054,7 @@ void CalcMonotonicQRegionForElems(
                            Real_t monoq_max_slope,
                            Real_t ptiny )
 {
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int i) {
       Real_t qlin, qquad ;
       Real_t phixi, phieta, phizeta ;
       Int_t bcMask = elemBC[i] ;
@@ -2268,7 +2268,7 @@ void CalcQForElems(Domain *domain)
       domain->idx = -1; 
 
       /* Workaround reference capture by using structure field instead */ 
-      RAJA::forall<elem_exec_policy>( *domain->domElemList, [=] RAJA_HOST_DEVICE (int i) {
+      RAJA::forall<elem_exec_policy>( *domain->domElemList, [=] LULESH_DEVICE (int i) {
          if ( domain->q[i] > qstop ) {
             domain->idx = i ;
             // break ;
@@ -2291,13 +2291,13 @@ void CalcPressureForElems(Real_p p_new, Real_p bvc,
                           RAJA::IndexSet *matElemList)
 {
    const Real_t c1s = Real_t(2.0)/Real_t(3.0) ;
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int i) {
       bvc[i] = c1s * (compression[i] + Real_t(1.));
       pbvc[i] = c1s;
     }
    ) ;
 
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int i) {
       p_new[i] = bvc[i] * e_old[i] ;
 
       if    (FABS(p_new[i]) <  p_cut   )
@@ -2328,7 +2328,7 @@ void CalcEnergyForElems(Real_p p_new, Real_p e_new, Real_p q_new,
    const Real_t sixth = Real_t(1.0) / Real_t(6.0) ;
    Real_p pHalfStep = elemMemPool.allocate(length) ;
 
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int i) {
       e_new[i] = e_old[i] - Real_t(0.5) * delvc[i] * (p_old[i] + q_old[i])
          + Real_t(0.5) * work[i];
 
@@ -2341,7 +2341,7 @@ void CalcEnergyForElems(Real_p p_new, Real_p e_new, Real_p q_new,
    CalcPressureForElems(pHalfStep, bvc, pbvc, e_new, compHalfStep, vnewc,
                    pmin, p_cut, eosvmax, matElemList);
 
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int i) {
       Real_t vhalf = Real_t(1.) / (Real_t(1.) + compHalfStep[i]) ;
 
       if ( delvc[i] > Real_t(0.) ) {
@@ -2376,7 +2376,7 @@ void CalcEnergyForElems(Real_p p_new, Real_p e_new, Real_p q_new,
    CalcPressureForElems(p_new, bvc, pbvc, e_new, compression, vnewc,
                    pmin, p_cut, eosvmax, matElemList);
 
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int i) {
       Real_t q_tilde ;
 
       if (delvc[i] > Real_t(0.)) {
@@ -2411,7 +2411,7 @@ void CalcEnergyForElems(Real_p p_new, Real_p e_new, Real_p q_new,
    CalcPressureForElems(p_new, bvc, pbvc, e_new, compression, vnewc,
                    pmin, p_cut, eosvmax, matElemList);
 
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int i) {
 
       if ( delvc[i] <= Real_t(0.) ) {
          Real_t ssc = ( pbvc[i] * e_new[i]
@@ -2441,7 +2441,7 @@ void CalcSoundSpeedForElems(RAJA::IndexSet *matElemList, Real_p ss,
                             Real_p pnewc, Real_p pbvc,
                             Real_p bvc, Real_t RAJA_UNUSED_ARG(ss4o3))
 {
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int iz) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int iz) {
       Real_t ssTmp = (pbvc[iz] * enewc[iz] + vnewc[iz] * vnewc[iz] *
                  bvc[iz] * pnewc[iz]) / rho0;
       if (ssTmp <= Real_t(.1111111e-36)) {
@@ -2485,12 +2485,12 @@ void EvalEOSForElems(Domain *domain, Real_p vnewc, Index_t numElem)
    Real_p pbvc         = elemMemPool.allocate(numElem) ;
 
    /* compress data, minimal set */
-   RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] RAJA_HOST_DEVICE (int zidx) {
+   RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] LULESH_DEVICE (int zidx) {
       p_old[zidx] = domain->p[zidx] ;
     }
    ) ;
 
-   RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] RAJA_HOST_DEVICE (int zidx) {
+   RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] LULESH_DEVICE (int zidx) {
       Real_t vchalf ;
       compression[zidx] = Real_t(1.) / vnewc[zidx] - Real_t(1.);
       vchalf = vnewc[zidx] - delvc[zidx] * Real_t(.5);
@@ -2514,7 +2514,7 @@ void EvalEOSForElems(Domain *domain, Real_p vnewc, Index_t numElem)
    ) ;
    
 
-   RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] RAJA_HOST_DEVICE (int zidx) {
+   RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] LULESH_DEVICE (int zidx) {
       work[zidx] = Real_t(0.) ; 
     }
    ) ;
@@ -2527,7 +2527,7 @@ void EvalEOSForElems(Domain *domain, Real_p vnewc, Index_t numElem)
                  domain->matElemList, numElem);
 
 
-   RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] RAJA_HOST_DEVICE (int zidx) {
+   RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] LULESH_DEVICE (int zidx) {
       domain->p[zidx] = p_new[zidx] ;
       domain->e[zidx] = e_new[zidx] ;
       domain->q[zidx] = q_new[zidx] ;
@@ -2567,7 +2567,7 @@ void ApplyMaterialPropertiesForElems(Domain *domain)
 
     Real_p vnewc = elemMemPool.allocate(numElem) ;
 
-    RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] RAJA_HOST_DEVICE (int zn) {
+    RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] LULESH_DEVICE (int zn) {
        vnewc[zn] = domain->vnew[zn] ;
 
        if (eosvmin != Real_t(0.)) {
@@ -2588,7 +2588,7 @@ void ApplyMaterialPropertiesForElems(Domain *domain)
     // check for negative element volume
     RAJA::ReduceMin<reduce_policy, Real_t> minvol(Real_t(1.0e+20));
 
-    RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] RAJA_HOST_DEVICE (int zn) {
+    RAJA::forall<mat_exec_policy>( *domain->matElemList, [=] LULESH_DEVICE (int zn) {
        Real_t vc = domain->v[zn] ;
        if (eosvmin != Real_t(0.)) {
           if (vc < eosvmin) {
@@ -2619,7 +2619,7 @@ RAJA_STORAGE
 void UpdateVolumesForElems(RAJA::IndexSet *domElemList,
                            Real_p vnew, Real_p v, Real_t v_cut)
 {
-   RAJA::forall<elem_exec_policy>( *domElemList, [=] RAJA_HOST_DEVICE (int i) {
+   RAJA::forall<elem_exec_policy>( *domElemList, [=] LULESH_DEVICE (int i) {
       Real_t tmpV = vnew[i] ;
 
       if ( FABS(tmpV - Real_t(1.0)) < v_cut )
@@ -2659,7 +2659,7 @@ void CalcCourantConstraintForElems(RAJA::IndexSet *matElemList, Real_p ss,
    RAJA::ReduceMin<reduce_policy, Real_t> dtcourantLoc(Real_t(1.0e+20)) ;
    Real_t  qqc2 = Real_t(64.0) * qqc * qqc ;
 
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int indx) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int indx) {
       Real_t dtf = ss[indx] * ss[indx] ;
 
       if ( vdov[indx] < Real_t(0.) ) {
@@ -2689,7 +2689,7 @@ void CalcHydroConstraintForElems(RAJA::IndexSet *matElemList, Real_p vdov,
 {
    RAJA::ReduceMin<reduce_policy, Real_t> dthydroLoc(Real_t(1.0e+20)) ;
 
-   RAJA::forall<mat_exec_policy>( *matElemList, [=] RAJA_HOST_DEVICE (int indx) {
+   RAJA::forall<mat_exec_policy>( *matElemList, [=] LULESH_DEVICE (int indx) {
 
       Real_t dtvov_cmp = (vdov[indx] != Real_t(0.))
                        ? (dvovmax / (FABS(vdov[indx])+Real_t(1.e-20)))
