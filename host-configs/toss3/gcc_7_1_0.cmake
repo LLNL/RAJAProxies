@@ -14,14 +14,12 @@
 
 set(RAJA_COMPILER "RAJA_COMPILER_GNU" CACHE STRING "")
 
-set(CMAKE_CXX_COMPILER "/usr/local/tools/compilers/ibm/mpicxx-4.7.2b" CACHE PATH "")
-set(CMAKE_C_COMPILER "/usr/local/tools/compilers/ibm/mpicc-4.7.2b" CACHE PATH "")
+set(CMAKE_CXX_COMPILER "/usr/tce/packages/gcc/gcc-7.1.0/bin/g++" CACHE PATH "")
+set(CMAKE_C_COMPILER "/usr/tce/packages/gcc/gcc-7.1.0/bin/gcc" CACHE PATH "")
 
-set(TEST_DRIVER srun CACHE STRING "use slurm to launch on BGQ")
-
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -mcpu=a2 -mtune=a2 -finline-functions -finline-limit=20000 -std=c++11" CACHE STRING "")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g -mcpu=a2 -mtune=a2 -finline-functions -finline-limit=20000 -std=c++11" CACHE STRING "")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -std=c++11" CACHE STRING "")
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -finline-functions -finline-limit=20000" CACHE STRING "")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g -finline-functions -finline-limit=20000" CACHE STRING "")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 
 set(RAJA_RANGE_ALIGN 4 CACHE INT "")
 set(RAJA_RANGE_MIN_LENGTH 32 CACHE INT "")

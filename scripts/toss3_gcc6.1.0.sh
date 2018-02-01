@@ -14,18 +14,16 @@
 ## For details about use and distribution, please read raja-perfsuite/LICENSE.
 ##
 
-rm -rf build_blueos_nvcc8.0_gcc4.9.3 >/dev/null
-mkdir build_blueos_nvcc8.0_gcc4.9.3 && cd build_blueos_nvcc8.0_gcc4.9.3
+rm -rf build_toss3-gcc-6.1.0 2>/dev/null
+mkdir build_toss3-gcc-6.1.0 && cd build_toss3-gcc-6.1.0
 
-module load cmake/3.7.2
+module load cmake/3.5.2
 
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
-  -C ../host-configs/blueos/nvcc_gcc_4_9_3.cmake \
+  -C ../host-configs/toss3/gcc_6_1_0.cmake \
   -DENABLE_OPENMP=On \
-  -DENABLE_CUDA=On \
-  -DCUDA_TOOLKIT_ROOT_DIR=/usr/tcetmp/packages/cuda-8.0 \
   -DENABLE_ALL_WARNINGS=Off \
-  -DCMAKE_INSTALL_PREFIX=../install_blueos_nvcc8.0_gcc4.9.3 \
+  -DCMAKE_INSTALL_PREFIX=../install_toss3-gcc-6.1.0 \
   "$@" \
   ..
