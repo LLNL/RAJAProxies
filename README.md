@@ -33,11 +33,11 @@ More details about RAJA configuration options are located in the
 The executable for Each application will be located in the `bin` directory
 of your build space. The executable names will include the name of the proxy
 app, its version and parallel programming model it is using. To run an
-application, simply run the desired executable. For example:
+application, simply run the desired executable. For example, to run 
+run the RAJA version of LULESH v1.0 with the OpenMP backend, execute the
+following command:
 
     $ ./lulesh-v1.0-RAJA-omp.exe
-
-runs the RAJA version of LULESH v1.0 with the OpenMP backend.
 
 ## Proxy Application Information
 
