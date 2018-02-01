@@ -1,84 +1,57 @@
 # RAJA Proxy Applications
 
-This repo contains a selection of proxy applications written using the RAJA
-performance portability layer. These applications are examples of how RAJA can
-be used in real codes, as well as providing a convenient vehicle for testing
-features and analyzing performance.
-
-For more details about the concepts and design behind RAJA, please take a look
-at the GitHub [repository](https://github.com/LLNL/RAJA).
+This project contains a collections of proxy applications written using the 
+[RAJA Rerformance Portability Layer](https://github.com/LLNL/RAJA). 
+These applications are examples of how RAJA is used in real codes and 
+provideng a convenient vehicle for testing features and analyzing performance.
 
 ## Quick Start
 
-This repository is hosted on [GitHub](https://github.com/LLNL/RAJAProxies).  To
-clone the repo into your local working space, use the command:
+This repository is hosted on [GitHub](https://github.com/LLNL/RAJAProxies).
+To clone the repo into your local working space, use the command:
 
     $ git clone --recursive https://github.com/LLNL/RAJAProxies.git 
 
-The `--recursive` argument is used to download the repository's submodules, RAJA
-and [BLT](https://github.com/LLNL/blt).  Once this command has run, the `master`
-branch will be cloned into the `RAJA-Proxies` directory.  RAJA uses CMake and
-BLT to handle builds. From the root of the repository, configuration looks like:
+The `--recursive` argument is used to download the repository's submodules, 
+RAJA and the build system [BLT](https://github.com/LLNL/blt). After you 
+execute this command, you will see the `master` branch in the `raja-proxies` 
+directory. 
 
-    $ mkdir build && cd build
+Then, you can build RAJA and the proxy applications like any other CMake 
+project, provided you have a C++ compiler that supports the C++11 standard. 
+The simplest way to build the code is to do the following in the top-level 
+`raja-proxies` directory (in-source builds are not allowed!):
+
+    $ mkdir build
+    $ cd build
     $ cmake ../
-
-CMake will provide output about the compiler that has been detected, and what
-features are discovered. Some features, like OpenMP, will be enabled if they are
-discovered.  Once CMake has completed, the applications can be compiled using
-Make:
-
     $ make
 
-For more details about enabling other features, please see the user
-documentation.
+More details about RAJA configuration options are located in the 
+[**RAJA User Guide and Tutorial**](http://raja.readthedocs.io/en/master/).
 
-Each application will be built in the `bin` directory. The binary names will
-include the version and features of each application. To run the application,
-simply run the relevant executable. For example:
+The executable for Each application will be located in the `bin` directory
+of your build space. The executable names will include the name of the proxy
+app, its version and parallel programming model it is using. To run an
+application, simply run the desired executable. For example:
 
-    $ ./bin/lulesh-v1.0-RAJA-OMP.exe
+    $ ./lulesh-v1.0-RAJA-omp.exe
 
-would run the RAJA version of LULESH v1.0 with the OpenMP backend.
+runs the RAJA version of LULESH v1.0 with the OpenMP backend.
 
-For more detail on the input parameters supported by each application, take a
-look at the user documentation.
+## Proxy Application Information
 
-## User Documentation
-
-The [documentation]() is hosted on ReadTheDocs, and is the best place to learn
-more about these applications.
+Information about each available proxy application is available here
+[RAJA_Proxy_Apps.md](RAJA_Proxy_Apps.md).
 
 ## Questions?
 
-If you have any questions about this repo, please contact raja-dev@llnl.gov.
+If you have any questions about this repo, please send email to 
+raja-dev@llnl.gov or contact one of the individuals listed below.
 
 ## Authors
 
-This repository was developed by:
+This repository is maintained by:
 
 * David Beckingsale (david@llnl.gov)
 * Rich Hornung (hornung1@llnl.gov)
-
-Additional application developers include:
-
-* Jeff Keasler (keasler1@llnl.gov)
-
-## Release
-
-This repository is part of the RAJA project, released as:
-
-```
-Copyright (c) 2017-2018, Lawrence Livermore National Security, LLC.
-
-Produced at the Lawrence Livermore National Laboratory.
-
-All rights reserved.
-
-LLNL-CODE-689114  OCEC-16-063
-
-Unlimited Open Source - BSD Distribution
-```
-
-The include applications have their own licenses and release numbers, included
-in the appropriate subdirectory.

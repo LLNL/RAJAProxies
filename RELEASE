@@ -4,18 +4,14 @@ RAJAProxies: ................................, version 0.1
 
 Copyright (c) 2017-18, Lawrence Livermore National Security, LLC. 
 Produced at the Lawrence Livermore National Laboratory.
-All rights reserved. See details in RAJA/LICENSE and RAJA/NOTICE files.
+All rights reserved. 
 
-Unlimited Open Source - BSD Distribution
-LLNL-CODE-689114
-OCEC-16-063
+The proxy applications available in this repository have been relased 
+individually. Please see license and release information for each app, 
+which is available in the files containing the application.
 
-This repository was developed by:
+This repository is maintained by:
 
 David Beckingsale (david@llnl.gov)
 Rich Hornung (hornung1@llnl.gov)
-
-Additional application developers include:
-
-Jeff Keasler (keasler1@llnl.gov)
 
