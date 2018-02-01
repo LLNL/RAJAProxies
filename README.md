@@ -10,10 +10,10 @@ at the GitHub [repository](https://github.com/LLNL/RAJA).
 
 ## Quick Start
 
-This repository is hosted on [GitHub](https://github.com/LLNL/RAJA-Proxies).  To
+This repository is hosted on [GitHub](https://github.com/LLNL/RAJAProxies).  To
 clone the repo into your local working space, use the command:
 
-    $ git clone --recursive https://github.com/LLNL/RAJA-Proxies.git 
+    $ git clone --recursive https://github.com/LLNL/RAJAProxies.git 
 
 The `--recursive` argument is used to download the repository's submodules, RAJA
 and [BLT](https://github.com/LLNL/blt).  Once this command has run, the `master`
@@ -63,3 +63,22 @@ This repository was developed by:
 Additional application developers include:
 
 * Jeff Keasler (keasler1@llnl.gov)
+
+## Release
+
+This repository is part of the RAJA project, released as:
+
+```
+Copyright (c) 2017-2018, Lawrence Livermore National Security, LLC.
+
+Produced at the Lawrence Livermore National Laboratory.
+
+All rights reserved.
+
+LLNL-CODE-689114  OCEC-16-063
+
+Unlimited Open Source - BSD Distribution
+```
+
+The include applications have their own licenses and release numbers, included
+in the appropriate subdirectory.
