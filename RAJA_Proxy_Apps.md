@@ -22,12 +22,7 @@ of programming models, can be found at
 
 Depending on CMake configuration options you provide, this repository
 can generate sequential and OpenMP baseline versions (i.e., non-RAJA) and
-RAJA versions for sequential, OpenMP, and CUDA GPU execution. In addition,
-the RAJA-based code contains a header file called `luleshPolicy.hpp` that
-can be used to generate a variety of OpenMP and CUDA implementations by
-defining different RAJA execution policies for the loops in the code. To
-explore these variants, please consult that file and choose the desired
-use case via the `-DUSE_CASE=<int value>` CMake option.
+RAJA versions for sequential, OpenMP, and CUDA GPU execution. 
 
 By default, each version of LULESH v1.0 included here runs the
 Sedov problem to a pre-defined end time and reports execution timing,
