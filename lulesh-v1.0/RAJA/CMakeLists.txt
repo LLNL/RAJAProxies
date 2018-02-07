@@ -88,7 +88,7 @@ if (ENABLE_CUDA)
   target_compile_definitions(
     lulesh-v1.0-RAJA-cuda.exe
     PUBLIC
-    -DUSE_CASE=9
+    -DUSE_CASE=8
   )
 
   target_compile_definitions(
