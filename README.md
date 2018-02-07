@@ -55,3 +55,8 @@ This repository is maintained by:
 
 * David Beckingsale (david@llnl.gov)
 * Rich Hornung (hornung1@llnl.gov)
+
+## Release Information
+
+Please see [RELEASE.md](./RELEASE.md) for release information for each proxy
+application.
