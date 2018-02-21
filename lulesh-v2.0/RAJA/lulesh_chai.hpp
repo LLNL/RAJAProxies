@@ -275,7 +275,7 @@ class Domain {
       m_vnew.allocate(numElem) ;
    }
 
-   void AllocateGradients(RAJA::MemoryPool< Real_t > &pool,
+   void AllocateGradients(lulesh2::MemoryPool< Real_t > &pool,
                           Int_t numElem, Int_t allElem)
    {
       (void) pool ;
@@ -291,7 +291,7 @@ class Domain {
       m_delv_zeta.allocate(allElem) ;
    }
 
-   void DeallocateGradients(RAJA::MemoryPool< Real_t > &pool)
+   void DeallocateGradients(lulesh2::MemoryPool< Real_t > &pool)
    {
       (void) pool ;
       m_delx_zeta.free() ;
@@ -303,7 +303,7 @@ class Domain {
       m_delv_xi.free() ;
    }
 
-   void AllocateStrains(RAJA::MemoryPool< Real_t > &pool,
+   void AllocateStrains(lulesh2::MemoryPool< Real_t > &pool,
                         Int_t numElem)
    {
       (void) pool ;
@@ -313,7 +313,7 @@ class Domain {
       m_dzz.allocate(numElem) ;
    }
 
-   void DeallocateStrains(RAJA::MemoryPool< Real_t > &pool)
+   void DeallocateStrains(lulesh2::MemoryPool< Real_t > &pool)
    {
       (void) pool ;
 
