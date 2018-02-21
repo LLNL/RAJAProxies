@@ -22,11 +22,6 @@
 
 #include "RAJA/RAJA.hpp"
 
-//
-//   RAJA IndexSet type used in loop traversals.
-//
-typedef RAJA::IndexSet LULESH_ISET;
-
 
 //**************************************************
 // Allow flexibility for arithmetic representations
@@ -226,7 +221,7 @@ class Domain {
       m_vnew = Allocate<Real_t>(numElem) ;
    }
 
-   void AllocateGradients(RAJA::MemoryPool< Real_t> &pool,
+   void AllocateGradients(lulesh2::MemoryPool< Real_t> &pool,
                           Index_t numElem, Index_t allElem)
    {
       // Position gradients
@@ -240,7 +235,7 @@ class Domain {
       m_delv_zeta = pool.allocate(allElem) ;
    }
 
-   void DeallocateGradients(RAJA::MemoryPool< Real_t> &pool)
+   void DeallocateGradients(lulesh2::MemoryPool< Real_t> &pool)
    {
       pool.release(&m_delv_zeta) ;
       pool.release(&m_delv_eta) ;
@@ -251,7 +246,7 @@ class Domain {
       pool.release(&m_delx_xi) ;
    }
 
-   void AllocateStrains(RAJA::MemoryPool< Real_t > &pool,
+   void AllocateStrains(lulesh2::MemoryPool< Real_t > &pool,
                         Index_t numElem)
    {
       m_dxx = pool.allocate(numElem) ;
@@ -259,7 +254,7 @@ class Domain {
       m_dzz = pool.allocate(numElem) ;
    }
 
-   void DeallocateStrains(RAJA::MemoryPool< Real_t > &pool)
+   void DeallocateStrains(lulesh2::MemoryPool< Real_t > &pool)
    {
       pool.release(&m_dzz) ;
       pool.release(&m_dyy) ;

@@ -1,5 +1,13 @@
 
 #include "RAJA/RAJA.hpp"
+
+//
+//   RAJA IndexSet type used in loop traversals.
+//
+using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
+                                        RAJA::ListSegment,
+                                        RAJA::RangeStrideSegment>;
+
 #include "luleshPolicy.hpp"
 #include "luleshMemory.hpp"
 

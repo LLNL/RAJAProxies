@@ -162,7 +162,7 @@ Additional BSD Notice
 //#define RAJA_STORAGE 
 
 /* Manage temporary allocations with a pool */
-RAJA::MemoryPool< Real_t > elemMemPool ;
+lulesh2::MemoryPool< Real_t > elemMemPool ;
 
 /******************************************/
 

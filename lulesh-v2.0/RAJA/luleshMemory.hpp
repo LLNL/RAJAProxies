@@ -20,7 +20,7 @@ inline T *Allocate(size_t size)
 }
 
 template <typename EXEC_POLICY_T, typename T>
-inline T *AllocateTouch(RAJA::IndexSet *is, size_t size)
+inline T *AllocateTouch(LULESH_ISET *is, size_t size)
 {
    T *retVal = nullptr;
    cudaErrchk( cudaMallocManaged((void **)&retVal, sizeof(T)*size, cudaMemAttachGlobal) ) ;
@@ -62,7 +62,7 @@ inline T *Allocate(size_t size)
 }
 
 template <typename EXEC_POLICY_T, typename T>
-inline T *AllocateTouch(RAJA::IndexSet *is, size_t size)
+inline T *AllocateTouch(LULESH_ISET *is, size_t size)
 {
    T *retVal = nullptr;
    posix_memalign((void **)&retVal, RAJA::DATA_ALIGN, sizeof(T)*size);
@@ -100,7 +100,7 @@ inline void Release(T * __restrict__ *ptr)
 /* Memory Pool                    */
 /**********************************/
 
-namespace RAJA {
+namespace lulesh2 {
 
 template <typename VARTYPE >
 struct MemoryPool {
