@@ -185,6 +185,10 @@ void VerifyAndWriteFinalOutput(Real_t elapsed_time,
    Index_t elemId ;
    Index_t *iperm = new Index_t[locDom.numElem()] ;
 
+   #if defined(RAJA_ENABLE_CHAI)
+   auto locDom_e = (Real_t*) locDom.e();
+   #endif
+
    for (Index_t i=0; i<locDom.numElem(); ++i) {
       iperm[locDom.perm(i)] = i ;
    }

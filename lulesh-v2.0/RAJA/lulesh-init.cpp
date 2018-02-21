@@ -44,9 +44,11 @@ Domain::Domain(Int_t numRanks, Index_t colLoc,
    m_regElemlist(0),
    m_perm(0)
 #if defined(OMP_FINE_SYNC)
+#ifndef RAJA_ENABLE_CHAI
    ,
    m_nodeElemStart(0),
    m_nodeElemCornerList(0)
+#endif
 #endif
 #if USE_MPI
    ,
@@ -282,6 +284,8 @@ Domain::Domain(Int_t numRanks, Index_t colLoc,
    //set initial deltatime base on analytic CFL calculation
    deltatime() = (Real_t(.5)*cbrt(volo(0)))/sqrt(Real_t(2.0)*einit);
 
+   registerFirstTouch();
+
 } // End constructor
 
 
@@ -290,8 +294,13 @@ Domain::~Domain()
 {
    delete [] m_regNumList;
 #if defined(OMP_FINE_SYNC)
+#ifdef RAJA_ENABLE_CHAI
+   m_nodeElemStart.free() ;
+   m_nodeElemCornerList.free() ;
+#else
    Release(&m_nodeElemStart) ;
    Release(&m_nodeElemCornerList) ;
+#endif
 #endif
    delete [] m_regElemSize;
    if (numReg() != 1) {
@@ -388,7 +397,11 @@ Domain::SetupThreadSupportStructures()
     }
   }
 
+#ifdef RAJA_ENABLE_CHAI
+  m_nodeElemStart.allocate(numNode()+1) ;
+#else
   m_nodeElemStart = Allocate<Index_t>(numNode()+1) ;
+#endif
 
   m_nodeElemStart[0] = 0;
 
@@ -397,7 +410,11 @@ Domain::SetupThreadSupportStructures()
       m_nodeElemStart[i-1] + nodeElemCount[i-1] ;
   }
 
+#ifdef RAJA_ENABLE_CHAI
+  m_nodeElemCornerList.allocate(m_nodeElemStart[numNode()]);
+#else
   m_nodeElemCornerList = Allocate<Index_t>(m_nodeElemStart[numNode()]);
+#endif
 
   for (Index_t i=0; i < numNode(); ++i) {
     nodeElemCount[i] = 0;

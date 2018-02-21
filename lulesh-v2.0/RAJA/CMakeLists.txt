@@ -32,6 +32,12 @@ if (ENABLE_CUDA)
     cuda)
 endif ()
 
+if (ENABLE_CHAI)
+  set (lulesh_depends
+    ${lulesh_depends}
+    chai)
+endif ()
+
 blt_add_executable(
   NAME lulesh-v2.0-RAJA-seq.exe
   SOURCES ${lulesh_sources}

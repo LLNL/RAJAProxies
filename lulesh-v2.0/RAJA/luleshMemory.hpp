@@ -105,21 +105,41 @@ namespace RAJA {
 template <typename VARTYPE >
 struct MemoryPool {
 public:
+#ifdef RAJA_ENABLE_CHAI
+   typedef chai::ManagedArray<VARTYPE>  POOLTYPE;
+   typedef POOLTYPE&                    RETTYPE;
+#else
+   typedef VARTYPE* POOLTYPE;
+   typedef VARTYPE* RETTYPE;
+#endif
+
    MemoryPool()
    {
       for (int i=0; i<32; ++i) {
          lenType[i] = 0 ;
+#ifdef RAJA_ENABLE_CHAI
+#else
          ptr[i] = 0 ;
+#endif
       }
    }
 
-   VARTYPE *allocate(int len) {
-      VARTYPE *retVal = nullptr;
-      int i ;
+   RETTYPE allocate(int len) {
+#ifdef RAJA_ENABLE_CHAI
+      POOLTYPE *retVal = nullptr;
+#else
+      POOLTYPE retVal = nullptr;
+#endif
+      int i = 0;
       for (i=0; i<32; ++i) {
          if (lenType[i] == len) {
             lenType[i] = -lenType[i] ;
+#ifdef RAJA_ENABLE_CHAI
+            retVal = &ptr[i] ;
+#else
             retVal = ptr[i] ;
+#endif
+
 #if 0
             /* migrate smallest lengths to be first in list */
             /* since longer lengths can amortize lookup cost */
@@ -136,24 +156,36 @@ public:
          }
          else if (lenType[i] == 0) {
             lenType[i] = -len ;
+#ifdef RAJA_ENABLE_CHAI
+            ptr[i].allocate(len) ;
+            retVal = &ptr[i] ;
+#else
             ptr[i] = Allocate<VARTYPE>(len) ;
             retVal = ptr[i] ;
+#endif
             break ;
          }
       }
       if (i == 32) {
          retVal = 0 ;  /* past max available pointers */
       }
+#ifdef RAJA_ENABLE_CHAI
+      return *retVal ;
+#else
       return retVal ;
+#endif
    }
 
-   bool release(VARTYPE **oldPtr) {
+   bool release(POOLTYPE *oldPtr) {
       int i ;
       bool success = true ;
       for (i=0; i<32; ++i) {
          if (ptr[i] == *oldPtr) {
             lenType[i] = -lenType[i] ;
+#ifdef RAJA_ENABLE_CHAI
+#else
             *oldPtr = 0 ;
+#endif
             break ;
          }
       }
@@ -163,7 +195,9 @@ public:
       return success ;
    }
 
-   bool release(VARTYPE * __restrict__ *oldPtr) {
+#ifdef RAJA_ENABLE_CHAI
+#else
+   bool release(POOLTYPE __restrict__ *oldPtr) {
       int i ;
       bool success = true ;
       for (i=0; i<32; ++i) {
@@ -178,8 +212,9 @@ public:
       }
       return success ; 
    }
+#endif
 
-   VARTYPE *ptr[32] ; 
+   POOLTYPE ptr[32] ; 
    int lenType[32] ;
 } ;
 
