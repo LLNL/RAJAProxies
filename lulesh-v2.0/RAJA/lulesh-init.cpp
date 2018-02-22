@@ -290,13 +290,24 @@ Domain::Domain(Int_t numRanks, Index_t colLoc,
 
 
 ////////////////////////////////////////////////////////////////////////////////
+#ifdef RAJA_ENABLE_CHAI
+void Domain::destroy()
+#else
 Domain::~Domain()
+#endif
 {
    delete [] m_regNumList;
 #if defined(OMP_FINE_SYNC)
 #ifdef RAJA_ENABLE_CHAI
    m_nodeElemStart.free() ;
    m_nodeElemCornerList.free() ;
+   delete m_domNodeISet;
+   delete m_domElemISet;
+   delete m_domElemRegISet;
+   delete m_domXSymNodeISet;
+   delete m_domYSymNodeISet;
+   delete m_domZSymNodeISet;
+   delete m_domRegISet;
 #else
    Release(&m_nodeElemStart) ;
    Release(&m_nodeElemCornerList) ;
@@ -507,8 +518,10 @@ void
 Domain::CreateMeshIndexSets()
 {
    // leave nodes and elems in canonical ordering for now...
-   m_domNodeISet.push_back( RAJA::RangeSegment(0, numNode()) );
-   m_domElemISet.push_back( RAJA::RangeSegment(0, numElem()) );
+   m_domNodeISet = new LULESH_ISET();
+   m_domNodeISet->push_back( RAJA::RangeSegment(0, numNode()) );
+   m_domElemISet = new LULESH_ISET();
+   m_domElemISet->push_back( RAJA::RangeSegment(0, numElem()) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -530,15 +543,17 @@ Domain::CreateRegionIndexSets(Int_t nr, Int_t balance)
    //if we only have one region just fill it
    // Fill out the regNumList with material numbers, which are always
    // the region index plus one
+   m_domElemRegISet = new LULESH_ISET();
+   m_domRegISet = new std::vector<LULESH_ISET>();
    if(numReg() == 1) {
       while (nextIndex < numElem()) {
          this->regNumList(nextIndex) = 1;
          nextIndex++;
       }
       regElemSize(0) = numElem();
-      m_domRegISet.resize(numReg());
-      m_domRegISet[0].push_back( RAJA::RangeSegment(0, regElemSize(0)) ) ;
-      m_domElemRegISet.push_back( RAJA::RangeSegment(0, regElemSize(0)) ) ;
+      m_domRegISet->resize(numReg());
+      (*m_domRegISet)[0].push_back( RAJA::RangeSegment(0, regElemSize(0)) ) ;
+      m_domElemRegISet->push_back( RAJA::RangeSegment(0, regElemSize(0)) ) ;
 #if !defined(LULESH_LIST_INDEXSET)
       for (int i=0; i<numElem(); ++i) {
          perm(i) = i ;
@@ -631,17 +646,17 @@ Domain::CreateRegionIndexSets(Int_t nr, Int_t balance)
       }
 
       // Create HybridISets for regions
-      m_domRegISet.resize(numReg());
+      m_domRegISet->resize(numReg());
       int elemCount = 0 ;
       for (int r = 0; r < numReg(); ++r) {
 #if !defined(LULESH_LIST_INDEXSET)
          memcpy( &perm(elemCount), regElemlist(r), sizeof(Index_t)*regElemSize(r) ) ;
-         m_domRegISet[r].push_back( RAJA::RangeSegment(elemCount, elemCount+regElemSize(r)) );
-         m_domElemRegISet.push_back( RAJA::RangeSegment(elemCount, elemCount+regElemSize(r)) ) ;
+         (*m_domRegISet)[r].push_back( RAJA::RangeSegment(elemCount, elemCount+regElemSize(r)) );
+         m_domElemRegISet->push_back( RAJA::RangeSegment(elemCount, elemCount+regElemSize(r)) ) ;
          elemCount += regElemSize(r) ;
 #else
-         m_domRegISet[r].push_back( RAJA::ListSegment(regElemlist(r), regElemSize(r)) );
-         m_domElemRegISet.push_back( RAJA::ListSegment(regElemlist(r), regElemSize(r)) ) ;
+         (*m_domRegISet)[r].push_back( RAJA::ListSegment(regElemlist(r), regElemSize(r)) );
+         m_domElemRegISet->push_back( RAJA::ListSegment(regElemlist(r), regElemSize(r)) ) ;
 #endif
       }
 
@@ -669,7 +684,8 @@ void
 Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
 {
   if (m_planeLoc == 0) {
-    m_domZSymNodeISet.push_back( RAJA::RangeSegment(0, edgeNodes*edgeNodes) );
+    m_domZSymNodeISet = new LULESH_ISET();
+    m_domZSymNodeISet->push_back( RAJA::RangeSegment(0, edgeNodes*edgeNodes) );
   }
   if (m_rowLoc == 0) {
     Index_t *nset = new Index_t[edgeNodes*edgeNodes] ;
@@ -680,7 +696,8 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
         nset[nidx++] = planeInc + j ;
       }
     }
-    m_domYSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes) );
+    m_domYSymNodeISet = new LULESH_ISET();
+    m_domYSymNodeISet->push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes) );
     delete [] nset ;
   }
   if (m_colLoc == 0) {
@@ -692,7 +709,8 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
         nset[nidx++] = planeInc + j*edgeNodes ;
       }
     }
-    m_domXSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes) );
+    m_domXSymNodeISet = new LULESH_ISET();
+    m_domXSymNodeISet->push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes) );
     delete [] nset ;
   }
 }

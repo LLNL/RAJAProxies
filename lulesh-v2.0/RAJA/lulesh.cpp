@@ -229,9 +229,7 @@ void TimeIncrement(Domain& domain)
 /******************************************/
 
 RAJA_STORAGE
-void CollectDomainNodesToElemNodes(const Real_p& d_x,
-                                   const Real_p& d_y,
-                                   const Real_p& d_z,
+void CollectDomainNodesToElemNodes(Domain& domain,
                                    const Index_t* elemToNode,
                                    Real_t elemX[8],
                                    Real_t elemY[8],
@@ -246,50 +244,48 @@ void CollectDomainNodesToElemNodes(const Real_p& d_x,
    Index_t nd6i = elemToNode[6] ;
    Index_t nd7i = elemToNode[7] ;
 
-   elemX[0] = d_x[nd0i];
-   elemX[1] = d_x[nd1i];
-   elemX[2] = d_x[nd2i];
-   elemX[3] = d_x[nd3i];
-   elemX[4] = d_x[nd4i];
-   elemX[5] = d_x[nd5i];
-   elemX[6] = d_x[nd6i];
-   elemX[7] = d_x[nd7i];
+   elemX[0] = domain.x(nd0i);
+   elemX[1] = domain.x(nd1i);
+   elemX[2] = domain.x(nd2i);
+   elemX[3] = domain.x(nd3i);
+   elemX[4] = domain.x(nd4i);
+   elemX[5] = domain.x(nd5i);
+   elemX[6] = domain.x(nd6i);
+   elemX[7] = domain.x(nd7i);
 
-   elemY[0] = d_y[nd0i];
-   elemY[1] = d_y[nd1i];
-   elemY[2] = d_y[nd2i];
-   elemY[3] = d_y[nd3i];
-   elemY[4] = d_y[nd4i];
-   elemY[5] = d_y[nd5i];
-   elemY[6] = d_y[nd6i];
-   elemY[7] = d_y[nd7i];
+   elemY[0] = domain.y(nd0i);
+   elemY[1] = domain.y(nd1i);
+   elemY[2] = domain.y(nd2i);
+   elemY[3] = domain.y(nd3i);
+   elemY[4] = domain.y(nd4i);
+   elemY[5] = domain.y(nd5i);
+   elemY[6] = domain.y(nd6i);
+   elemY[7] = domain.y(nd7i);
 
-   elemZ[0] = d_z[nd0i];
-   elemZ[1] = d_z[nd1i];
-   elemZ[2] = d_z[nd2i];
-   elemZ[3] = d_z[nd3i];
-   elemZ[4] = d_z[nd4i];
-   elemZ[5] = d_z[nd5i];
-   elemZ[6] = d_z[nd6i];
-   elemZ[7] = d_z[nd7i];
+   elemZ[0] = domain.z(nd0i);
+   elemZ[1] = domain.z(nd1i);
+   elemZ[2] = domain.z(nd2i);
+   elemZ[3] = domain.z(nd3i);
+   elemZ[4] = domain.z(nd4i);
+   elemZ[5] = domain.z(nd5i);
+   elemZ[6] = domain.z(nd6i);
+   elemZ[7] = domain.z(nd7i);
+
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void InitStressTermsForElems(Domain* domain,
+void InitStressTermsForElems(Domain& domain,
                              Real_p& sigxx, Real_p& sigyy, Real_p& sigzz)
 {
    //
    // pull in the stresses appropriate to the hydro integration
    //
 
-   auto d_p = domain->p();
-   auto d_q = domain->q();
-
-   RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-      [=] LULESH_DEVICE (int i) {
-      sigxx[i] = sigyy[i] = sigzz[i] =  - d_p[i] - d_q[i] ;
+   RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+      [=] LULESH_DEVICE (int i) mutable {
+      sigxx[i] = sigyy[i] = sigzz[i] =  - domain.p(i) - domain.q(i) ;
    } );
 }
 
@@ -504,7 +500,7 @@ void SumElemStressesToNodeForces( const Real_t B[][8],
 /******************************************/
 
 RAJA_STORAGE
-void IntegrateStressForElems( Domain* domain,
+void IntegrateStressForElems( Domain& domain,
                               Real_p& sigxx, Real_p& sigyy, Real_p& sigzz,
                               Real_p& determ, Index_t numElem)
 {
@@ -514,19 +510,10 @@ void IntegrateStressForElems( Domain* domain,
   auto fz_elem = elemMemPool.allocate(numElem*8) ;
 #endif
 
-  auto d_nodelist = domain->nodelist();
-  auto d_x = domain->x();
-  auto d_y = domain->y();
-  auto d_z = domain->z();
-
-  auto d_fx = domain->fx();
-  auto d_fy = domain->fy();
-  auto d_fz = domain->fz();
-
   // loop over all elements
-  RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-     [=] LULESH_DEVICE (int k) {
-    const Index_t* const elemToNode = &(d_nodelist[8*k]);
+  RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+     [=] LULESH_DEVICE (int k) mutable {
+    const Index_t* const elemToNode = domain.nodelist(k);
     Real_t B[3][8] __attribute__((aligned(32))) ;// shape function derivatives
     Real_t x_local[8] __attribute__((aligned(32))) ;
     Real_t y_local[8] __attribute__((aligned(32))) ;
@@ -538,7 +525,7 @@ void IntegrateStressForElems( Domain* domain,
 #endif
 
     // get nodal coordinates from global arrays and copy into local arrays.
-    CollectDomainNodesToElemNodes(d_x, d_y, d_z, elemToNode,
+    CollectDomainNodesToElemNodes(domain, elemToNode,
                                   x_local, y_local, z_local);
 
     // Volume calculation involves extra work for numerical consistency
@@ -560,20 +547,18 @@ void IntegrateStressForElems( Domain* domain,
     // copy nodal force contributions to global force arrray.
     for( Index_t lnode=0 ; lnode<8 ; ++lnode ) {
        Index_t gnode = elemToNode[lnode];
-       d_fx[gnode] += fx_local[lnode];
-       d_fy[gnode] += fy_local[lnode];
-       d_fz[gnode] += fz_local[lnode];
+       domain.fx(gnode) += fx_local[lnode];
+       domain.fy(gnode) += fy_local[lnode];
+       domain.fz(gnode) += fz_local[lnode];
     }
 #endif
   } );
 
 #if defined(OMP_FINE_SYNC)
-  auto d_nodeElemStart = domain->nodeElemStart();
-  auto d_nodeElemCornerList = domain->nodeElemCornerList();
-  RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-                                 [=] LULESH_DEVICE (int gnode) {
-     Index_t count = d_nodeElemStart[gnode+1] - d_nodeElemStart[gnode] ;
-     Index_t *cornerList = &d_nodeElemCornerList[d_nodeElemStart[gnode]] ;
+  RAJA::forall<node_exec_policy>(domain.getNodeISet(),
+                                 [=] LULESH_DEVICE (int gnode) mutable {
+     Index_t count = domain.nodeElemCount(gnode) ;
+     Index_t *cornerList = domain.nodeElemCornerList(gnode) ;
      Real_t fx_sum = Real_t(0.0) ;
      Real_t fy_sum = Real_t(0.0) ;
      Real_t fz_sum = Real_t(0.0) ;
@@ -583,9 +568,9 @@ void IntegrateStressForElems( Domain* domain,
         fy_sum += fy_elem[ielem] ;
         fz_sum += fz_elem[ielem] ;
      }
-     d_fx[gnode] = fx_sum ;
-     d_fy[gnode] = fy_sum ;
-     d_fz[gnode] = fz_sum ;
+     domain.fx(gnode) = fx_sum ;
+     domain.fy(gnode) = fy_sum ;
+     domain.fz(gnode) = fz_sum ;
   } );
 
   elemMemPool.release(&fz_elem) ;
@@ -719,7 +704,7 @@ void CalcElemFBHourglassForce(Real_t *xd, Real_t *yd, Real_t *zd,  Real_t hourga
 /******************************************/
 
 RAJA_STORAGE
-void CalcFBHourglassForceForElems( Domain* domain,
+void CalcFBHourglassForceForElems( Domain& domain,
                                    Real_p& determ,
                                    Real_p& x8n, Real_p& y8n, Real_p& z8n,
                                    Real_p& dvdx, Real_p& dvdy, Real_p& dvdz,
@@ -742,17 +727,8 @@ void CalcFBHourglassForceForElems( Domain* domain,
 /*    compute the hourglass modes */
 
 
-   auto d_nodelist = domain->nodelist();
-   auto d_fx = domain->fx();
-   auto d_fy = domain->fy();
-   auto d_fz = domain->fz();
-   auto d_elemMass = domain->elemMass();
-   auto d_ss = domain->ss();
-   auto d_xd = domain->xd();
-   auto d_yd = domain->yd();
-   auto d_zd = domain->zd();
-   RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-      [=] LULESH_DEVICE (int i2) {
+   RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+      [=] LULESH_DEVICE (int i2) mutable {
 
 #if !defined(OMP_FINE_SYNC)
       Real_t hgfx[8], hgfy[8], hgfz[8] ;
@@ -779,8 +755,8 @@ void CalcFBHourglassForceForElems( Domain* domain,
           Real_t( 1.), Real_t(-1.), Real_t( 1.), Real_t(-1.) }
       } ;
 
+      const Index_t *elemToNode = domain.nodelist(i2);
       Index_t i3=8*i2;
-      const Index_t *elemToNode = &(d_nodelist[i3]);
       Real_t volinv=Real_t(1.0)/determ[i2];
       Real_t ss1, mass1, volume13 ;
       for(Index_t i1=0;i1<4;++i1){
@@ -840,8 +816,8 @@ void CalcFBHourglassForceForElems( Domain* domain,
       /* compute forces */
       /* store forces into h arrays (force arrays) */
 
-      ss1=d_ss[i2];
-      mass1=d_elemMass[i2];
+      ss1=domain.ss(i2);
+      mass1=domain.elemMass(i2);
       volume13=CBRT(determ[i2]);
 
       Index_t n0si2 = elemToNode[0];
@@ -853,32 +829,32 @@ void CalcFBHourglassForceForElems( Domain* domain,
       Index_t n6si2 = elemToNode[6];
       Index_t n7si2 = elemToNode[7];
 
-      xd1[0] = d_xd[n0si2];
-      xd1[1] = d_xd[n1si2];
-      xd1[2] = d_xd[n2si2];
-      xd1[3] = d_xd[n3si2];
-      xd1[4] = d_xd[n4si2];
-      xd1[5] = d_xd[n5si2];
-      xd1[6] = d_xd[n6si2];
-      xd1[7] = d_xd[n7si2];
+      xd1[0] = domain.xd(n0si2);
+      xd1[1] = domain.xd(n1si2);
+      xd1[2] = domain.xd(n2si2);
+      xd1[3] = domain.xd(n3si2);
+      xd1[4] = domain.xd(n4si2);
+      xd1[5] = domain.xd(n5si2);
+      xd1[6] = domain.xd(n6si2);
+      xd1[7] = domain.xd(n7si2);
 
-      yd1[0] = d_yd[n0si2];
-      yd1[1] = d_yd[n1si2];
-      yd1[2] = d_yd[n2si2];
-      yd1[3] = d_yd[n3si2];
-      yd1[4] = d_yd[n4si2];
-      yd1[5] = d_yd[n5si2];
-      yd1[6] = d_yd[n6si2];
-      yd1[7] = d_yd[n7si2];
+      yd1[0] = domain.yd(n0si2);
+      yd1[1] = domain.yd(n1si2);
+      yd1[2] = domain.yd(n2si2);
+      yd1[3] = domain.yd(n3si2);
+      yd1[4] = domain.yd(n4si2);
+      yd1[5] = domain.yd(n5si2);
+      yd1[6] = domain.yd(n6si2);
+      yd1[7] = domain.yd(n7si2);
 
-      zd1[0] = d_zd[n0si2];
-      zd1[1] = d_zd[n1si2];
-      zd1[2] = d_zd[n2si2];
-      zd1[3] = d_zd[n3si2];
-      zd1[4] = d_zd[n4si2];
-      zd1[5] = d_zd[n5si2];
-      zd1[6] = d_zd[n6si2];
-      zd1[7] = d_zd[n7si2];
+      zd1[0] = domain.zd(n0si2);
+      zd1[1] = domain.zd(n1si2);
+      zd1[2] = domain.zd(n2si2);
+      zd1[3] = domain.zd(n3si2);
+      zd1[4] = domain.zd(n4si2);
+      zd1[5] = domain.zd(n5si2);
+      zd1[6] = domain.zd(n6si2);
+      zd1[7] = domain.zd(n7si2);
 
       coefficient = - hourg * Real_t(0.01) * ss1 * mass1 / volume13;
 
@@ -891,48 +867,46 @@ void CalcFBHourglassForceForElems( Domain* domain,
                               );
 
 #if !defined(OMP_FINE_SYNC)
-      d_fx[n0si2] += hgfx[0];
-      d_fy[n0si2] += hgfy[0];
-      d_fz[n0si2] += hgfz[0];
+      domain.fx(n0si2) += hgfx[0];
+      domain.fy(n0si2) += hgfy[0];
+      domain.fz(n0si2) += hgfz[0];
 
-      d_fx[n1si2] += hgfx[1];
-      d_fy[n1si2] += hgfy[1];
-      d_fz[n1si2] += hgfz[1];
+      domain.fx(n1si2) += hgfx[1];
+      domain.fy(n1si2) += hgfy[1];
+      domain.fz(n1si2) += hgfz[1];
 
-      d_fx[n2si2] += hgfx[2];
-      d_fy[n2si2] += hgfy[2];
-      d_fz[n2si2] += hgfz[2];
+      domain.fx(n2si2) += hgfx[2];
+      domain.fy(n2si2) += hgfy[2];
+      domain.fz(n2si2) += hgfz[2];
 
-      d_fx[n3si2] += hgfx[3];
-      d_fy[n3si2] += hgfy[3];
-      d_fz[n3si2] += hgfz[3];
+      domain.fx(n3si2) += hgfx[3];
+      domain.fy(n3si2) += hgfy[3];
+      domain.fz(n3si2) += hgfz[3];
 
-      d_fx[n4si2] += hgfx[4];
-      d_fy[n4si2] += hgfy[4];
-      d_fz[n4si2] += hgfz[4];
+      domain.fx(n4si2) += hgfx[4];
+      domain.fy(n4si2) += hgfy[4];
+      domain.fz(n4si2) += hgfz[4];
 
-      d_fx[n5si2] += hgfx[5];
-      d_fy[n5si2] += hgfy[5];
-      d_fz[n5si2] += hgfz[5];
+      domain.fx(n5si2) += hgfx[5];
+      domain.fy(n5si2) += hgfy[5];
+      domain.fz(n5si2) += hgfz[5];
 
-      d_fx[n6si2] += hgfx[6];
-      d_fy[n6si2] += hgfy[6];
-      d_fz[n6si2] += hgfz[6];
+      domain.fx(n6si2) += hgfx[6];
+      domain.fy(n6si2) += hgfy[6];
+      domain.fz(n6si2) += hgfz[6];
 
-      d_fx[n7si2] += hgfx[7];
-      d_fy[n7si2] += hgfy[7];
-      d_fz[n7si2] += hgfz[7];
+      domain.fx(n7si2) += hgfx[7];
+      domain.fy(n7si2) += hgfy[7];
+      domain.fz(n7si2) += hgfz[7];
 #endif
    } );
 
 #if defined(OMP_FINE_SYNC)
    // Collect the data from the local arrays into the final force arrays
-   auto d_nodeElemStart = domain->nodeElemStart();
-   auto d_nodeElemCornerList = domain->nodeElemCornerList();
-   RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-                                  [=] LULESH_DEVICE (int gnode) {
-      Index_t count = d_nodeElemStart[gnode+1] - d_nodeElemStart[gnode] ;
-      Index_t *cornerList = &d_nodeElemCornerList[d_nodeElemStart[gnode]] ;
+   RAJA::forall<node_exec_policy>(domain.getNodeISet(),
+                                  [=] LULESH_DEVICE (int gnode) mutable {
+      Index_t count = domain.nodeElemCount(gnode) ;
+      Index_t *cornerList = domain.nodeElemCornerList(gnode) ;
       Real_t fx_sum = Real_t(0.0) ;
       Real_t fy_sum = Real_t(0.0) ;
       Real_t fz_sum = Real_t(0.0) ;
@@ -942,9 +916,9 @@ void CalcFBHourglassForceForElems( Domain* domain,
          fy_sum += fy_elem[ielem] ;
          fz_sum += fz_elem[ielem] ;
       }
-      d_fx[gnode] += fx_sum ;
-      d_fy[gnode] += fy_sum ;
-      d_fz[gnode] += fz_sum ;
+      domain.fx(gnode) += fx_sum ;
+      domain.fy(gnode) += fy_sum ;
+      domain.fz(gnode) += fz_sum ;
    } );
 
    elemMemPool.release(&fz_elem) ;
@@ -956,10 +930,10 @@ void CalcFBHourglassForceForElems( Domain* domain,
 /******************************************/
 
 RAJA_STORAGE
-void CalcHourglassControlForElems(Domain* domain,
+void CalcHourglassControlForElems(Domain& domain,
                                   Real_p& determ, Real_t hgcoef)
 {
-   Index_t numElem = domain->numElem() ;
+   Index_t numElem = domain.numElem() ;
    Index_t numElem8 = numElem * 8 ;
    auto dvdx = elemMemPool.allocate(numElem8) ;
    auto dvdy = elemMemPool.allocate(numElem8) ;
@@ -971,28 +945,20 @@ void CalcHourglassControlForElems(Domain* domain,
    // For negative element volume check
    RAJA::ReduceMin<reduce_policy, Real_t> minvol(Real_t(1.0e+20));
 
-   auto d_nodelist = domain->nodelist();
-   auto d_v = domain->v();
-   auto d_volo = domain->volo();
-   auto d_x = domain->x();
-   auto d_y = domain->y();
-   auto d_z = domain->z();
-
    /* start loop over elements */
-   RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-        [=] LULESH_DEVICE (int i) {
+   RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+        [=] LULESH_DEVICE (int i) mutable {
 #if 1
       /* This variant makes overall runtime 2% faster on CPU */
       Real_t  x1[8],  y1[8],  z1[8] ;
       Real_t pfx[8], pfy[8], pfz[8] ;
 
-      Index_t* elemToNode = &(d_nodelist[8*i]);
-      CollectDomainNodesToElemNodes(d_x, d_y, d_z, elemToNode, x1, y1, z1);
+      Index_t* elemToNode = domain.nodelist(i);
+      CollectDomainNodesToElemNodes(domain, elemToNode, x1, y1, z1);
 
       CalcElemVolumeDerivative(pfx, pfy, pfz, x1, y1, z1);
 
       /* load into temporary storage for FB Hour Glass control */
-
       for(Index_t ii=0;ii<8;++ii) {
          Index_t jj=8*i+ii;
 
@@ -1003,23 +969,22 @@ void CalcHourglassControlForElems(Domain* domain,
          y8n[jj]  = y1[ii];
          z8n[jj]  = z1[ii];
       }
-
 #else
       /* This variant is likely GPU friendly */
-      //Index_t* elemToNode = domain->nodelist(i);
-      Index_t* elemToNode = &(d_nodelist[8*i]);
-      CollectDomainNodesToElemNodes(d_x, d_y, d_z, elemToNode,
+      Index_t* elemToNode = domain.nodelist(i);
+      CollectDomainNodesToElemNodes(domain, elemToNode,
                                     &x8n[8*i], &y8n[8*i], &z8n[8*i]);
 
       CalcElemVolumeDerivative(&dvdx[8*i], &dvdy[8*i], &dvdz[8*i],
                                &x8n[8*i], &y8n[8*i], &z8n[8*i]);
 #endif
 
-      determ[i] = d_volo[i] * d_v[i];
+      determ[i] = domain.volo(i) * domain.v(i);
 
-      minvol.min(d_v[i]);
+      minvol.min(domain.v(i));
 
    } );
+
    /* Do a check for negative volumes */
    if ( Real_t(minvol) <= Real_t(0.0) ) {
 #if USE_MPI         
@@ -1048,11 +1013,11 @@ void CalcHourglassControlForElems(Domain* domain,
 /******************************************/
 
 RAJA_STORAGE
-void CalcVolumeForceForElems(Domain* domain)
+void CalcVolumeForceForElems(Domain& domain)
 {
-   Index_t numElem = domain->numElem() ;
+   Index_t numElem = domain.numElem() ;
    if (numElem != 0) {
-      Real_t  hgcoef = domain->hgcoef() ;
+      Real_t  hgcoef = domain.hgcoef() ;
       auto sigxx = elemMemPool.allocate(numElem) ;
       auto sigyy = elemMemPool.allocate(numElem) ;
       auto sigzz = elemMemPool.allocate(numElem) ;
@@ -1068,8 +1033,8 @@ void CalcVolumeForceForElems(Domain* domain)
 
       // check for negative element volume
       RAJA::ReduceMin<reduce_policy, Real_t> minvol(Real_t(1.0e+20));
-      RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-           [=] LULESH_DEVICE (int k) {
+      RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+           [=] LULESH_DEVICE (int k) mutable {
          minvol.min(determ[k]);
       } );
 
@@ -1092,22 +1057,19 @@ void CalcVolumeForceForElems(Domain* domain)
 
 /******************************************/
 
-RAJA_STORAGE void CalcForceForNodes(Domain* domain)
+RAJA_STORAGE void CalcForceForNodes(Domain& domain)
 {
 #if USE_MPI  
-  CommRecv(*domain, MSG_COMM_SBN, 3,
-           domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() + 1,
+  CommRecv(domain, MSG_COMM_SBN, 3,
+           domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
            true, false) ;
 #endif  
 
-  auto d_fx = domain->fx();
-  auto d_fy = domain->fy();
-  auto d_fz = domain->fz();
-  RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-       [=] LULESH_DEVICE (int i) {
-     d_fx[i] = Real_t(0.0) ;
-     d_fy[i] = Real_t(0.0) ;
-     d_fz[i] = Real_t(0.0) ;
+  RAJA::forall<node_exec_policy>(domain.getNodeISet(),
+       [=] LULESH_DEVICE (int i) mutable {
+     domain.fx(i) = Real_t(0.0) ;
+     domain.fy(i) = Real_t(0.0) ;
+     domain.fz(i) = Real_t(0.0) ;
   } );
 
   /* Calcforce calls partial, force, hourq */
@@ -1120,123 +1082,101 @@ RAJA_STORAGE void CalcForceForNodes(Domain* domain)
   fieldData[2] = &Domain::fz ;
   
   #if defined(RAJA_ENABLE_CHAI)
-  d_fx = (Real_t*) domain->fx();
-  d_fy = (Real_t*) domain->fy();
-  d_fz = (Real_t*) domain->fz();
+  auto d_fx = (Real_t*) domain.fx();
+  auto d_fy = (Real_t*) domain.fy();
+  auto d_fz = (Real_t*) domain.fz();
   #endif
 
-  CommSend(*domain, MSG_COMM_SBN, 3, fieldData,
-           domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() +  1,
+  CommSend(domain, MSG_COMM_SBN, 3, fieldData,
+           domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() +  1,
            true, false) ;
-  CommSBN(*domain, 3, fieldData) ;
+  CommSBN(domain, 3, fieldData) ;
 #endif  
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void CalcAccelerationForNodes(Domain* domain)
+void CalcAccelerationForNodes(Domain& domain)
 {
    
-   auto d_fx = domain->fx();
-   auto d_fy = domain->fy();
-   auto d_fz = domain->fz();
-   auto d_xdd = domain->xdd();
-   auto d_ydd = domain->ydd();
-   auto d_zdd = domain->zdd();
-   auto d_nodalMass = domain->nodalMass();
-   RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-        [=] LULESH_DEVICE (int i) {
-      d_xdd[i] = d_fx[i] / d_nodalMass[i];
-      d_ydd[i] = d_fy[i] / d_nodalMass[i];
-      d_zdd[i] = d_fz[i] / d_nodalMass[i];
+   RAJA::forall<node_exec_policy>(domain.getNodeISet(),
+        [=] LULESH_DEVICE (int i) mutable {
+      domain.xdd(i) = domain.fx(i) / domain.nodalMass(i);
+      domain.ydd(i) = domain.fy(i) / domain.nodalMass(i);
+      domain.zdd(i) = domain.fz(i) / domain.nodalMass(i);
    } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void ApplyAccelerationBoundaryConditionsForNodes(Domain* domain)
+void ApplyAccelerationBoundaryConditionsForNodes(Domain& domain)
 {
-   auto d_xdd = domain->xdd();
-   auto d_ydd = domain->ydd();
-   auto d_zdd = domain->zdd();
-   RAJA::forall<symnode_exec_policy>(domain->getXSymNodeISet(),
-        [=] LULESH_DEVICE (int i) {
-      d_xdd[i] = Real_t(0.0) ;
+   RAJA::forall<symnode_exec_policy>(domain.getXSymNodeISet(),
+        [=] LULESH_DEVICE (int i) mutable {
+      domain.xdd(i) = Real_t(0.0) ;
    } );
 
-   RAJA::forall<symnode_exec_policy>(domain->getYSymNodeISet(),
-        [=] LULESH_DEVICE (int i) {
-      d_ydd[i] = Real_t(0.0) ;
+   RAJA::forall<symnode_exec_policy>(domain.getYSymNodeISet(),
+        [=] LULESH_DEVICE (int i) mutable {
+      domain.ydd(i) = Real_t(0.0) ;
    } );
 
-   RAJA::forall<symnode_exec_policy>(domain->getZSymNodeISet(),
-        [=] LULESH_DEVICE (int i) {
-      d_zdd[i] = Real_t(0.0) ;
+   RAJA::forall<symnode_exec_policy>(domain.getZSymNodeISet(),
+        [=] LULESH_DEVICE (int i) mutable {
+      domain.zdd(i) = Real_t(0.0) ;
    } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void CalcVelocityForNodes(Domain* domain, const Real_t dt, const Real_t u_cut)
+void CalcVelocityForNodes(Domain& domain, const Real_t dt, const Real_t u_cut)
 {
 
-   auto d_xd = domain->xd();
-   auto d_yd = domain->yd();
-   auto d_zd = domain->zd();
-   auto d_xdd = domain->xdd();
-   auto d_ydd = domain->ydd();
-   auto d_zdd = domain->zdd();
-   RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-       [=] LULESH_DEVICE (int i) {
+   RAJA::forall<node_exec_policy>(domain.getNodeISet(),
+       [=] LULESH_DEVICE (int i) mutable {
      Real_t xdtmp, ydtmp, zdtmp ;
 
-     xdtmp = d_xd[i] + d_xdd[i] * dt ;
+     xdtmp = domain.xd(i) + domain.xdd(i) * dt ;
      if( FABS(xdtmp) < u_cut ) xdtmp = Real_t(0.0);
-     d_xd[i] = xdtmp ;
+     domain.xd(i) = xdtmp ;
 
-     ydtmp = d_yd[i] + d_ydd[i] * dt ;
+     ydtmp = domain.yd(i) + domain.ydd(i) * dt ;
      if( FABS(ydtmp) < u_cut ) ydtmp = Real_t(0.0);
-     d_yd[i] = ydtmp ;
+     domain.yd(i) = ydtmp ;
 
-     zdtmp = d_zd[i] + d_zdd[i] * dt ;
+     zdtmp = domain.zd(i) + domain.zdd(i) * dt ;
      if( FABS(zdtmp) < u_cut ) zdtmp = Real_t(0.0);
-     d_zd[i] = zdtmp ;
+     domain.zd(i) = zdtmp ;
    } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void CalcPositionForNodes(Domain* domain, const Real_t dt)
+void CalcPositionForNodes(Domain& domain, const Real_t dt)
 {
-   auto d_x = domain->x();
-   auto d_y = domain->y();
-   auto d_z = domain->z();
-   auto d_xd = domain->xd();
-   auto d_yd = domain->yd();
-   auto d_zd = domain->zd();
-   RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-       [=] LULESH_DEVICE (int i) {
-     d_x[i] += d_xd[i] * dt ;
-     d_y[i] += d_yd[i] * dt ;
-     d_z[i] += d_zd[i] * dt ;
+   RAJA::forall<node_exec_policy>(domain.getNodeISet(),
+       [=] LULESH_DEVICE (int i) mutable {
+     domain.x(i) += domain.xd(i) * dt ;
+     domain.y(i) += domain.yd(i) * dt ;
+     domain.z(i) += domain.zd(i) * dt ;
    } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void LagrangeNodal(Domain* domain)
+void LagrangeNodal(Domain& domain)
 {
 #if defined(SEDOV_SYNC_POS_VEL_EARLY)
    Domain_member fieldData[6] ;
 #endif
 
-   const Real_t delt = domain->deltatime() ;
-   Real_t u_cut = domain->u_cut() ;
+   const Real_t delt = domain.deltatime() ;
+   Real_t u_cut = domain.u_cut() ;
 
   /* time of boundary condition evaluation is beginning of step for force and
    * acceleration boundary conditions. */
@@ -1244,8 +1184,8 @@ void LagrangeNodal(Domain* domain)
 
 #if USE_MPI  
 #if defined(SEDOV_SYNC_POS_VEL_EARLY)
-   CommRecv(*domain, MSG_SYNC_POS_VEL, 6,
-            domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() + 1,
+   CommRecv(domain, MSG_SYNC_POS_VEL, 6,
+            domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
             false, false) ;
 #endif
 #endif
@@ -1267,18 +1207,18 @@ void LagrangeNodal(Domain* domain)
   fieldData[5] = &Domain::zd ;
 
   #if defined(RAJA_ENABLE_CHAI)
-  auto d_x = (Real_t*) domain->x();
-  auto d_y = (Real_t*) domain->y();
-  auto d_z = (Real_t*) domain->z();
-  auto d_xd = (Real_t*) domain->xd();
-  auto d_yd = (Real_t*) domain->yd();
-  auto d_zd = (Real_t*) domain->zd();
+  auto d_x = (Real_t*) domain.x();
+  auto d_y = (Real_t*) domain.y();
+  auto d_z = (Real_t*) domain.z();
+  auto d_xd = (Real_t*) domain.xd();
+  auto d_yd = (Real_t*) domain.yd();
+  auto d_zd = (Real_t*) domain.zd();
   #endif
 
-   CommSend(*domain, MSG_SYNC_POS_VEL, 6, fieldData,
-            domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() + 1,
+   CommSend(domain, MSG_SYNC_POS_VEL, 6, fieldData,
+            domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
             false, false) ;
-   CommSyncPosVel(*domain) ;
+   CommSyncPosVel(domain) ;
 #endif
 #endif
    
@@ -1524,28 +1464,13 @@ void CalcElemVelocityGradient( const Real_t* const xvel,
 /******************************************/
 
 //RAJA_STORAGE
-void CalcKinematicsForElems( Domain* domain,
+void CalcKinematicsForElems( Domain& domain,
                              Real_t deltaTime, Index_t RAJA_UNUSED_ARG(numElem) )
 {
 
-  auto d_nodelist = domain->nodelist();
-  auto d_x  = domain->x();
-  auto d_y  = domain->y();
-  auto d_z  = domain->z();
-  auto d_xd = domain->xd();
-  auto d_yd = domain->yd();
-  auto d_zd = domain->zd();
-  auto d_dxx = domain->dxx();
-  auto d_dyy = domain->dyy();
-  auto d_dzz = domain->dzz();
-  auto d_v = domain->v();
-  auto d_volo = domain->volo();
-  auto d_vnew = domain->vnew();
-  auto d_delv = domain->delv();
-  auto d_arealg = domain->arealg();
   // loop over all elements
-  RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-      [=] LULESH_DEVICE (int k) { 
+  RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+      [=] LULESH_DEVICE (int k) mutable { 
     Real_t B[3][8] ; /** shape function derivatives */
     Real_t D[6] ;
     Real_t x_local[8] ;
@@ -1558,28 +1483,28 @@ void CalcKinematicsForElems( Domain* domain,
 
     Real_t volume ;
     Real_t relativeVolume ;
-    const Index_t* const elemToNode = &(d_nodelist[8*k]);
+    const Index_t* const elemToNode = domain.nodelist(k) ;
 
     // get nodal coordinates from global arrays and copy into local arrays.
-    CollectDomainNodesToElemNodes(d_x, d_y, d_z, elemToNode, x_local, y_local, z_local);
+    CollectDomainNodesToElemNodes(domain, elemToNode, x_local, y_local, z_local);
 
     // volume calculations
     volume = CalcElemVolume(x_local, y_local, z_local );
-    relativeVolume = volume / d_volo[k] ;
-    d_vnew[k] = relativeVolume ;
-    d_delv[k] = relativeVolume - d_v[k] ;
+    relativeVolume = volume / domain.volo(k) ;
+    domain.vnew(k) = relativeVolume ;
+    domain.delv(k) = relativeVolume - domain.v(k) ;
 
     // set characteristic length
-    d_arealg[k] = CalcElemCharacteristicLength(x_local, y_local, z_local,
+    domain.arealg(k) = CalcElemCharacteristicLength(x_local, y_local, z_local,
                                              volume);
 
     // get nodal velocities from global array and copy into local arrays.
     for( Index_t lnode=0 ; lnode<8 ; ++lnode )
     {
       Index_t gnode = elemToNode[lnode];
-      xd_local[lnode] = d_xd[gnode];
-      yd_local[lnode] = d_yd[gnode];
-      zd_local[lnode] = d_zd[gnode]; 
+      xd_local[lnode] = domain.xd(gnode);
+      yd_local[lnode] = domain.yd(gnode);
+      zd_local[lnode] = domain.zd(gnode); 
     }
 
     Real_t dt2 = Real_t(0.5) * deltaTime;
@@ -1597,28 +1522,22 @@ void CalcKinematicsForElems( Domain* domain,
                                B, detJ, D );
 
     // put velocity gradient quantities into their global arrays.
-    d_dxx[k] = D[0];
-    d_dyy[k] = D[1];
-    d_dzz[k] = D[2];
+    domain.dxx(k) = D[0];
+    domain.dyy(k) = D[1];
+    domain.dzz(k) = D[2];
   } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void CalcLagrangeElements(Domain* domain)
+void CalcLagrangeElements(Domain& domain)
 {
-   Index_t numElem = domain->numElem() ;
-   auto d_vdov = domain->vdov();
-   auto d_vnew = domain->vnew();
-
+   Index_t numElem = domain.numElem() ;
    if (numElem > 0) {
-      const Real_t deltatime = domain->deltatime() ;
+      const Real_t deltatime = domain.deltatime() ;
 
-      domain->AllocateStrains(elemMemPool, numElem);
-      auto d_dxx = domain->dxx();
-      auto d_dyy = domain->dyy();
-      auto d_dzz = domain->dzz();
+      domain.AllocateStrains(elemMemPool, numElem);
 
       CalcKinematicsForElems(domain, deltatime, numElem) ;
 
@@ -1626,19 +1545,19 @@ void CalcLagrangeElements(Domain* domain)
       RAJA::ReduceMin<reduce_policy, Real_t> minvol(Real_t(1.0e+20));
 
       // element loop to do some stuff not included in the elemlib function.
-      RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-           [=] LULESH_DEVICE (int k) {
+      RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+           [=] LULESH_DEVICE (int k) mutable {
          // calc strain rate and apply as constraint (only done in FB element)
-         Real_t vdov = d_dxx[k] + d_dyy[k] + d_dzz[k] ;
+         Real_t vdov = domain.dxx(k) + domain.dyy(k) + domain.dzz(k) ;
          Real_t vdovthird = vdov/Real_t(3.0) ;
 
          // make the rate of deformation tensor deviatoric
-         d_vdov[k] = vdov ;
-         d_dxx[k] -= vdovthird ;
-         d_dyy[k] -= vdovthird ;
-         d_dzz[k] -= vdovthird ;
+         domain.vdov(k) = vdov ;
+         domain.dxx(k) -= vdovthird ;
+         domain.dyy(k) -= vdovthird ;
+         domain.dzz(k) -= vdovthird ;
 
-         minvol.min(d_vnew[k]);
+         minvol.min(domain.vnew(k));
       } );
 
       if (Real_t(minvol) <= Real_t(0.0)) {
@@ -1649,37 +1568,22 @@ void CalcLagrangeElements(Domain* domain)
 #endif
       }
 
-      domain->DeallocateStrains(elemMemPool);
+      domain.DeallocateStrains(elemMemPool);
    }
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void CalcMonotonicQGradientsForElems(Domain* domain)
+void CalcMonotonicQGradientsForElems(Domain& domain)
 {
-   auto d_nodelist = domain->nodelist();
-   auto d_x = domain->x();
-   auto d_y = domain->y();
-   auto d_z = domain->z();
-   auto d_xd = domain->xd();
-   auto d_yd = domain->yd();
-   auto d_zd = domain->zd();
-   auto d_volo = domain->volo();
-   auto d_vnew = domain->vnew();
-   auto d_delx_xi = domain->delx_xi();
-   auto d_delx_eta = domain->delx_eta();
-   auto d_delx_zeta = domain->delx_zeta();
-   auto d_delv_xi = domain->delv_xi();
-   auto d_delv_eta = domain->delv_eta();
-   auto d_delv_zeta = domain->delv_zeta();
-   RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-        [=] LULESH_DEVICE (int i) {
+   RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+        [=] LULESH_DEVICE (int i) mutable {
       const Real_t ptiny = Real_t(1.e-36) ;
       Real_t ax,ay,az ;
       Real_t dxv,dyv,dzv ;
 
-      const Index_t *elemToNode = &(d_nodelist[8*i]);
+      const Index_t *elemToNode = domain.nodelist(i);
       Index_t n0 = elemToNode[0] ;
       Index_t n1 = elemToNode[1] ;
       Index_t n2 = elemToNode[2] ;
@@ -1689,61 +1593,61 @@ void CalcMonotonicQGradientsForElems(Domain* domain)
       Index_t n6 = elemToNode[6] ;
       Index_t n7 = elemToNode[7] ;
 
-      Real_t x0 = d_x[n0] ;
-      Real_t x1 = d_x[n1] ;
-      Real_t x2 = d_x[n2] ;
-      Real_t x3 = d_x[n3] ;
-      Real_t x4 = d_x[n4] ;
-      Real_t x5 = d_x[n5] ;
-      Real_t x6 = d_x[n6] ;
-      Real_t x7 = d_x[n7] ;
+      Real_t x0 = domain.x(n0) ;
+      Real_t x1 = domain.x(n1) ;
+      Real_t x2 = domain.x(n2) ;
+      Real_t x3 = domain.x(n3) ;
+      Real_t x4 = domain.x(n4) ;
+      Real_t x5 = domain.x(n5) ;
+      Real_t x6 = domain.x(n6) ;
+      Real_t x7 = domain.x(n7) ;
 
-      Real_t y0 = d_y[n0] ;
-      Real_t y1 = d_y[n1] ;
-      Real_t y2 = d_y[n2] ;
-      Real_t y3 = d_y[n3] ;
-      Real_t y4 = d_y[n4] ;
-      Real_t y5 = d_y[n5] ;
-      Real_t y6 = d_y[n6] ;
-      Real_t y7 = d_y[n7] ;
+      Real_t y0 = domain.y(n0) ;
+      Real_t y1 = domain.y(n1) ;
+      Real_t y2 = domain.y(n2) ;
+      Real_t y3 = domain.y(n3) ;
+      Real_t y4 = domain.y(n4) ;
+      Real_t y5 = domain.y(n5) ;
+      Real_t y6 = domain.y(n6) ;
+      Real_t y7 = domain.y(n7) ;
 
-      Real_t z0 = d_z[n0] ;
-      Real_t z1 = d_z[n1] ;
-      Real_t z2 = d_z[n2] ;
-      Real_t z3 = d_z[n3] ;
-      Real_t z4 = d_z[n4] ;
-      Real_t z5 = d_z[n5] ;
-      Real_t z6 = d_z[n6] ;
-      Real_t z7 = d_z[n7] ;
+      Real_t z0 = domain.z(n0) ;
+      Real_t z1 = domain.z(n1) ;
+      Real_t z2 = domain.z(n2) ;
+      Real_t z3 = domain.z(n3) ;
+      Real_t z4 = domain.z(n4) ;
+      Real_t z5 = domain.z(n5) ;
+      Real_t z6 = domain.z(n6) ;
+      Real_t z7 = domain.z(n7) ;
 
-      Real_t xv0 = d_xd[n0] ;
-      Real_t xv1 = d_xd[n1] ;
-      Real_t xv2 = d_xd[n2] ;
-      Real_t xv3 = d_xd[n3] ;
-      Real_t xv4 = d_xd[n4] ;
-      Real_t xv5 = d_xd[n5] ;
-      Real_t xv6 = d_xd[n6] ;
-      Real_t xv7 = d_xd[n7] ;
+      Real_t xv0 = domain.xd(n0) ;
+      Real_t xv1 = domain.xd(n1) ;
+      Real_t xv2 = domain.xd(n2) ;
+      Real_t xv3 = domain.xd(n3) ;
+      Real_t xv4 = domain.xd(n4) ;
+      Real_t xv5 = domain.xd(n5) ;
+      Real_t xv6 = domain.xd(n6) ;
+      Real_t xv7 = domain.xd(n7) ;
 
-      Real_t yv0 = d_yd[n0] ;
-      Real_t yv1 = d_yd[n1] ;
-      Real_t yv2 = d_yd[n2] ;
-      Real_t yv3 = d_yd[n3] ;
-      Real_t yv4 = d_yd[n4] ;
-      Real_t yv5 = d_yd[n5] ;
-      Real_t yv6 = d_yd[n6] ;
-      Real_t yv7 = d_yd[n7] ;
+      Real_t yv0 = domain.yd(n0) ;
+      Real_t yv1 = domain.yd(n1) ;
+      Real_t yv2 = domain.yd(n2) ;
+      Real_t yv3 = domain.yd(n3) ;
+      Real_t yv4 = domain.yd(n4) ;
+      Real_t yv5 = domain.yd(n5) ;
+      Real_t yv6 = domain.yd(n6) ;
+      Real_t yv7 = domain.yd(n7) ;
 
-      Real_t zv0 = d_zd[n0] ;
-      Real_t zv1 = d_zd[n1] ;
-      Real_t zv2 = d_zd[n2] ;
-      Real_t zv3 = d_zd[n3] ;
-      Real_t zv4 = d_zd[n4] ;
-      Real_t zv5 = d_zd[n5] ;
-      Real_t zv6 = d_zd[n6] ;
-      Real_t zv7 = d_zd[n7] ;
+      Real_t zv0 = domain.zd(n0) ;
+      Real_t zv1 = domain.zd(n1) ;
+      Real_t zv2 = domain.zd(n2) ;
+      Real_t zv3 = domain.zd(n3) ;
+      Real_t zv4 = domain.zd(n4) ;
+      Real_t zv5 = domain.zd(n5) ;
+      Real_t zv6 = domain.zd(n6) ;
+      Real_t zv7 = domain.zd(n7) ;
 
-      Real_t vol = d_volo[i]*d_vnew[i] ;
+      Real_t vol = domain.volo(i)*domain.vnew(i) ;
       Real_t norm = Real_t(1.0) / ( vol + ptiny ) ;
 
       Real_t dxj = Real_t(-0.25)*((x0+x1+x5+x4) - (x3+x2+x6+x7)) ;
@@ -1764,7 +1668,7 @@ void CalcMonotonicQGradientsForElems(Domain* domain)
       ay = dzi*dxj - dxi*dzj ;
       az = dxi*dyj - dyi*dxj ;
 
-      d_delx_zeta[i] = vol / SQRT(ax*ax + ay*ay + az*az + ptiny) ;
+      domain.delx_zeta(i) = vol / SQRT(ax*ax + ay*ay + az*az + ptiny) ;
 
       ax *= norm ;
       ay *= norm ;
@@ -1774,7 +1678,7 @@ void CalcMonotonicQGradientsForElems(Domain* domain)
       dyv = Real_t(0.25)*((yv4+yv5+yv6+yv7) - (yv0+yv1+yv2+yv3)) ;
       dzv = Real_t(0.25)*((zv4+zv5+zv6+zv7) - (zv0+zv1+zv2+zv3)) ;
 
-      d_delv_zeta[i] = ax*dxv + ay*dyv + az*dzv ;
+      domain.delv_zeta(i) = ax*dxv + ay*dyv + az*dzv ;
 
       /* find delxi and delvi ( j cross k ) */
 
@@ -1782,7 +1686,7 @@ void CalcMonotonicQGradientsForElems(Domain* domain)
       ay = dzj*dxk - dxj*dzk ;
       az = dxj*dyk - dyj*dxk ;
 
-      d_delx_xi[i] = vol / SQRT(ax*ax + ay*ay + az*az + ptiny) ;
+      domain.delx_xi(i) = vol / SQRT(ax*ax + ay*ay + az*az + ptiny) ;
 
       ax *= norm ;
       ay *= norm ;
@@ -1792,7 +1696,7 @@ void CalcMonotonicQGradientsForElems(Domain* domain)
       dyv = Real_t(0.25)*((yv1+yv2+yv6+yv5) - (yv0+yv3+yv7+yv4)) ;
       dzv = Real_t(0.25)*((zv1+zv2+zv6+zv5) - (zv0+zv3+zv7+zv4)) ;
 
-      d_delv_xi[i] = ax*dxv + ay*dyv + az*dzv ;
+      domain.delv_xi(i) = ax*dxv + ay*dyv + az*dzv ;
 
       /* find delxj and delvj ( k cross i ) */
 
@@ -1800,7 +1704,7 @@ void CalcMonotonicQGradientsForElems(Domain* domain)
       ay = dzk*dxi - dxk*dzi ;
       az = dxk*dyi - dyk*dxi ;
 
-      d_delx_eta[i] = vol / SQRT(ax*ax + ay*ay + az*az + ptiny) ;
+      domain.delx_eta(i) = vol / SQRT(ax*ax + ay*ay + az*az + ptiny) ;
 
       ax *= norm ;
       ay *= norm ;
@@ -1810,59 +1714,35 @@ void CalcMonotonicQGradientsForElems(Domain* domain)
       dyv = Real_t(-0.25)*((yv0+yv1+yv5+yv4) - (yv3+yv2+yv6+yv7)) ;
       dzv = Real_t(-0.25)*((zv0+zv1+zv5+zv4) - (zv3+zv2+zv6+zv7)) ;
 
-      d_delv_eta[i] = ax*dxv + ay*dyv + az*dzv ;
+      domain.delv_eta(i) = ax*dxv + ay*dyv + az*dzv ;
    } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
+void CalcMonotonicQRegionForElems(Domain& domain, Int_t r,
                                   Real_t ptiny)
 {
-   Real_t monoq_limiter_mult = domain->monoq_limiter_mult();
-   Real_t monoq_max_slope = domain->monoq_max_slope();
-   Real_t qlc_monoq = domain->qlc_monoq();
-   Real_t qqc_monoq = domain->qqc_monoq();
+   Real_t monoq_limiter_mult = domain.monoq_limiter_mult();
+   Real_t monoq_max_slope = domain.monoq_max_slope();
+   Real_t qlc_monoq = domain.qlc_monoq();
+   Real_t qqc_monoq = domain.qqc_monoq();
 
-   auto d_elemMass = domain->elemMass();
-   auto d_volo = domain->volo();
-   auto d_vnew = domain->vnew();
-   auto d_vdov = domain->vdov();
-
-   auto d_elemBC = domain->elemBC();
-
-   auto d_lxim = domain->lxim();
-   auto d_lxip = domain->lxip();
-   auto d_letam = domain->letam();
-   auto d_letap = domain->letap();
-   auto d_lzetam = domain->lzetam();
-   auto d_lzetap = domain->lzetap();
-
-   auto d_delx_xi = domain->delx_xi();
-   auto d_delx_eta = domain->delx_eta();
-   auto d_delx_zeta = domain->delx_zeta();
-   auto d_delv_xi = domain->delv_xi();
-   auto d_delv_eta = domain->delv_eta();
-   auto d_delv_zeta = domain->delv_zeta();
-
-   auto d_qq = domain->qq();
-   auto d_ql = domain->ql();
-
-   RAJA::forall<mat_exec_policy>(domain->getRegionISet(r),
-        [=] LULESH_DEVICE (int ielem) {
+   RAJA::forall<mat_exec_policy>(domain.getRegionISet(r),
+        [=] LULESH_DEVICE (int ielem) mutable {
       Real_t qlin, qquad ;
       Real_t phixi, phieta, phizeta ;
-      Int_t bcMask = d_elemBC[ielem] ;
+      Int_t bcMask = domain.elemBC(ielem) ;
       Real_t delvm = 0.0, delvp =0.0;
 
       /*  phixi     */
-      Real_t norm = Real_t(1.) / (d_delv_xi[ielem]+ ptiny ) ;
+      Real_t norm = Real_t(1.) / (domain.delv_xi(ielem)+ ptiny ) ;
 
       switch (bcMask & XI_M) {
          case XI_M_COMM: /* needs comm data */
-         case 0:         delvm = d_delv_xi[d_lxim[ielem]]; break ;
-         case XI_M_SYMM: delvm = d_delv_xi[ielem] ;       break ;
+         case 0:         delvm = domain.delv_xi(domain.lxim(ielem)); break ;
+         case XI_M_SYMM: delvm = domain.delv_xi(ielem) ;       break ;
          case XI_M_FREE: delvm = Real_t(0.0) ;      break ;
          default:        /* fprintf(stderr, "Error in switch at %s line %d\n",
                                    __FILE__, __LINE__); */
@@ -1871,8 +1751,8 @@ void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
       }
       switch (bcMask & XI_P) {
          case XI_P_COMM: /* needs comm data */
-         case 0:         delvp = d_delv_xi[d_lxip[ielem]] ; break ;
-         case XI_P_SYMM: delvp = d_delv_xi[ielem] ;       break ;
+         case 0:         delvp = domain.delv_xi(domain.lxip(ielem)) ; break ;
+         case XI_P_SYMM: delvp = domain.delv_xi(ielem) ;       break ;
          case XI_P_FREE: delvp = Real_t(0.0) ;      break ;
          default:        /* fprintf(stderr, "Error in switch at %s line %d\n",
                                    __FILE__, __LINE__); */
@@ -1895,12 +1775,12 @@ void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
 
 
       /*  phieta     */
-      norm = Real_t(1.) / ( d_delv_eta[ielem] + ptiny ) ;
+      norm = Real_t(1.) / ( domain.delv_eta(ielem) + ptiny ) ;
 
       switch (bcMask & ETA_M) {
          case ETA_M_COMM: /* needs comm data */
-         case 0:          delvm = d_delv_eta[d_letam[ielem]] ; break ;
-         case ETA_M_SYMM: delvm = d_delv_eta[ielem] ;        break ;
+         case 0:          delvm = domain.delv_eta(domain.letam(ielem)) ; break ;
+         case ETA_M_SYMM: delvm = domain.delv_eta(ielem) ;        break ;
          case ETA_M_FREE: delvm = Real_t(0.0) ;        break ;
          default:         /* fprintf(stderr, "Error in switch at %s line %d\n",
                                    __FILE__, __LINE__); */
@@ -1909,8 +1789,8 @@ void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
       }
       switch (bcMask & ETA_P) {
          case ETA_P_COMM: /* needs comm data */
-         case 0:          delvp = d_delv_eta[d_letap[ielem]] ; break ;
-         case ETA_P_SYMM: delvp = d_delv_eta[ielem] ;        break ;
+         case 0:          delvp = domain.delv_eta(domain.letap(ielem)) ; break ;
+         case ETA_P_SYMM: delvp = domain.delv_eta(ielem) ;        break ;
          case ETA_P_FREE: delvp = Real_t(0.0) ;        break ;
          default:         /* fprintf(stderr, "Error in switch at %s line %d\n",
                                    __FILE__, __LINE__); */
@@ -1932,12 +1812,12 @@ void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
       if ( phieta > monoq_max_slope)  phieta = monoq_max_slope;
 
       /*  phizeta     */
-      norm = Real_t(1.) / ( d_delv_zeta[ielem] + ptiny ) ;
+      norm = Real_t(1.) / ( domain.delv_zeta(ielem) + ptiny ) ;
 
       switch (bcMask & ZETA_M) {
          case ZETA_M_COMM: /* needs comm data */
-         case 0:           delvm = d_delv_zeta[d_lzetam[ielem]] ; break ;
-         case ZETA_M_SYMM: delvm = d_delv_zeta[ielem] ;         break ;
+         case 0:           delvm = domain.delv_zeta(domain.lzetam(ielem)) ; break ;
+         case ZETA_M_SYMM: delvm = domain.delv_zeta(ielem) ;         break ;
          case ZETA_M_FREE: delvm = Real_t(0.0) ;          break ;
          default:          /* fprintf(stderr, "Error in switch at %s line %d\n",
                                    __FILE__, __LINE__); */
@@ -1946,8 +1826,8 @@ void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
       }
       switch (bcMask & ZETA_P) {
          case ZETA_P_COMM: /* needs comm data */
-         case 0:           delvp = d_delv_zeta[d_lzetap[ielem]] ; break ;
-         case ZETA_P_SYMM: delvp = d_delv_zeta[ielem] ;         break ;
+         case 0:           delvp = domain.delv_zeta(domain.lzetap(ielem)) ; break ;
+         case ZETA_P_SYMM: delvp = domain.delv_zeta(ielem) ;         break ;
          case ZETA_P_FREE: delvp = Real_t(0.0) ;          break ;
          default:          /* fprintf(stderr, "Error in switch at %s line %d\n",
                                    __FILE__, __LINE__); */
@@ -1970,20 +1850,20 @@ void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
 
       /* Remove length scale */
 
-      if ( d_vdov[ielem] > Real_t(0.) )  {
+      if ( domain.vdov(ielem) > Real_t(0.) )  {
          qlin  = Real_t(0.) ;
          qquad = Real_t(0.) ;
       }
       else {
-         Real_t delvxxi   = d_delv_xi[ielem]   * d_delx_xi[ielem]   ;
-         Real_t delvxeta  = d_delv_eta[ielem]  * d_delx_eta[ielem]  ;
-         Real_t delvxzeta = d_delv_zeta[ielem] * d_delx_zeta[ielem] ;
+         Real_t delvxxi   = domain.delv_xi(ielem)   * domain.delx_xi(ielem)   ;
+         Real_t delvxeta  = domain.delv_eta(ielem)  * domain.delx_eta(ielem)  ;
+         Real_t delvxzeta = domain.delv_zeta(ielem) * domain.delx_zeta(ielem) ;
 
          if ( delvxxi   > Real_t(0.) ) delvxxi   = Real_t(0.) ;
          if ( delvxeta  > Real_t(0.) ) delvxeta  = Real_t(0.) ;
          if ( delvxzeta > Real_t(0.) ) delvxzeta = Real_t(0.) ;
 
-         Real_t rho = d_elemMass[ielem] / (d_volo[ielem] * d_vnew[ielem]) ;
+         Real_t rho = domain.elemMass(ielem) / (domain.volo(ielem) * domain.vnew(ielem)) ;
 
          qlin = -qlc_monoq * rho *
             (  delvxxi   * (Real_t(1.) - phixi) +
@@ -1996,15 +1876,15 @@ void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
                delvxzeta*delvxzeta * (Real_t(1.) - phizeta*phizeta)  ) ;
       }
 
-      d_qq[ielem] = qquad ;
-      d_ql[ielem] = qlin  ;
+      domain.qq(ielem) = qquad ;
+      domain.ql(ielem) = qlin  ;
    } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void CalcMonotonicQForElems(Domain* domain)
+void CalcMonotonicQForElems(Domain& domain)
 {  
    //
    // initialize parameters
@@ -2014,8 +1894,8 @@ void CalcMonotonicQForElems(Domain* domain)
    //
    // calculate the monotonic q for all regions
    //
-   for (Index_t r=0 ; r<domain->numReg() ; ++r) {
-      if (domain->regElemSize(r) > 0) {
+   for (Index_t r=0 ; r<domain.numReg() ; ++r) {
+      if (domain.regElemSize(r) > 0) {
          CalcMonotonicQRegionForElems(domain, r, ptiny) ;
       }
    }
@@ -2024,25 +1904,25 @@ void CalcMonotonicQForElems(Domain* domain)
 /******************************************/
 
 RAJA_STORAGE
-void CalcQForElems(Domain* domain)
+void CalcQForElems(Domain& domain)
 {
    //
    // MONOTONIC Q option
    //
 
-   Index_t numElem = domain->numElem() ;
+   Index_t numElem = domain.numElem() ;
 
    if (numElem != 0) {
       Int_t allElem = numElem +  /* local elem */
-            2*domain->sizeX()*domain->sizeY() + /* plane ghosts */
-            2*domain->sizeX()*domain->sizeZ() + /* row ghosts */
-            2*domain->sizeY()*domain->sizeZ() ; /* col ghosts */
+            2*domain.sizeX()*domain.sizeY() + /* plane ghosts */
+            2*domain.sizeX()*domain.sizeZ() + /* row ghosts */
+            2*domain.sizeY()*domain.sizeZ() ; /* col ghosts */
 
-      domain->AllocateGradients(elemMemPool, numElem, allElem);
+      domain.AllocateGradients(elemMemPool, numElem, allElem);
 
 #if USE_MPI
-      CommRecv(*domain, MSG_MONOQ, 3,
-               domain->sizeX(), domain->sizeY(), domain->sizeZ(),
+      CommRecv(domain, MSG_MONOQ, 3,
+               domain.sizeX(), domain.sizeY(), domain.sizeZ(),
                true, true) ;
 #endif      
 
@@ -2060,33 +1940,32 @@ void CalcQForElems(Domain* domain)
       fieldData[2] = &Domain::delv_zeta ;
 
       #if defined(RAJA_ENABLE_CHAI)
-      auto d_delv_xi = (Real_t*) domain->delv_xi();
-      auto d_delv_eta = (Real_t*) domain->delv_eta();
-      auto d_delv_zeta = (Real_t*) domain->delv_zeta();
+      auto d_delv_xi = (Real_t*) domain.delv_xi();
+      auto d_delv_eta = (Real_t*) domain.delv_eta();
+      auto d_delv_zeta = (Real_t*) domain.delv_zeta();
       #endif
 
-      CommSend(*domain, MSG_MONOQ, 3, fieldData,
-               domain->sizeX(), domain->sizeY(), domain->sizeZ(),
+      CommSend(domain, MSG_MONOQ, 3, fieldData,
+               domain.sizeX(), domain.sizeY(), domain.sizeZ(),
                true, true) ;
 
-      CommMonoQ(*domain) ;
+      CommMonoQ(domain) ;
 #endif      
 
       CalcMonotonicQForElems(domain) ;
 
       // Free up memory
-      domain->DeallocateGradients(elemMemPool);
+      domain.DeallocateGradients(elemMemPool);
 
       /* Don't allow excessive artificial viscosity */
       RAJA::ReduceMax<reduce_policy, Real_t>
-             maxQ(domain->qstop() - Real_t(1.0)) ;
-      auto d_q = domain->q();
-      RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-           [=] LULESH_DEVICE (int ielem) {
-         maxQ.max(d_q[ielem]) ;
+             maxQ(domain.qstop() - Real_t(1.0)) ;
+      RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+           [=] LULESH_DEVICE (int ielem) mutable {
+         maxQ.max(domain.q(ielem)) ;
       } ) ;
 
-      if ( Real_t(maxQ) > domain->qstop() ) {
+      if ( Real_t(maxQ) > domain.qstop() ) {
 #if USE_MPI         
          MPI_Abort(MPI_COMM_WORLD, QStopError) ;
 #else
@@ -2107,14 +1986,14 @@ void CalcPressureForElems(Real_p& p_new, Real_p& bvc,
                           LULESH_ISET& regISet)
 {
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {
+        [=] LULESH_DEVICE (int ielem) mutable {
       Real_t const  c1s = Real_t(2.0)/Real_t(3.0) ;
       bvc[ielem] = c1s * (compression[ielem] + Real_t(1.));
       pbvc[ielem] = c1s;
    } );
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {
+        [=] LULESH_DEVICE (int ielem) mutable {
       p_new[ielem] = bvc[ielem] * e_old[ielem] ;
 
       if    (FABS(p_new[ielem]) <  p_cut   )
@@ -2131,7 +2010,7 @@ void CalcPressureForElems(Real_p& p_new, Real_p& bvc,
 /******************************************/
 
 RAJA_STORAGE
-void CalcEnergyForElems(Domain* domain,
+void CalcEnergyForElems(Domain& domain,
                         Real_p& p_new, Real_p& e_new, Real_p& q_new,
                         Real_p& bvc, Real_p& pbvc,
                         Real_p& p_old,
@@ -2143,13 +2022,10 @@ void CalcEnergyForElems(Domain* domain,
                         Real_t eosvmax,
                         LULESH_ISET& regISet)
 {
-   auto d_e = domain->e();
-   auto d_q = domain->q();
-   auto d_delv = domain->delv();
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {  
-      e_new[ielem] = d_e[ielem]
-         - Real_t(0.5) * d_delv[ielem] * (p_old[ielem] + d_q[ielem])
+        [=] LULESH_DEVICE (int ielem) mutable {  
+      e_new[ielem] = domain.e(ielem)
+         - Real_t(0.5) * domain.delv(ielem) * (p_old[ielem] + domain.q(ielem))
          + Real_t(0.5) * work[ielem];
 
       if (e_new[ielem]  < emin ) {
@@ -2161,15 +2037,12 @@ void CalcEnergyForElems(Domain* domain,
                         pmin, p_cut, eosvmax, 
                         regISet);
 
-   auto d_qq = domain->qq();
-   auto d_ql = domain->ql();
-
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {  
+        [=] LULESH_DEVICE (int ielem) mutable {  
       Real_t vhalf = Real_t(1.) / (Real_t(1.) + compHalfStep[ielem]) ;
 
-      if ( d_delv[ielem] > Real_t(0.) ) {
-         q_new[ielem] /* = d_qq[ielem] = d_ql[ielem] */ = Real_t(0.);
+      if ( domain.delv(ielem) > Real_t(0.) ) {
+         q_new[ielem] /* = domain.qq(ielem) = domain.ql(ielem) */ = Real_t(0.);
       }
       else {
          Real_t ssc = ( pbvc[ielem] * e_new[ielem]
@@ -2181,16 +2054,16 @@ void CalcEnergyForElems(Domain* domain,
             ssc = SQRT(ssc) ;
          }
 
-         q_new[ielem] = (ssc*d_ql[ielem] + d_qq[ielem]) ;
+         q_new[ielem] = (ssc*domain.ql(ielem) + domain.qq(ielem)) ;
       }
 
-      e_new[ielem] = e_new[ielem] + Real_t(0.5) * d_delv[ielem]
-         * (  Real_t(3.0)*(p_old[ielem]     + d_q[ielem])
+      e_new[ielem] = e_new[ielem] + Real_t(0.5) * domain.delv(ielem)
+         * (  Real_t(3.0)*(p_old[ielem]     + domain.q(ielem))
               - Real_t(4.0)*(pHalfStep[ielem] + q_new[ielem])) ;
    } );
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {  
+        [=] LULESH_DEVICE (int ielem) mutable {  
       e_new[ielem] += Real_t(0.5) * work[ielem];
 
       if (FABS(e_new[ielem]) < e_cut) {
@@ -2206,11 +2079,11 @@ void CalcEnergyForElems(Domain* domain,
                         regISet);
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {  
+        [=] LULESH_DEVICE (int ielem) mutable {  
       const Real_t sixth = Real_t(1.0) / Real_t(6.0) ;
       Real_t q_tilde ;
 
-      if (d_delv[ielem] > Real_t(0.)) {
+      if (domain.delv(ielem) > Real_t(0.)) {
          q_tilde = Real_t(0.) ;
       }
       else {
@@ -2223,12 +2096,12 @@ void CalcEnergyForElems(Domain* domain,
             ssc = SQRT(ssc) ;
          }
 
-         q_tilde = (ssc*d_ql[ielem] + d_qq[ielem]) ;
+         q_tilde = (ssc*domain.ql(ielem) + domain.qq(ielem)) ;
       }
 
-      e_new[ielem] -= (  Real_t(7.0)*(p_old[ielem]     + d_q[ielem])
+      e_new[ielem] -= (  Real_t(7.0)*(p_old[ielem]     + domain.q(ielem))
                        - Real_t(8.0)*(pHalfStep[ielem] + q_new[ielem])
-                       + (p_new[ielem] + q_tilde)) * d_delv[ielem]*sixth ;
+                       + (p_new[ielem] + q_tilde)) * domain.delv(ielem)*sixth ;
 
       if (FABS(e_new[ielem]) < e_cut) {
          e_new[ielem] = Real_t(0.)  ;
@@ -2243,8 +2116,8 @@ void CalcEnergyForElems(Domain* domain,
                         regISet);
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {
-      if ( d_delv[ielem] <= Real_t(0.) ) {
+        [=] LULESH_DEVICE (int ielem) mutable {
+      if ( domain.delv(ielem) <= Real_t(0.) ) {
          Real_t ssc = ( pbvc[ielem] * e_new[ielem]
             + vnewc[ielem] * vnewc[ielem] * bvc[ielem] * p_new[ielem] ) / rho0;
 
@@ -2254,7 +2127,7 @@ void CalcEnergyForElems(Domain* domain,
             ssc = SQRT(ssc) ;
          }
 
-         q_new[ielem] = (ssc*d_ql[ielem] + d_qq[ielem]) ;
+         q_new[ielem] = (ssc*domain.ql(ielem) + domain.qq(ielem)) ;
 
          if (FABS(q_new[ielem]) < q_cut) q_new[ielem] = Real_t(0.) ;
       }
@@ -2266,15 +2139,14 @@ void CalcEnergyForElems(Domain* domain,
 /******************************************/
 
 RAJA_STORAGE
-void CalcSoundSpeedForElems(Domain* domain,
+void CalcSoundSpeedForElems(Domain& domain,
                             Real_p& vnewc, Real_t rho0, Real_p& enewc,
                             Real_p& pnewc, Real_p& pbvc,
                             Real_p& bvc, Real_t RAJA_UNUSED_ARG(ss4o3),
                             LULESH_ISET& regISet)
 {
-   auto d_ss = domain->ss();
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {
+        [=] LULESH_DEVICE (int ielem) mutable {
       Real_t ssTmp = (pbvc[ielem] * enewc[ielem] + vnewc[ielem] * vnewc[ielem] *
                  bvc[ielem] * pnewc[ielem]) / rho0;
       if (ssTmp <= Real_t(.1111111e-36)) {
@@ -2283,56 +2155,54 @@ void CalcSoundSpeedForElems(Domain* domain,
       else {
          ssTmp = SQRT(ssTmp);
       }
-      d_ss[ielem] = ssTmp ;
+      domain.ss(ielem) = ssTmp ;
    } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void EvalEOSForElems(Domain* domain,
+void EvalEOSForElems(Domain& domain,
                      Real_p& vnewc, Real_p& p_old,
                      Real_p& compression, Real_p& compHalfStep,
                      Real_p& work, Real_p& p_new, Real_p& e_new,
                      Real_p& q_new, Real_p& bvc, Real_p& pbvc,
                      Real_p& pHalfStep, Int_t reg_num, Int_t rep)
 {
-   Real_t  e_cut = domain->e_cut() ;
-   Real_t  p_cut = domain->p_cut() ;
-   Real_t  ss4o3 = domain->ss4o3() ;
-   Real_t  q_cut = domain->q_cut() ;
+   Real_t  e_cut = domain.e_cut() ;
+   Real_t  p_cut = domain.p_cut() ;
+   Real_t  ss4o3 = domain.ss4o3() ;
+   Real_t  q_cut = domain.q_cut() ;
 
-   Real_t eosvmax = domain->eosvmax() ;
-   Real_t eosvmin = domain->eosvmin() ;
-   Real_t pmin    = domain->pmin() ;
-   Real_t emin    = domain->emin() ;
-   Real_t rho0    = domain->refdens() ;
+   Real_t eosvmax = domain.eosvmax() ;
+   Real_t eosvmin = domain.eosvmin() ;
+   Real_t pmin    = domain.pmin() ;
+   Real_t emin    = domain.emin() ;
+   Real_t rho0    = domain.refdens() ;
 
-   LULESH_ISET& regISet = domain->getRegionISet(reg_num);
+   LULESH_ISET& regISet = domain.getRegionISet(reg_num);
  
    //loop to add load imbalance based on region number 
-   auto d_p = domain->p();
-   auto d_delv = domain->delv();
    for(Int_t j = 0; j < rep; j++) {
       /* compress data, minimal set */
       RAJA::forall<mat_exec_policy>(regISet,
-           [=] LULESH_DEVICE (Index_t ielem) {
-         p_old[ielem] = d_p[ielem] ;
+           [=] LULESH_DEVICE (Index_t ielem) mutable {
+         p_old[ielem] = domain.p(ielem) ;
          work[ielem] = Real_t(0.0) ;
       } );
 
       RAJA::forall<mat_exec_policy>(regISet,
-           [=] LULESH_DEVICE (Index_t ielem) {
+           [=] LULESH_DEVICE (Index_t ielem) mutable {
          Real_t vchalf ;
          compression[ielem] = Real_t(1.) / vnewc[ielem] - Real_t(1.);
-         vchalf = vnewc[ielem] - d_delv[ielem] * Real_t(.5);
+         vchalf = vnewc[ielem] - domain.delv(ielem) * Real_t(.5);
          compHalfStep[ielem] = Real_t(1.) / vchalf - Real_t(1.);
       } );
 
       /* Check for v > eosvmax or v < eosvmin */
       if ( eosvmin != Real_t(0.) ) {
          RAJA::forall<mat_exec_policy>(regISet,
-              [=] LULESH_DEVICE (Index_t ielem) {
+              [=] LULESH_DEVICE (Index_t ielem) mutable {
             if (vnewc[ielem] <= eosvmin) { /* impossible due to calling func? */
                compHalfStep[ielem] = compression[ielem] ;
             }
@@ -2341,7 +2211,7 @@ void EvalEOSForElems(Domain* domain,
 
       if ( eosvmax != Real_t(0.) ) {
          RAJA::forall<mat_exec_policy>(regISet,
-              [=] LULESH_DEVICE (Index_t ielem) {
+              [=] LULESH_DEVICE (Index_t ielem) mutable {
             if (vnewc[ielem] >= eosvmax) { /* impossible due to calling func? */
                p_old[ielem]        = Real_t(0.) ;
                compression[ielem]  = Real_t(0.) ;
@@ -2358,13 +2228,11 @@ void EvalEOSForElems(Domain* domain,
                          regISet);
    }
 
-   auto d_e = domain->e();
-   auto d_q = domain->q();
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (Index_t ielem) {
-      d_p[ielem] = p_new[ielem] ;
-      d_e[ielem] = e_new[ielem] ;
-      d_q[ielem] = q_new[ielem] ;
+        [=] LULESH_DEVICE (Index_t ielem) mutable {
+      domain.p(ielem) = p_new[ielem] ;
+      domain.e(ielem) = e_new[ielem] ;
+      domain.q(ielem) = q_new[ielem] ;
    } );
 
    CalcSoundSpeedForElems(domain,
@@ -2377,14 +2245,14 @@ void EvalEOSForElems(Domain* domain,
 /******************************************/
 
 RAJA_STORAGE
-void ApplyMaterialPropertiesForElems(Domain* domain)
+void ApplyMaterialPropertiesForElems(Domain& domain)
 {
-   Index_t numElem = domain->numElem() ;
+   Index_t numElem = domain.numElem() ;
 
   if (numElem != 0) {
     /* Expose all of the variables needed for material evaluation */
-    Real_t eosvmin = domain->eosvmin() ;
-    Real_t eosvmax = domain->eosvmax() ;
+    Real_t eosvmin = domain.eosvmin() ;
+    Real_t eosvmax = domain.eosvmax() ;
     auto vnewc = elemMemPool.allocate(numElem) ;
     auto p_old = elemMemPool.allocate(numElem) ;
     auto compression = elemMemPool.allocate(numElem) ;
@@ -2398,24 +2266,23 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
     auto pHalfStep = elemMemPool.allocate(numElem) ;
 
 
-    auto d_vnew = domain->vnew();
-    RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-         [=] LULESH_DEVICE (int i) {
-       vnewc[i] = d_vnew[i] ;
+    RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+         [=] LULESH_DEVICE (int i) mutable {
+       vnewc[i] = domain.vnew(i) ;
     } );
 
     // Bound the updated relative volumes with eosvmin/max
     if (eosvmin != Real_t(0.)) {
-       RAJA::forall<elem_exec_policy>(domain->getElemISet(), 
-            [=] LULESH_DEVICE (int i) {
+       RAJA::forall<elem_exec_policy>(domain.getElemISet(), 
+            [=] LULESH_DEVICE (int i) mutable {
           if (vnewc[i] < eosvmin)
              vnewc[i] = eosvmin ;
        } );
     }
 
     if (eosvmax != Real_t(0.)) {
-       RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-            [=] LULESH_DEVICE (int i) {
+       RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+            [=] LULESH_DEVICE (int i) mutable {
           if (vnewc[i] > eosvmax)
              vnewc[i] = eosvmax ;
        } );
@@ -2427,10 +2294,9 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
     // This check may not make perfect sense in LULESH, but
     // it's representative of something in the full code -
     // just leave it in, please
-    auto d_v = domain->v();
-    RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-         [=] LULESH_DEVICE (int i) {
-       Real_t vc = d_v[i] ;
+    RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+         [=] LULESH_DEVICE (int i) mutable {
+       Real_t vc = domain.v(i) ;
        if (eosvmin != Real_t(0.)) {
           if (vc < eosvmin)
              vc = -1.0 ;
@@ -2451,18 +2317,18 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
 #endif
     }
 
-    for (Int_t reg_num=0 ; reg_num < domain->numReg() ; reg_num++) {
+    for (Int_t reg_num=0 ; reg_num < domain.numReg() ; reg_num++) {
        Int_t rep;
        //Determine load imbalance for this region
        //round down the number with lowest cost
-       if(reg_num < domain->numReg()/2)
+       if(reg_num < domain.numReg()/2)
 	 rep = 1;
        //you don't get an expensive region unless you at least have 5 regions
-       else if(reg_num < (domain->numReg() - (domain->numReg()+15)/20))
-         rep = 1 + domain->cost();
+       else if(reg_num < (domain.numReg() - (domain.numReg()+15)/20))
+         rep = 1 + domain.cost();
        //very expensive regions
        else
-	 rep = 10 * (1+ domain->cost());
+	 rep = 10 * (1+ domain.cost());
        EvalEOSForElems(domain, vnewc, p_old, compression, compHalfStep,
                        work, p_new, e_new, q_new, bvc, pbvc, pHalfStep,
                        reg_num, rep);
@@ -2485,26 +2351,24 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
 /******************************************/
 
 RAJA_STORAGE
-void UpdateVolumesForElems(Domain* domain, 
+void UpdateVolumesForElems(Domain& domain, 
                            Real_t v_cut)
 {
-   auto d_v = domain->v();
-   auto d_vnew = domain->vnew();
-   RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-        [=] LULESH_DEVICE (int i) { 
-      Real_t tmpV = d_vnew[i] ;
+   RAJA::forall<elem_exec_policy>(domain.getElemISet(),
+        [=] LULESH_DEVICE (int i) mutable { 
+      Real_t tmpV = domain.vnew(i) ;
 
       if ( FABS(tmpV - Real_t(1.0)) < v_cut )
          tmpV = Real_t(1.0) ;
 
-      d_v[i] = tmpV ;
+      domain.v(i) = tmpV ;
    } );
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void LagrangeElements(Domain* domain, Index_t RAJA_UNUSED_ARG(numElem))
+void LagrangeElements(Domain& domain, Index_t RAJA_UNUSED_ARG(numElem))
 {
   CalcLagrangeElements(domain) ;
 
@@ -2514,35 +2378,31 @@ void LagrangeElements(Domain* domain, Index_t RAJA_UNUSED_ARG(numElem))
   ApplyMaterialPropertiesForElems(domain) ;
 
   UpdateVolumesForElems(domain,
-                        domain->v_cut()) ;
+                        domain.v_cut()) ;
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void CalcCourantConstraintForElems(Domain* domain, int reg_num,
+void CalcCourantConstraintForElems(Domain& domain, int reg_num,
                                    Real_t qqc, Real_t& dtcourant)
 {
    Real_t  qqc2 = Real_t(64.0) * qqc * qqc ;
 
    RAJA::ReduceMin<reduce_policy, Real_t> dtcourantLoc(dtcourant) ;
 
-   auto d_ss = domain->ss();
-   auto d_vdov = domain->vdov();
-   auto d_arealg = domain->arealg();
+   RAJA::forall<mat_exec_policy>(domain.getRegionISet(reg_num),
+        [=] LULESH_DEVICE (int indx) mutable {
 
-   RAJA::forall<mat_exec_policy>(domain->getRegionISet(reg_num),
-        [=] LULESH_DEVICE (int indx) {
+      Real_t dtf = domain.ss(indx) * domain.ss(indx) ;
 
-      Real_t dtf = d_ss[indx] * d_ss[indx] ;
-
-      if ( d_vdov[indx] < Real_t(0.) ) {
-         dtf += qqc2 * d_arealg[indx] * d_arealg[indx] *
-                d_vdov[indx] * d_vdov[indx] ;
+      if ( domain.vdov(indx) < Real_t(0.) ) {
+         dtf += qqc2 * domain.arealg(indx) * domain.arealg(indx) *
+                domain.vdov(indx) * domain.vdov(indx) ;
       }
 
-      Real_t dtf_cmp = (d_vdov[indx] != Real_t(0.))
-                     ?  d_arealg[indx] / SQRT(dtf) : Real_t(1.0e+20) ;
+      Real_t dtf_cmp = (domain.vdov(indx) != Real_t(0.))
+                     ?  domain.arealg(indx) / SQRT(dtf) : Real_t(1.0e+20) ;
 
       /* determine minimum timestep with its corresponding elem */
       dtcourantLoc.min(dtf_cmp) ;
@@ -2560,17 +2420,16 @@ void CalcCourantConstraintForElems(Domain* domain, int reg_num,
 /******************************************/
 
 RAJA_STORAGE
-void CalcHydroConstraintForElems(Domain* domain, int reg_num,
+void CalcHydroConstraintForElems(Domain& domain, int reg_num,
                                  Real_t dvovmax, Real_t& dthydro)
 {
    RAJA::ReduceMin<reduce_policy, Real_t> dthydroLoc(dthydro) ;
 
-   auto d_vdov = domain->vdov();
-   RAJA::forall<mat_exec_policy>(domain->getRegionISet(reg_num),
-         [=] LULESH_DEVICE (int indx) {
+   RAJA::forall<mat_exec_policy>(domain.getRegionISet(reg_num),
+         [=] LULESH_DEVICE (int indx) mutable {
 
-       Real_t dtvov_cmp = (d_vdov[indx] != Real_t(0.))
-                        ? (dvovmax / (FABS(d_vdov[indx])+Real_t(1.e-20)))
+       Real_t dtvov_cmp = (domain.vdov(indx) != Real_t(0.))
+                        ? (dvovmax / (FABS(domain.vdov(indx))+Real_t(1.e-20)))
                         : Real_t(1.0e+20) ;
 
       dthydroLoc.min(dtvov_cmp) ;
@@ -2587,29 +2446,29 @@ void CalcHydroConstraintForElems(Domain* domain, int reg_num,
 /******************************************/
 
 RAJA_STORAGE
-void CalcTimeConstraintsForElems(Domain* domain) {
+void CalcTimeConstraintsForElems(Domain& domain) {
 
    // Initialize conditions to a very large value
-   domain->dtcourant() = 1.0e+20;
-   domain->dthydro() = 1.0e+20;
+   domain.dtcourant() = 1.0e+20;
+   domain.dthydro() = 1.0e+20;
 
-   for (Index_t reg_num=0 ; reg_num < domain->numReg() ; ++reg_num) {
+   for (Index_t reg_num=0 ; reg_num < domain.numReg() ; ++reg_num) {
       /* evaluate time constraint */
       CalcCourantConstraintForElems(domain, reg_num,
-                                    domain->qqc(),
-                                    domain->dtcourant()) ;
+                                    domain.qqc(),
+                                    domain.dtcourant()) ;
 
       /* check hydro constraint */
       CalcHydroConstraintForElems(domain, reg_num,
-                                  domain->dvovmax(),
-                                  domain->dthydro()) ;
+                                  domain.dvovmax(),
+                                  domain.dthydro()) ;
    }
 }
 
 /******************************************/
 
 RAJA_STORAGE
-void LagrangeLeapFrog(Domain* domain)
+void LagrangeLeapFrog(Domain& domain)
 {
 #if defined(SEDOV_SYNC_POS_VEL_LATE)
    Domain_member fieldData[6] ;
@@ -2625,12 +2484,12 @@ void LagrangeLeapFrog(Domain* domain)
 
    /* calculate element quantities (i.e. velocity gradient & q), and update
     * material states */
-   LagrangeElements(domain, domain->numElem());
+   LagrangeElements(domain, domain.numElem());
 
 #if USE_MPI   
 #if defined(SEDOV_SYNC_POS_VEL_LATE)
-   CommRecv(*domain, MSG_SYNC_POS_VEL, 6,
-            domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() + 1,
+   CommRecv(domain, MSG_SYNC_POS_VEL, 6,
+            domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
             false, false) ; 
 
    fieldData[0] = &Domain::x ;
@@ -2641,16 +2500,16 @@ void LagrangeLeapFrog(Domain* domain)
    fieldData[5] = &Domain::zd ;
    
    #if defined(RAJA_ENABLE_CHAI)
-   auto d_x = (Real_t*) domain->x();
-   auto d_y = (Real_t*) domain->y();
-   auto d_z = (Real_t*) domain->z();
-   auto d_xd = (Real_t*) domain->xd();
-   auto d_yd = (Real_t*) domain->yd();
-   auto d_zd = (Real_t*) domain->zd();
+   auto d_x = (Real_t*) domain.x();
+   auto d_y = (Real_t*) domain.y();
+   auto d_z = (Real_t*) domain.z();
+   auto d_xd = (Real_t*) domain.xd();
+   auto d_yd = (Real_t*) domain.yd();
+   auto d_zd = (Real_t*) domain.zd();
    #endif
 
-   CommSend(*domain, MSG_SYNC_POS_VEL, 6, fieldData,
-            domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() + 1,
+   CommSend(domain, MSG_SYNC_POS_VEL, 6, fieldData,
+            domain.sizeX() + 1, domain.sizeY() + 1, domain.sizeZ() + 1,
             false, false) ;
 #endif
 #endif   
@@ -2659,7 +2518,7 @@ void LagrangeLeapFrog(Domain* domain)
 
 #if USE_MPI   
 #if defined(SEDOV_SYNC_POS_VEL_LATE)
-   CommSyncPosVel(*domain) ;
+   CommSyncPosVel(domain) ;
 #endif
 #endif   
 }
@@ -2763,7 +2622,7 @@ int main(int argc, char *argv[])
    while((locDom->time() < locDom->stoptime()) && (locDom->cycle() < opts.its)) {
 
       TimeIncrement(*locDom) ;
-      LagrangeLeapFrog(locDom) ;
+      LagrangeLeapFrog(*locDom) ;
 
       if ((opts.showProg != 0) && (opts.quiet == 0) && (myRank == 0)) {
          printf("cycle = %d, time = %e, dt=%e\n",
@@ -2801,6 +2660,9 @@ double elapsed_time;
       VerifyAndWriteFinalOutput(elapsed_timeG, *locDom, opts.nx, numRanks);
    }
 
+#ifdef RAJA_ENABLE_CHAI
+   locDom->destroy();
+#endif
    delete locDom;
 
 #if USE_MPI

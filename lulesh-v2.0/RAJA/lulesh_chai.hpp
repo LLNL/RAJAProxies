@@ -149,7 +149,9 @@ class Domain {
           Index_t nx, Int_t tp, Int_t nr, Int_t balance, Int_t cost);
 
    // Destructor
-   ~Domain();
+   // ~Domain() {}
+
+   
 
    //
    // ALLOCATION
@@ -329,231 +331,189 @@ class Domain {
    // Node-centered
 
    // Nodal coordinates
-   Real_p& x()    { return m_x ; }
-   Real_p& y()    { return m_y ; }
-   Real_p& z()    { return m_z ; }
-   Real_t& x(Index_t idx)    { return m_x[(int)idx] ; }
-   Real_t& y(Index_t idx)    { return m_y[(int)idx] ; }
-   Real_t& z(Index_t idx)    { return m_z[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& x(Index_t idx)    { return m_x[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& y(Index_t idx)    { return m_y[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& z(Index_t idx)    { return m_z[(int)idx] ; }
 
    // Nodal velocities
-   Real_p& xd()    { return m_xd ; }
-   Real_p& yd()    { return m_yd ; }
-   Real_p& zd()    { return m_zd ; }
-   Real_t& xd(Index_t idx)   { return m_xd[(int)idx] ; }
-   Real_t& yd(Index_t idx)   { return m_yd[(int)idx] ; }
-   Real_t& zd(Index_t idx)   { return m_zd[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& xd(Index_t idx)   { return m_xd[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& yd(Index_t idx)   { return m_yd[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& zd(Index_t idx)   { return m_zd[(int)idx] ; }
 
    // Nodal accelerations
-   Real_p& xdd()    { return m_xdd ; }
-   Real_p& ydd()    { return m_ydd ; }
-   Real_p& zdd()    { return m_zdd ; }
-   Real_t& xdd(Index_t idx)  { return m_xdd[(int)idx] ; }
-   Real_t& ydd(Index_t idx)  { return m_ydd[(int)idx] ; }
-   Real_t& zdd(Index_t idx)  { return m_zdd[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& xdd(Index_t idx)  { return m_xdd[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& ydd(Index_t idx)  { return m_ydd[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& zdd(Index_t idx)  { return m_zdd[(int)idx] ; }
 
    // Nodal forces
-   Real_p& fx()    { return m_fx ; }
-   Real_p& fy()    { return m_fy ; }
-   Real_p& fz()    { return m_fz ; }
-   Real_t& fx(Index_t idx)   { return m_fx[(int)idx] ; }
-   Real_t& fy(Index_t idx)   { return m_fy[(int)idx] ; }
-   Real_t& fz(Index_t idx)   { return m_fz[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& fx(Index_t idx)   { return m_fx[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& fy(Index_t idx)   { return m_fy[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& fz(Index_t idx)   { return m_fz[(int)idx] ; }
 
    // Nodal mass
-   Real_p& nodalMass()            { return m_nodalMass ; }
-   Real_t& nodalMass(Index_t idx) { return m_nodalMass[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& nodalMass(Index_t idx) { return m_nodalMass[(int)idx] ; }
 
    //
    // Element-centered
    //
-   Index_p&  nodelist() { return m_nodelist ; }
-   Index_t*  nodelist(Index_t idx) { return &m_nodelist[(int)(Index_t(8)*idx)] ; }
+   RAJA_HOST_DEVICE Index_t*  nodelist(Index_t idx) { return &m_nodelist[(int)(Index_t(8)*idx)] ; }
 
 #if !defined(LULESH_LIST_INDEXSET)
-   Index_t&  perm(Index_t idx)     { return m_perm[idx] ; }
+   RAJA_HOST_DEVICE Index_t&  perm(Index_t idx)     { return m_perm[idx] ; }
 #else
-   Index_t  perm(Index_t idx)     { return idx ; }
+   RAJA_HOST_DEVICE Index_t  perm(Index_t idx)     { return idx ; }
 #endif
 
    // elem connectivities through face
-   Index_p&  lxim()            { return m_lxim ; }
-   Index_p&  lxip()            { return m_lxip ; }
-   Index_p&  letam()            { return m_letam ; }
-   Index_p&  letap()            { return m_letap ; }
-   Index_p&  lzetam()            { return m_lzetam ; }
-   Index_p&  lzetap()            { return m_lzetap ; }
-   Index_t&  lxim(Index_t idx) { return m_lxim[(int)idx] ; }
-   Index_t&  lxip(Index_t idx) { return m_lxip[(int)idx] ; }
-   Index_t&  letam(Index_t idx) { return m_letam[(int)idx] ; }
-   Index_t&  letap(Index_t idx) { return m_letap[(int)idx] ; }
-   Index_t&  lzetam(Index_t idx) { return m_lzetam[(int)idx] ; }
-   Index_t&  lzetap(Index_t idx) { return m_lzetap[(int)idx] ; }
+   RAJA_HOST_DEVICE Index_t&  lxim(Index_t idx) { return m_lxim[(int)idx] ; }
+   RAJA_HOST_DEVICE Index_t&  lxip(Index_t idx) { return m_lxip[(int)idx] ; }
+   RAJA_HOST_DEVICE Index_t&  letam(Index_t idx) { return m_letam[(int)idx] ; }
+   RAJA_HOST_DEVICE Index_t&  letap(Index_t idx) { return m_letap[(int)idx] ; }
+   RAJA_HOST_DEVICE Index_t&  lzetam(Index_t idx) { return m_lzetam[(int)idx] ; }
+   RAJA_HOST_DEVICE Index_t&  lzetap(Index_t idx) { return m_lzetap[(int)idx] ; }
 
    // elem face symm/free-surface flag
-   Int_p&  elemBC()            { return m_elemBC ; }
-   Int_t&  elemBC(Index_t idx) { return m_elemBC[(int)idx] ; }
+   RAJA_HOST_DEVICE Int_t&  elemBC(Index_t idx) { return m_elemBC[(int)idx] ; }
 
    // Principal strains - temporary
-   Real_p& dxx()             { return m_dxx ; }
-   Real_p& dyy()             { return m_dyy ; }
-   Real_p& dzz()             { return m_dzz ; }
-   Real_t& dxx(Index_t idx)  { return m_dxx[(int)idx] ; }
-   Real_t& dyy(Index_t idx)  { return m_dyy[(int)idx] ; }
-   Real_t& dzz(Index_t idx)  { return m_dzz[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& dxx(Index_t idx)  { return m_dxx[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& dyy(Index_t idx)  { return m_dyy[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& dzz(Index_t idx)  { return m_dzz[(int)idx] ; }
 
    // New relative volume - temporary
-   Real_p& vnew()             { return m_vnew ; }
-   Real_t& vnew(Index_t idx)  { return m_vnew[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& vnew(Index_t idx)  { return m_vnew[(int)idx] ; }
 
    // Velocity gradient - temporary
-   Real_p& delv_xi()               { return m_delv_xi ; }
-   Real_p& delv_eta()              { return m_delv_eta ; }
-   Real_p& delv_zeta()             { return m_delv_zeta ; }
-   Real_t& delv_xi(Index_t idx)    { return m_delv_xi[(int)idx] ; }
-   Real_t& delv_eta(Index_t idx)   { return m_delv_eta[(int)idx] ; }
-   Real_t& delv_zeta(Index_t idx)  { return m_delv_zeta[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& delv_xi(Index_t idx)    { return m_delv_xi[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& delv_eta(Index_t idx)   { return m_delv_eta[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& delv_zeta(Index_t idx)  { return m_delv_zeta[(int)idx] ; }
 
    // Position gradient - temporary
-   Real_p& delx_xi()               { return m_delx_xi ; }
-   Real_p& delx_eta()              { return m_delx_eta ; }
-   Real_p& delx_zeta()             { return m_delx_zeta ; }
-   Real_t& delx_xi(Index_t idx)    { return m_delx_xi[(int)idx] ; }
-   Real_t& delx_eta(Index_t idx)   { return m_delx_eta[(int)idx] ; }
-   Real_t& delx_zeta(Index_t idx)  { return m_delx_zeta[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& delx_xi(Index_t idx)    { return m_delx_xi[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& delx_eta(Index_t idx)   { return m_delx_eta[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& delx_zeta(Index_t idx)  { return m_delx_zeta[(int)idx] ; }
 
    // Energy
-   Real_p& e()                     { return m_e ; }
-   Real_t& e(Index_t idx)          { return m_e[(int)idx] ; }
+   Real_p& e()                                      { return m_e ; }
+   RAJA_HOST_DEVICE Real_t& e(Index_t idx)          { return m_e[(int)idx] ; }
 
    // Pressure
-   Real_p& p()                     { return m_p ; }
-   Real_t& p(Index_t idx)          { return m_p[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& p(Index_t idx)          { return m_p[(int)idx] ; }
 
    // Artificial viscosity
-   Real_p& q()                     { return m_q ; }
-   Real_t& q(Index_t idx)          { return m_q[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& q(Index_t idx)          { return m_q[(int)idx] ; }
 
    // Linear term for q
-   Real_p& ql()                    { return m_ql ; }
-   Real_t& ql(Index_t idx)         { return m_ql[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& ql(Index_t idx)         { return m_ql[(int)idx] ; }
    // Quadratic term for q
-   Real_p& qq()                    { return m_qq ; }
-   Real_t& qq(Index_t idx)         { return m_qq[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& qq(Index_t idx)         { return m_qq[(int)idx] ; }
 
    // Relative volume
-   Real_p& v()                     { return m_v ; }
-   Real_t& v(Index_t idx)          { return m_v[(int)idx] ; }
-   Real_p& delv()                  { return m_delv ; }
-   Real_t& delv(Index_t idx)       { return m_delv[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& v(Index_t idx)          { return m_v[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& delv(Index_t idx)       { return m_delv[(int)idx] ; }
 
    // Reference volume
-   Real_p& volo()                  { return m_volo ; }
-   Real_t& volo(Index_t idx)       { return m_volo[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& volo(Index_t idx)       { return m_volo[(int)idx] ; }
 
    // volume derivative over volume
-   Real_p& vdov()                  { return m_vdov ; }
-   Real_t& vdov(Index_t idx)       { return m_vdov[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& vdov(Index_t idx)       { return m_vdov[(int)idx] ; }
 
    // Element characteristic length
-   Real_p& arealg()                { return m_arealg ; }
-   Real_t& arealg(Index_t idx)     { return m_arealg[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& arealg(Index_t idx)     { return m_arealg[(int)idx] ; }
 
    // Sound speed
-   Real_p& ss()                    { return m_ss ; }
-   Real_t& ss(Index_t idx)         { return m_ss[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& ss(Index_t idx)         { return m_ss[(int)idx] ; }
 
    // Element mass
-   Real_p& elemMass()             { return m_elemMass ; }
-   Real_t& elemMass(Index_t idx)  { return m_elemMass[(int)idx] ; }
+   RAJA_HOST_DEVICE Real_t& elemMass(Index_t idx)  { return m_elemMass[(int)idx] ; }
 
 #if defined(OMP_FINE_SYNC)
-   Index_p& nodeElemStart()       { return m_nodeElemStart ; }
-   Index_t nodeElemCount(Index_t idx)
+   RAJA_HOST_DEVICE Index_t nodeElemCount(Index_t idx)
    { return m_nodeElemStart[idx+1] - m_nodeElemStart[idx] ; }
 
-   Index_p& nodeElemCornerList()  { return m_nodeElemCornerList ; }
-   Index_t *nodeElemCornerList(Index_t idx)
+   RAJA_HOST_DEVICE Index_t *nodeElemCornerList(Index_t idx)
    { return &m_nodeElemCornerList[m_nodeElemStart[idx]] ; }
 #endif
 
    // Region Centered
 
-   Index_t&  regElemSize(Index_t idx) { return m_regElemSize[idx] ; }
-   Index_t&  regNumList(Index_t idx) { return m_regNumList[idx] ; }
-   Index_t*  regNumList()            { return &m_regNumList[0] ; }
-   Index_t*  regElemlist(Int_t r)    { return m_regElemlist[r] ; }
-   Index_t&  regElemlist(Int_t r, Index_t idx)
+   RAJA_HOST_DEVICE Index_t&  regElemSize(Index_t idx) { return m_regElemSize[idx] ; }
+   RAJA_HOST_DEVICE Index_t&  regNumList(Index_t idx) { return m_regNumList[idx] ; }
+   RAJA_HOST_DEVICE Index_t*  regNumList()            { return &m_regNumList[0] ; }
+   RAJA_HOST_DEVICE Index_t*  regElemlist(Int_t r)    { return m_regElemlist[r] ; }
+   RAJA_HOST_DEVICE Index_t&  regElemlist(Int_t r, Index_t idx)
    { return m_regElemlist[r][idx] ; }
 
    // Parameters
 
    // Cutoffs
-   Real_t u_cut() const               { return m_u_cut ; }
-   Real_t e_cut() const               { return m_e_cut ; }
-   Real_t p_cut() const               { return m_p_cut ; }
-   Real_t q_cut() const               { return m_q_cut ; }
-   Real_t v_cut() const               { return m_v_cut ; }
+   RAJA_HOST_DEVICE Real_t u_cut() const               { return m_u_cut ; }
+   RAJA_HOST_DEVICE Real_t e_cut() const               { return m_e_cut ; }
+   RAJA_HOST_DEVICE Real_t p_cut() const               { return m_p_cut ; }
+   RAJA_HOST_DEVICE Real_t q_cut() const               { return m_q_cut ; }
+   RAJA_HOST_DEVICE Real_t v_cut() const               { return m_v_cut ; }
 
    // Other constants (usually are settable via input file in real codes)
-   Real_t hgcoef() const              { return m_hgcoef ; }
-   Real_t qstop() const               { return m_qstop ; }
-   Real_t monoq_max_slope() const     { return m_monoq_max_slope ; }
-   Real_t monoq_limiter_mult() const  { return m_monoq_limiter_mult ; }
-   Real_t ss4o3() const               { return m_ss4o3 ; }
-   Real_t qlc_monoq() const           { return m_qlc_monoq ; }
-   Real_t qqc_monoq() const           { return m_qqc_monoq ; }
-   Real_t qqc() const                 { return m_qqc ; }
+   RAJA_HOST_DEVICE Real_t hgcoef() const              { return m_hgcoef ; }
+   RAJA_HOST_DEVICE Real_t qstop() const               { return m_qstop ; }
+   RAJA_HOST_DEVICE Real_t monoq_max_slope() const     { return m_monoq_max_slope ; }
+   RAJA_HOST_DEVICE Real_t monoq_limiter_mult() const  { return m_monoq_limiter_mult ; }
+   RAJA_HOST_DEVICE Real_t ss4o3() const               { return m_ss4o3 ; }
+   RAJA_HOST_DEVICE Real_t qlc_monoq() const           { return m_qlc_monoq ; }
+   RAJA_HOST_DEVICE Real_t qqc_monoq() const           { return m_qqc_monoq ; }
+   RAJA_HOST_DEVICE Real_t qqc() const                 { return m_qqc ; }
 
-   Real_t eosvmax() const             { return m_eosvmax ; }
-   Real_t eosvmin() const             { return m_eosvmin ; }
-   Real_t pmin() const                { return m_pmin ; }
-   Real_t emin() const                { return m_emin ; }
-   Real_t dvovmax() const             { return m_dvovmax ; }
-   Real_t refdens() const             { return m_refdens ; }
+   RAJA_HOST_DEVICE Real_t eosvmax() const             { return m_eosvmax ; }
+   RAJA_HOST_DEVICE Real_t eosvmin() const             { return m_eosvmin ; }
+   RAJA_HOST_DEVICE Real_t pmin() const                { return m_pmin ; }
+   RAJA_HOST_DEVICE Real_t emin() const                { return m_emin ; }
+   RAJA_HOST_DEVICE Real_t dvovmax() const             { return m_dvovmax ; }
+   RAJA_HOST_DEVICE Real_t refdens() const             { return m_refdens ; }
 
    // Timestep controls, etc...
-   Real_t& time()                 { return m_time ; }
-   Real_t& deltatime()            { return m_deltatime ; }
-   Real_t& deltatimemultlb()      { return m_deltatimemultlb ; }
-   Real_t& deltatimemultub()      { return m_deltatimemultub ; }
-   Real_t& stoptime()             { return m_stoptime ; }
-   Real_t& dtcourant()            { return m_dtcourant ; }
-   Real_t& dthydro()              { return m_dthydro ; }
-   Real_t& dtmax()                { return m_dtmax ; }
-   Real_t& dtfixed()              { return m_dtfixed ; }
+   RAJA_HOST_DEVICE Real_t& time()                 { return m_time ; }
+   RAJA_HOST_DEVICE Real_t& deltatime()            { return m_deltatime ; }
+   RAJA_HOST_DEVICE Real_t& deltatimemultlb()      { return m_deltatimemultlb ; }
+   RAJA_HOST_DEVICE Real_t& deltatimemultub()      { return m_deltatimemultub ; }
+   RAJA_HOST_DEVICE Real_t& stoptime()             { return m_stoptime ; }
+   RAJA_HOST_DEVICE Real_t& dtcourant()            { return m_dtcourant ; }
+   RAJA_HOST_DEVICE Real_t& dthydro()              { return m_dthydro ; }
+   RAJA_HOST_DEVICE Real_t& dtmax()                { return m_dtmax ; }
+   RAJA_HOST_DEVICE Real_t& dtfixed()              { return m_dtfixed ; }
 
-   Int_t&  cycle()                { return m_cycle ; }
-   Int_t&  numRanks()             { return m_numRanks ; }
+   RAJA_HOST_DEVICE Int_t&  cycle()                { return m_cycle ; }
+   RAJA_HOST_DEVICE Int_t&  numRanks()             { return m_numRanks ; }
 
-   Index_t&  colLoc()             { return m_colLoc ; }
-   Index_t&  rowLoc()             { return m_rowLoc ; }
-   Index_t&  planeLoc()           { return m_planeLoc ; }
-   Index_t&  tp()                 { return m_tp ; }
+   RAJA_HOST_DEVICE Index_t&  colLoc()             { return m_colLoc ; }
+   RAJA_HOST_DEVICE Index_t&  rowLoc()             { return m_rowLoc ; }
+   RAJA_HOST_DEVICE Index_t&  planeLoc()           { return m_planeLoc ; }
+   RAJA_HOST_DEVICE Index_t&  tp()                 { return m_tp ; }
 
-   Index_t&  sizeX()              { return m_sizeX ; }
-   Index_t&  sizeY()              { return m_sizeY ; }
-   Index_t&  sizeZ()              { return m_sizeZ ; }
-   Index_t&  numReg()             { return m_numReg ; }
-   Index_t&  cost()               { return m_cost ; }
-   Index_t&  numElem()            { return m_numElem ; }
-   Index_t&  numNode()            { return m_numNode ; }
+   RAJA_HOST_DEVICE Index_t&  sizeX()              { return m_sizeX ; }
+   RAJA_HOST_DEVICE Index_t&  sizeY()              { return m_sizeY ; }
+   RAJA_HOST_DEVICE Index_t&  sizeZ()              { return m_sizeZ ; }
+   RAJA_HOST_DEVICE Index_t&  numReg()             { return m_numReg ; }
+   RAJA_HOST_DEVICE Index_t&  cost()               { return m_cost ; }
+   RAJA_HOST_DEVICE Index_t&  numElem()            { return m_numElem ; }
+   RAJA_HOST_DEVICE Index_t&  numNode()            { return m_numNode ; }
 
-   Index_t&  maxPlaneSize()       { return m_maxPlaneSize ; }
-   Index_t&  maxEdgeSize()        { return m_maxEdgeSize ; }
+   RAJA_HOST_DEVICE Index_t&  maxPlaneSize()       { return m_maxPlaneSize ; }
+   RAJA_HOST_DEVICE Index_t&  maxEdgeSize()        { return m_maxEdgeSize ; }
+
+   void destroy();
 
    //
    // Accessors for index sets
    //
-   LULESH_ISET& getNodeISet()    { return m_domNodeISet ; }
-   LULESH_ISET& getElemISet()    { return m_domElemISet ; }
-   LULESH_ISET& getElemRegISet() { return m_domElemRegISet ; }
+   LULESH_ISET& getNodeISet()    { return *m_domNodeISet ; }
+   LULESH_ISET& getElemISet()    { return *m_domElemISet ; }
+   LULESH_ISET& getElemRegISet() { return *m_domElemRegISet ; }
 
-   LULESH_ISET& getRegionISet(int r) { return m_domRegISet[r] ; }
+   LULESH_ISET& getRegionISet(int r) { return (*m_domRegISet)[r] ; }
 
-   LULESH_ISET& getXSymNodeISet() { return m_domXSymNodeISet ; }
-   LULESH_ISET& getYSymNodeISet() { return m_domYSymNodeISet ; }
-   LULESH_ISET& getZSymNodeISet() { return m_domZSymNodeISet ; }
+   LULESH_ISET& getXSymNodeISet() { return *m_domXSymNodeISet ; }
+   LULESH_ISET& getYSymNodeISet() { return *m_domYSymNodeISet ; }
+   LULESH_ISET& getZSymNodeISet() { return *m_domZSymNodeISet ; }
 
    //
    // MPI-Related additional data
@@ -586,16 +546,16 @@ class Domain {
    //
 
    /* mesh-based index sets */
-   LULESH_ISET m_domNodeISet ;
-   LULESH_ISET m_domElemISet ;
-   LULESH_ISET m_domElemRegISet ;
+   LULESH_ISET* m_domNodeISet ;
+   LULESH_ISET* m_domElemISet ;
+   LULESH_ISET* m_domElemRegISet ;
 
-   LULESH_ISET m_domXSymNodeISet ;
-   LULESH_ISET m_domYSymNodeISet ;
-   LULESH_ISET m_domZSymNodeISet ;
+   LULESH_ISET* m_domXSymNodeISet ;
+   LULESH_ISET* m_domYSymNodeISet ;
+   LULESH_ISET* m_domZSymNodeISet ;
 
    /* region-based index sets */
-   std::vector<LULESH_ISET> m_domRegISet;
+   std::vector<LULESH_ISET>* m_domRegISet;
 
    /* Node-centered */
    Real_p m_x ;  /* coordinates */
