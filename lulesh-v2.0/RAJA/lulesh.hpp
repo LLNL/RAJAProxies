@@ -21,10 +21,14 @@ using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
 #define LULESH_HEADER 1
 #endif
 
+#ifdef RAJA_ENABLE_CHAI
+#include "lulesh_chai.hpp"
+#else
 #if !defined(LULESH_HEADER)
 #include "lulesh_stl.hpp"
 #elif (LULESH_HEADER == 1)
 #include "lulesh_ptr.hpp"
 #else
 #include "lulesh_tuple.hpp"
+#endif
 #endif
