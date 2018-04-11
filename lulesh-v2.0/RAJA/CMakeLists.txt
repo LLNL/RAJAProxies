@@ -33,9 +33,12 @@ if (ENABLE_CUDA)
 endif ()
 
 if (ENABLE_CHAI)
+  find_package(umpire)
+
   set (lulesh_depends
     ${lulesh_depends}
-    chai)
+    #chai
+    umpire)
 endif ()
 
 blt_add_executable(
