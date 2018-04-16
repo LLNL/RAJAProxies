@@ -4,3 +4,6 @@
 [submodule "tpl/RAJA"]
 	path = tpl/RAJA
 	url = https://github.com/LLNL/RAJA.git
+[submodule "kripke"]
+	path = kripke
+	url = git@github.com:LLNL/Kripke.git

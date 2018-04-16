@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.4)
 
 project(RajaProxies LANGUAGES CXX)
 
-option(ENABLE_LULESH_ONE "Build LULESH v1.0" On)
-option(ENABLE_LULESH_TWO "Build LULESH v2.0" On)
+option(ENABLE_LULESH_ONE "Build LULESH v1.0" Off)
+option(ENABLE_LULESH_TWO "Build LULESH v2.0" Off)
+option(ENABLE_KRIPKE "Build Kripke" On)
 
 set (ENABLE_EXAMPLES Off CACHE Bool "Don't build examples")
 
@@ -41,4 +42,16 @@ message (STATUS "ENABLE_LULESH_TWO = ${ENABLE_LULESH_TWO}")
 if (ENABLE_LULESH_TWO)
   message(STATUS "Building LULESH v2.0")
   add_subdirectory(lulesh-v2.0)
+endif ()
+
+if (ENABLE_KRIPKE)
+  if (ENABLE_CUDA)
+    message(FATAL_ERROR "Cannot build Kripke with CUDA")
+  endif()
+  if (ENABLE_OPENMP)
+    set(KRIPKE_ARCH "OpenMP")
+  else()
+    set(KRIPKE_ARCH "Sequential")
+  endif()
+  add_subdirectory(kripke)
 endif ()
