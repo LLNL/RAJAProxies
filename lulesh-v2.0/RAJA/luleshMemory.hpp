@@ -157,7 +157,7 @@ public:
          else if (lenType[i] == 0) {
             lenType[i] = -len ;
 #ifdef RAJA_ENABLE_CHAI
-            ptr[i].allocate(len) ;
+            ptr[i].allocate(len, chai::GPU) ;
             retVal = &ptr[i] ;
 #else
             ptr[i] = Allocate<VARTYPE>(len) ;
@@ -176,11 +176,19 @@ public:
 #endif
    }
 
+#ifdef RAJA_ENABLE_CHAI
+   bool release(const RETTYPE oldPtr) {
+#else
    bool release(POOLTYPE *oldPtr) {
+#endif
       int i ;
       bool success = true ;
       for (i=0; i<32; ++i) {
+#ifdef RAJA_ENABLE_CHAI
+         if (ptr[i] == oldPtr) {
+#else
          if (ptr[i] == *oldPtr) {
+#endif
             lenType[i] = -lenType[i] ;
 #ifdef RAJA_ENABLE_CHAI
 #else

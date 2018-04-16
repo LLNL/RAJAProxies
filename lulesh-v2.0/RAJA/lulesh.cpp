@@ -588,9 +588,9 @@ void IntegrateStressForElems( Domain* domain,
      d_fz[gnode] = fz_sum ;
   } );
 
-  elemMemPool.release(&fz_elem) ;
-  elemMemPool.release(&fy_elem) ;
-  elemMemPool.release(&fx_elem) ;
+  elemMemPool.release(fz_elem) ;
+  elemMemPool.release(fy_elem) ;
+  elemMemPool.release(fx_elem) ;
 #endif
 }
 
@@ -947,9 +947,9 @@ void CalcFBHourglassForceForElems( Domain* domain,
       d_fz[gnode] += fz_sum ;
    } );
 
-   elemMemPool.release(&fz_elem) ;
-   elemMemPool.release(&fy_elem) ;
-   elemMemPool.release(&fx_elem) ;
+   elemMemPool.release(fz_elem) ;
+   elemMemPool.release(fy_elem) ;
+   elemMemPool.release(fx_elem) ;
 #endif
 }
 
@@ -1035,12 +1035,12 @@ void CalcHourglassControlForElems(Domain* domain,
                                     hgcoef, numElem ) ;
    }
 
-   elemMemPool.release(&z8n) ;
-   elemMemPool.release(&y8n) ;
-   elemMemPool.release(&x8n) ;
-   elemMemPool.release(&dvdz) ;
-   elemMemPool.release(&dvdy) ;
-   elemMemPool.release(&dvdx) ;
+   elemMemPool.release(z8n) ;
+   elemMemPool.release(y8n) ;
+   elemMemPool.release(x8n) ;
+   elemMemPool.release(dvdz) ;
+   elemMemPool.release(dvdy) ;
+   elemMemPool.release(dvdx) ;
 
    return ;
 }
@@ -1083,10 +1083,10 @@ void CalcVolumeForceForElems(Domain* domain)
 
       CalcHourglassControlForElems(domain, determ, hgcoef) ;
 
-      elemMemPool.release(&determ) ;
-      elemMemPool.release(&sigzz) ;
-      elemMemPool.release(&sigyy) ;
-      elemMemPool.release(&sigxx) ;
+      elemMemPool.release(determ) ;
+      elemMemPool.release(sigzz) ;
+      elemMemPool.release(sigyy) ;
+      elemMemPool.release(sigxx) ;
    }
 }
 
@@ -2468,17 +2468,17 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
                        reg_num, rep);
     }
 
-    elemMemPool.release(&pHalfStep) ;
-    elemMemPool.release(&pbvc) ;
-    elemMemPool.release(&bvc) ;
-    elemMemPool.release(&q_new) ;
-    elemMemPool.release(&e_new) ;
-    elemMemPool.release(&p_new) ;
-    elemMemPool.release(&work) ;
-    elemMemPool.release(&compHalfStep) ;
-    elemMemPool.release(&compression) ;
-    elemMemPool.release(&p_old) ;
-    elemMemPool.release(&vnewc) ;
+    elemMemPool.release(pHalfStep) ;
+    elemMemPool.release(pbvc) ;
+    elemMemPool.release(bvc) ;
+    elemMemPool.release(q_new) ;
+    elemMemPool.release(e_new) ;
+    elemMemPool.release(p_new) ;
+    elemMemPool.release(work) ;
+    elemMemPool.release(compHalfStep) ;
+    elemMemPool.release(compression) ;
+    elemMemPool.release(p_old) ;
+    elemMemPool.release(vnewc) ;
   }
 }
 
