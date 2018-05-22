@@ -5,6 +5,7 @@ project(RajaProxies LANGUAGES CXX)
 option(ENABLE_LULESH_ONE "Build LULESH v1.0" On)
 option(ENABLE_LULESH_TWO "Build LULESH v2.0" On)
 option(ENABLE_KRIPKE "Build Kripke" On)
+option(ENABLE_COMD "Build CoMD" On)
 
 set (ENABLE_EXAMPLES Off CACHE Bool "Don't build examples")
 
@@ -53,4 +54,10 @@ if (ENABLE_KRIPKE)
   endif()
   message(STATUS "Building Kripke")
   add_subdirectory(kripke)
+endif ()
+
+
+if (ENABLE_COMD)
+  message(STATUS "Building CoMD v1.0")
+  add_subdirectory(CoMD)
 endif ()
