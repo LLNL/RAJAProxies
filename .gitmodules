@@ -6,4 +6,4 @@
 	url = https://github.com/LLNL/RAJA.git
 [submodule "kripke"]
 	path = kripke
-	url = git@github.com:LLNL/Kripke.git
+	url = https://github.com/LLNL/Kripke.git
