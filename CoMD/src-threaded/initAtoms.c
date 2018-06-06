@@ -189,10 +189,17 @@ void computeVcm(SimFlat* s, real_t vcm[3])
 {
    real_t vcmLocal[4] = {0., 0., 0., 0.};
    real_t vcmSum[4] = {0., 0., 0., 0.};
+#ifndef ENABLE_OPENMP
    RAJA::ReduceSum<RAJA::seq_reduce, real_t> v0(0.0) ;
    RAJA::ReduceSum<RAJA::seq_reduce, real_t> v1(0.0) ;
    RAJA::ReduceSum<RAJA::seq_reduce, real_t> v2(0.0) ;
    RAJA::ReduceSum<RAJA::seq_reduce, real_t> v3(0.0) ;
+#else
+   RAJA::ReduceSum<RAJA::omp_reduce, real_t> v0(0.0) ;
+   RAJA::ReduceSum<RAJA::omp_reduce, real_t> v1(0.0) ;
+   RAJA::ReduceSum<RAJA::omp_reduce, real_t> v2(0.0) ;
+   RAJA::ReduceSum<RAJA::omp_reduce, real_t> v3(0.0) ;
+#endif
 
    // sum the momenta and particle masses
    RAJA::forall<atomWork>(*s->isLocal, [&] (int iOff) {
