@@ -153,7 +153,11 @@ int ljForce(SimFlat* s)
    const real_t rCut2 = rCut*rCut;
 
    // zero forces and energy
+#ifdef ENABLE_OPENMP
+   RAJA::ReduceSum<RAJA::omp_reduce, real_t> ePot(0.0);
+#else
    RAJA::ReduceSum<RAJA::seq_reduce, real_t> ePot(0.0);
+#endif
    s->ePotential = 0.0;
 
    RAJA::forall<atomWork>(*s->isTotal, [=] (int ii) {
@@ -166,16 +170,10 @@ int ljForce(SimFlat* s)
    const real_t rCut6 = s6 / (rCut2*rCut2*rCut2);
    const real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
 
+  //omp_set_num_threads(36);
+
    {
-
-     using Pol = RAJA::KernelPolicy<
-       RAJA::statement::For<0, RAJA::seq_exec,
-       RAJA::statement::For<1, RAJA::seq_exec,
-       RAJA::statement::For<2, RAJA::seq_exec,
-       RAJA::statement::For<3, RAJA::seq_exec,
-       RAJA::statement::Lambda<0> > > > > >;
-
-     RAJA::kernel<Pol>(
+     RAJA::kernel<ljForcePolicy>(
        RAJA::make_tuple(
          *s->isLocalSegment,                // local boxes
          RAJA::RangeSegment(0,27),          // 27 neighbor boxes
@@ -199,7 +197,7 @@ int ljForce(SimFlat* s)
          if( (iOffLocal < nIBox && jOffLocal < nJBox) && !(jBoxID < nLocalBoxes && jGid <= iGid)) {
            real3 dr;
            real_t r2 = 0.0;
-           real3_ptr r =  s->atoms->r ;
+           real3_ptr r =  s->atoms->r;
            for (int m=0; m<3; m++)
            {
              dr[m] = r[iOff][m] - r[jOff][m];
