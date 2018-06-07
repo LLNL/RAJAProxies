@@ -91,11 +91,8 @@ void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent
 void kineticEnergy(SimFlat* s)
 {
    real_t eLocal[2];
-#ifndef ENABLE_OPENMP
-   RAJA::ReduceSum<RAJA::seq_reduce, real_t> kenergy(0.0) ;
-#else
-   RAJA::ReduceSum<RAJA::omp_reduce, real_t> kenergy(0.0) ;
-#endif
+   rajaReduceSumReal kenergy(0.0);
+
    eLocal[0] = s->ePotential;
    eLocal[1] = 0;
 

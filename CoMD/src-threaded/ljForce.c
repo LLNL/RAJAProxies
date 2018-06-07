@@ -144,8 +144,6 @@ void ljPrint(FILE* file, BasePotential* pot)
 
 int ljForce(SimFlat* s)
 {
-// static int pcount = 0 ;
-// ReduceSum<RAJA::omp_reduce, int>  pairsChecked(0) ;
    LjPotential* pot = (LjPotential *) s->pot;
    const real_t sigma = pot->sigma;
    const real_t epsilon = pot->epsilon;
@@ -153,11 +151,8 @@ int ljForce(SimFlat* s)
    const real_t rCut2 = rCut*rCut;
 
    // zero forces and energy
-#ifdef ENABLE_OPENMP
-   RAJA::ReduceSum<RAJA::omp_reduce, real_t> ePot(0.0);
-#else
-   RAJA::ReduceSum<RAJA::seq_reduce, real_t> ePot(0.0);
-#endif
+   rajaReduceSumReal ePot(0.0);
+
    s->ePotential = 0.0;
 
    RAJA::forall<atomWork>(*s->isTotal, [=] (int ii) {
@@ -169,8 +164,6 @@ int ljForce(SimFlat* s)
 
    const real_t rCut6 = s6 / (rCut2*rCut2*rCut2);
    const real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
-
-  //omp_set_num_threads(36);
 
    {
      RAJA::kernel<ljForcePolicy>(
