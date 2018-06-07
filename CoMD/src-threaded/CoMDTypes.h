@@ -108,6 +108,7 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<3, RAJA::simd_exec,
   RAJA::statement::Lambda<0> > > > > > ljForcePolicy;
 
+typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumReal;
 #else
 typedef RAJA::seq_segit linkCellTraversal ;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
@@ -120,6 +121,8 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<2, RAJA::simd_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
   RAJA::statement::Lambda<0> > > > > > ljForcePolicy;
+
+typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 #endif
 // "task-graph" requires segment dependency graph is set up...not yet...
 //typedef RAJA::omp_taskgraph_segit task_graph_policy;
