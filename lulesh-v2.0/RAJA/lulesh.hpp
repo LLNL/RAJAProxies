@@ -9,7 +9,11 @@ using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
                                         RAJA::RangeStrideSegment>;
 
 #include "luleshPolicy.hpp"
+#ifdef RAJA_ENABLE_CHAI
+#include "luleshMemory_chai.hpp"
+#else
 #include "luleshMemory.hpp"
+#endif
 
 #define MAX(a, b) ( ((a) > (b)) ? (a) : (b))
 

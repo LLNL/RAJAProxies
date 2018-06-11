@@ -9,13 +9,21 @@
 # This file is part of the RAJA Proxy App Suite
 #
 ###############################################################################
-
-set (lulesh_sources
-  lulesh.cpp
-  lulesh-comm.cpp
-  lulesh-init.cpp
-  lulesh-util.cpp
-  lulesh-viz.cpp)
+if (ENABLE_CHAI)
+  set (lulesh_sources
+    lulesh_chai.cpp
+    lulesh-comm.cpp
+    lulesh-init.cpp
+    lulesh-util.cpp
+    lulesh-viz.cpp)
+else()
+  set (lulesh_sources
+    lulesh.cpp
+    lulesh-comm.cpp
+    lulesh-init.cpp
+    lulesh-util.cpp
+    lulesh-viz.cpp)
+endif()
 
 set (lulesh_depends
   RAJA)
@@ -57,15 +65,23 @@ target_compile_definitions(
   lulesh-v2.0-RAJA-seq.exe
   PRIVATE
   -DUSE_CASE=1)
-
-target_compile_definitions(
-  lulesh-v2.0-RAJA-seq.exe
-  PUBLIC
-  -DLULESH_DEVICE= 
-  -DLULESH_LAMBDA_CAPTURE_MODE=&
-  -DLULESH_LAMBDA_CLOSURE_ATTR=
-)
-
+if (ENABLE_CHAI)
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-seq.exe
+    PUBLIC
+    -DLULESH_DEVICE= 
+    -DLULESH_LAMBDA_CAPTURE_MODE==
+    -DLULESH_LAMBDA_CLOSURE_ATTR=mutable
+  )
+else()
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-seq.exe
+    PUBLIC
+    -DLULESH_DEVICE= 
+    -DLULESH_LAMBDA_CAPTURE_MODE=&
+    -DLULESH_LAMBDA_CLOSURE_ATTR=
+  )
+endif()
 if (ENABLE_OPENMP)
   blt_add_executable(
     NAME lulesh-v2.0-RAJA-omp.exe
@@ -77,19 +93,35 @@ if (ENABLE_OPENMP)
     PRIVATE 
     -DUSE_MPI=0)
 
-  target_compile_definitions(
-    lulesh-v2.0-RAJA-omp.exe
-    PUBLIC
-    -DLULESH_DEVICE= 
-    -DLULESH_LAMBDA_CAPTURE_MODE=&
-    -DLULESH_LAMBDA_CLOSURE_ATTR=
-  )
+  if (ENABLE_CHAI)
+    target_compile_definitions(
+      lulesh-v2.0-RAJA-omp.exe
+      PUBLIC
+      -DLULESH_DEVICE= 
+      -DLULESH_LAMBDA_CAPTURE_MODE==
+      -DLULESH_LAMBDA_CLOSURE_ATTR=mutable
+    )
+  else()
+    target_compile_definitions(
+      lulesh-v2.0-RAJA-omp.exe
+      PUBLIC
+      -DLULESH_DEVICE= 
+      -DLULESH_LAMBDA_CAPTURE_MODE=&
+      -DLULESH_LAMBDA_CLOSURE_ATTR=
+    )
+  endif ()
 endif ()
 
 if (ENABLE_CUDA)
-  configure_file(
-    lulesh.cpp
-    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-cuda.cpp COPYONLY)
+  if (ENABLE_CHAI)
+    configure_file(
+      lulesh_chai.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/lulesh-cuda.cpp COPYONLY)
+  else()
+    configure_file(
+      lulesh.cpp
+      ${CMAKE_CURRENT_BINARY_DIR}/lulesh-cuda.cpp COPYONLY)
+  endif ()
 
   configure_file(
     lulesh-comm.cpp

@@ -189,13 +189,13 @@ class Domain {
 
       m_elemBC.registerTouch(chai::CPU);
 
-      m_delv_xi.registerTouch(chai::CPU);
-      m_delv_eta.registerTouch(chai::CPU);
-      m_delv_zeta.registerTouch(chai::CPU);
+      // m_delv_xi.registerTouch(chai::CPU);
+      // m_delv_eta.registerTouch(chai::CPU);
+      // m_delv_zeta.registerTouch(chai::CPU);
 
-      m_delx_xi.registerTouch(chai::CPU);
-      m_delx_eta.registerTouch(chai::CPU);
-      m_delx_zeta.registerTouch(chai::CPU);
+      // m_delx_xi.registerTouch(chai::CPU);
+      // m_delx_eta.registerTouch(chai::CPU);
+      // m_delx_zeta.registerTouch(chai::CPU);
 
       m_e.registerTouch(chai::CPU);
 
