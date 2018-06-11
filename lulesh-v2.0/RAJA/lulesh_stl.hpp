@@ -35,6 +35,13 @@ typedef RAJA::Index_type Index_t ; // array subscript and loop index
 typedef real8  Real_t ;  // floating point representation
 typedef int    Int_t ;   // integer representation
 
+typedef std::vector<Real_t>   Real_p ;
+typedef std::vector<Index_t>  Index_p ;
+typedef std::vector<Int_t>    Int_p ;
+typedef Real_p&   Real_ptr ;
+typedef Index_p&  Index_ptr ;
+typedef Int_p&    Int_ptr ;
+
 enum { VolumeError = -1, QStopError = -2 } ;
 
 inline RAJA_HOST_DEVICE
@@ -141,65 +148,67 @@ class Domain {
    // Destructor
    ~Domain();
 
+   void registerFirstTouch() {}
+
    //
    // ALLOCATION
    //
 
    void AllocateNodePersistent(Int_t numNode) // Node-centered
    {
-      m_x.reserve(numNode);  // coordinates
-      m_y.reserve(numNode);
-      m_z.reserve(numNode);
+      m_x.resize(numNode);  // coordinates
+      m_y.resize(numNode);
+      m_z.resize(numNode);
 
-      m_xd.reserve(numNode); // velocities
-      m_yd.reserve(numNode);
-      m_zd.reserve(numNode);
+      m_xd.resize(numNode); // velocities
+      m_yd.resize(numNode);
+      m_zd.resize(numNode);
 
-      m_xdd.reserve(numNode); // accelerations
-      m_ydd.reserve(numNode);
-      m_zdd.reserve(numNode);
+      m_xdd.resize(numNode); // accelerations
+      m_ydd.resize(numNode);
+      m_zdd.resize(numNode);
 
-      m_fx.reserve(numNode);  // forces
-      m_fy.reserve(numNode);
-      m_fz.reserve(numNode);
+      m_fx.resize(numNode);  // forces
+      m_fy.resize(numNode);
+      m_fz.resize(numNode);
 
-      m_nodalMass.reserve(numNode);  // mass
+      m_nodalMass.resize(numNode);  // mass
    }
 
    void AllocateElemPersistent(Int_t numElem) // Elem-centered
    {
-      m_nodelist.reserve(8*numElem);
+      m_nodelist.resize(8*numElem);
 
       // elem connectivities through face
-      m_lxim.reserve(numElem);
-      m_lxip.reserve(numElem);
-      m_letam.reserve(numElem);
-      m_letap.reserve(numElem);
-      m_lzetam.reserve(numElem);
-      m_lzetap.reserve(numElem);
+      m_lxim.resize(numElem);
+      m_lxip.resize(numElem);
+      m_letam.resize(numElem);
+      m_letap.resize(numElem);
+      m_lzetam.resize(numElem);
+      m_lzetap.resize(numElem);
 
-      m_elemBC.reserve(numElem);
+      m_elemBC.resize(numElem);
 
-      m_e.reserve(numElem);
-      m_p.reserve(numElem);
+      m_e.resize(numElem);
+      m_p.resize(numElem);
 
-      m_q.reserve(numElem);
-      m_ql.reserve(numElem);
-      m_qq.reserve(numElem);
+      m_q.resize(numElem);
+      m_ql.resize(numElem);
+      m_qq.resize(numElem);
 
-      m_v.reserve(numElem);
+      m_v.resize(numElem);
 
-      m_volo.reserve(numElem);
-      m_delv.reserve(numElem);
-      m_vdov.reserve(numElem);
+      m_volo.resize(numElem);
+      m_delv.resize(numElem);
+      m_vdov.resize(numElem);
 
-      m_arealg.reserve(numElem);
+      m_arealg.resize(numElem);
 
-      m_ss.reserve(numElem);
+      m_ss.resize(numElem);
 
-      m_elemMass.reserve(numElem);
+      m_elemMass.resize(numElem);
 
-      m_vnew.reserve(numElem) ;
+      m_vnew.resize(numElem) ;
    }
 
    void AllocateGradients(lulesh2::MemoryPool< Real_t > &pool,
@@ -208,14 +217,14 @@ class Domain {
       (void) pool ;
 
       // Position gradients
-      m_delx_xi.reserve(numElem) ;
-      m_delx_eta.reserve(numElem) ;
-      m_delx_zeta.reserve(numElem) ;
+      m_delx_xi.resize(numElem) ;
+      m_delx_eta.resize(numElem) ;
+      m_delx_zeta.resize(numElem) ;
 
       // Velocity gradients
-      m_delv_xi.reserve(allElem) ;
-      m_delv_eta.reserve(allElem);
-      m_delv_zeta.reserve(allElem) ;
+      m_delv_xi.resize(allElem) ;
+      m_delv_eta.resize(allElem);
+      m_delv_zeta.resize(allElem) ;
    }
 
    void DeallocateGradients(lulesh2::MemoryPool< Real_t > &pool)
@@ -235,9 +244,9 @@ class Domain {
    {
       (void) pool ;
 
-      m_dxx.reserve(numElem) ;
-      m_dyy.reserve(numElem) ;
-      m_dzz.reserve(numElem) ;
+      m_dxx.resize(numElem) ;
+      m_dyy.resize(numElem) ;
+      m_dzz.resize(numElem) ;
    }
 
    void DeallocateStrains(lulesh2::MemoryPool< Real_t > &pool)
@@ -256,31 +265,45 @@ class Domain {
    // Node-centered
 
    // Nodal coordinates
+   Real_ptr x()    { return m_x ; }
+   Real_ptr y()    { return m_y ; }
+   Real_ptr z()    { return m_z ; }
    Real_t& x(Index_t idx)    { return m_x[idx] ; }
    Real_t& y(Index_t idx)    { return m_y[idx] ; }
    Real_t& z(Index_t idx)    { return m_z[idx] ; }
 
    // Nodal velocities
+   Real_ptr xd()    { return m_xd ; }
+   Real_ptr yd()    { return m_yd ; }
+   Real_ptr zd()    { return m_zd ; }
    Real_t& xd(Index_t idx)   { return m_xd[idx] ; }
    Real_t& yd(Index_t idx)   { return m_yd[idx] ; }
    Real_t& zd(Index_t idx)   { return m_zd[idx] ; }
 
    // Nodal accelerations
+   Real_ptr xdd()    { return m_xdd ; }
+   Real_ptr ydd()    { return m_ydd ; }
+   Real_ptr zdd()    { return m_zdd ; }
    Real_t& xdd(Index_t idx)  { return m_xdd[idx] ; }
    Real_t& ydd(Index_t idx)  { return m_ydd[idx] ; }
    Real_t& zdd(Index_t idx)  { return m_zdd[idx] ; }
 
    // Nodal forces
+   Real_ptr fx()    { return m_fx ; }
+   Real_ptr fy()    { return m_fy ; }
+   Real_ptr fz()    { return m_fz ; }
    Real_t& fx(Index_t idx)   { return m_fx[idx] ; }
    Real_t& fy(Index_t idx)   { return m_fy[idx] ; }
    Real_t& fz(Index_t idx)   { return m_fz[idx] ; }
 
    // Nodal mass
+   Real_ptr nodalMass()            { return m_nodalMass ; }
    Real_t& nodalMass(Index_t idx) { return m_nodalMass[idx] ; }
 
    //
    // Element-centered
    //
+   Index_ptr  nodelist() { return m_nodelist ; }
    Index_t*  nodelist(Index_t idx) { return &m_nodelist[Index_t(8)*idx] ; }
 
 #if !defined(LULESH_LIST_INDEXSET)
@@ -290,6 +313,12 @@ class Domain {
 #endif
 
    // elem connectivities through face
+   Index_ptr  lxim()            { return m_lxim ; }
+   Index_ptr  lxip()            { return m_lxip ; }
+   Index_ptr  letam()            { return m_letam ; }
+   Index_ptr  letap()            { return m_letap ; }
+   Index_ptr  lzetam()            { return m_lzetam ; }
+   Index_ptr  lzetap()            { return m_lzetap ; }
    Index_t&  lxim(Index_t idx) { return m_lxim[idx] ; }
    Index_t&  lxip(Index_t idx) { return m_lxip[idx] ; }
    Index_t&  letam(Index_t idx) { return m_letam[idx] ; }
@@ -298,63 +327,88 @@ class Domain {
    Index_t&  lzetap(Index_t idx) { return m_lzetap[idx] ; }
 
    // elem face symm/free-surface flag
+   Int_ptr  elemBC()            { return m_elemBC ; }
    Int_t&  elemBC(Index_t idx) { return m_elemBC[idx] ; }
 
    // Principal strains - temporary
+   Real_ptr dxx()             { return m_dxx ; }
+   Real_ptr dyy()             { return m_dyy ; }
+   Real_ptr dzz()             { return m_dzz ; }
    Real_t& dxx(Index_t idx)  { return m_dxx[idx] ; }
    Real_t& dyy(Index_t idx)  { return m_dyy[idx] ; }
    Real_t& dzz(Index_t idx)  { return m_dzz[idx] ; }
 
    // New relative volume - temporary
+   Real_ptr vnew()             { return m_vnew ; }
    Real_t& vnew(Index_t idx)  { return m_vnew[idx] ; }
 
    // Velocity gradient - temporary
+   Real_ptr delv_xi()               { return m_delv_xi ; }
+   Real_ptr delv_eta()              { return m_delv_eta ; }
+   Real_ptr delv_zeta()             { return m_delv_zeta ; }
    Real_t& delv_xi(Index_t idx)    { return m_delv_xi[idx] ; }
    Real_t& delv_eta(Index_t idx)   { return m_delv_eta[idx] ; }
    Real_t& delv_zeta(Index_t idx)  { return m_delv_zeta[idx] ; }
 
    // Position gradient - temporary
+   Real_ptr delx_xi()               { return m_delx_xi ; }
+   Real_ptr delx_eta()              { return m_delx_eta ; }
+   Real_ptr delx_zeta()             { return m_delx_zeta ; }
    Real_t& delx_xi(Index_t idx)    { return m_delx_xi[idx] ; }
    Real_t& delx_eta(Index_t idx)   { return m_delx_eta[idx] ; }
    Real_t& delx_zeta(Index_t idx)  { return m_delx_zeta[idx] ; }
 
    // Energy
+   Real_ptr e()                     { return m_e ; }
    Real_t& e(Index_t idx)          { return m_e[idx] ; }
 
    // Pressure
+   Real_ptr p()                     { return m_p ; }
    Real_t& p(Index_t idx)          { return m_p[idx] ; }
 
    // Artificial viscosity
+   Real_ptr q()                     { return m_q ; }
    Real_t& q(Index_t idx)          { return m_q[idx] ; }
 
    // Linear term for q
+   Real_ptr ql()                    { return m_ql ; }
    Real_t& ql(Index_t idx)         { return m_ql[idx] ; }
    // Quadratic term for q
+   Real_ptr qq()                    { return m_qq ; }
    Real_t& qq(Index_t idx)         { return m_qq[idx] ; }
 
    // Relative volume
+   Real_ptr v()                     { return m_v ; }
    Real_t& v(Index_t idx)          { return m_v[idx] ; }
+   Real_ptr delv()                  { return m_delv ; }
    Real_t& delv(Index_t idx)       { return m_delv[idx] ; }
 
    // Reference volume
+   Real_ptr volo()                  { return m_volo ; }
    Real_t& volo(Index_t idx)       { return m_volo[idx] ; }
 
    // volume derivative over volume
+   Real_ptr vdov()                  { return m_vdov ; }
    Real_t& vdov(Index_t idx)       { return m_vdov[idx] ; }
 
    // Element characteristic length
+   Real_ptr arealg()                { return m_arealg ; }
    Real_t& arealg(Index_t idx)     { return m_arealg[idx] ; }
 
    // Sound speed
+   Real_ptr ss()                    { return m_ss ; }
    Real_t& ss(Index_t idx)         { return m_ss[idx] ; }
 
    // Element mass
+   Real_ptr elemMass()             { return m_elemMass ; }
    Real_t& elemMass(Index_t idx)  { return m_elemMass[idx] ; }
 
 #if defined(OMP_FINE_SYNC)
+   Index_t* nodeElemStart()       { return m_nodeElemStart ; }
    Index_t nodeElemCount(Index_t idx)
    { return m_nodeElemStart[idx+1] - m_nodeElemStart[idx] ; }
 
+   Index_t* nodeElemCornerList()  { return m_nodeElemCornerList ; }
    Index_t *nodeElemCornerList(Index_t idx)
    { return &m_nodeElemCornerList[m_nodeElemStart[idx]] ; }
 #endif
@@ -480,67 +534,67 @@ class Domain {
    std::vector<LULESH_ISET> m_domRegISet;
 
    /* Node-centered */
-   std::vector<Real_t> m_x ;  /* coordinates */
-   std::vector<Real_t> m_y ;
-   std::vector<Real_t> m_z ;
+   Real_p m_x ;  /* coordinates */
+   Real_p m_y ;
+   Real_p m_z ;
 
-   std::vector<Real_t> m_xd ; /* velocities */
-   std::vector<Real_t> m_yd ;
-   std::vector<Real_t> m_zd ;
+   Real_p m_xd ; /* velocities */
+   Real_p m_yd ;
+   Real_p m_zd ;
 
-   std::vector<Real_t> m_xdd ; /* accelerations */
-   std::vector<Real_t> m_ydd ;
-   std::vector<Real_t> m_zdd ;
+   Real_p m_xdd ; /* accelerations */
+   Real_p m_ydd ;
+   Real_p m_zdd ;
 
-   std::vector<Real_t> m_fx ;  /* forces */
-   std::vector<Real_t> m_fy ;
-   std::vector<Real_t> m_fz ;
+   Real_p m_fx ;  /* forces */
+   Real_p m_fy ;
+   Real_p m_fz ;
 
-   std::vector<Real_t> m_nodalMass ;  /* mass */
+   Real_p m_nodalMass ;  /* mass */
 
    // Element-centered
 
-   std::vector<Index_t>  m_nodelist ;     /* elemToNode connectivity */
+   Index_p  m_nodelist ;     /* elemToNode connectivity */
 
-   std::vector<Index_t>  m_lxim ;  /* element connectivity across each face */
-   std::vector<Index_t>  m_lxip ;
-   std::vector<Index_t>  m_letam ;
-   std::vector<Index_t>  m_letap ;
-   std::vector<Index_t>  m_lzetam ;
-   std::vector<Index_t>  m_lzetap ;
+   Index_p  m_lxim ;  /* element connectivity across each face */
+   Index_p  m_lxip ;
+   Index_p  m_letam ;
+   Index_p  m_letap ;
+   Index_p  m_lzetam ;
+   Index_p  m_lzetap ;
 
-   std::vector<Int_t>    m_elemBC ;  /* symmetry/free-surface flags for each elem face */
+   Int_p    m_elemBC ;  /* symmetry/free-surface flags for each elem face */
 
-   std::vector<Real_t> m_dxx ;  /* principal strains -- temporary */
-   std::vector<Real_t> m_dyy ;
-   std::vector<Real_t> m_dzz ;
+   Real_p m_dxx ;  /* principal strains -- temporary */
+   Real_p m_dyy ;
+   Real_p m_dzz ;
 
-   std::vector<Real_t> m_delv_xi ;    /* velocity gradient -- temporary */
-   std::vector<Real_t> m_delv_eta ;
-   std::vector<Real_t> m_delv_zeta ;
+   Real_p m_delv_xi ;    /* velocity gradient -- temporary */
+   Real_p m_delv_eta ;
+   Real_p m_delv_zeta ;
 
-   std::vector<Real_t> m_delx_xi ;    /* coordinate gradient -- temporary */
-   std::vector<Real_t> m_delx_eta ;
-   std::vector<Real_t> m_delx_zeta ;
+   Real_p m_delx_xi ;    /* coordinate gradient -- temporary */
+   Real_p m_delx_eta ;
+   Real_p m_delx_zeta ;
 
-   std::vector<Real_t> m_e ;   /* energy */
+   Real_p m_e ;   /* energy */
 
-   std::vector<Real_t> m_p ;   /* pressure */
-   std::vector<Real_t> m_q ;   /* q */
-   std::vector<Real_t> m_ql ;  /* linear term for q */
-   std::vector<Real_t> m_qq ;  /* quadratic term for q */
+   Real_p m_p ;   /* pressure */
+   Real_p m_q ;   /* q */
+   Real_p m_ql ;  /* linear term for q */
+   Real_p m_qq ;  /* quadratic term for q */
 
-   std::vector<Real_t> m_v ;     /* relative volume */
-   std::vector<Real_t> m_volo ;  /* reference volume */
-   std::vector<Real_t> m_vnew ;  /* new relative volume -- temporary */
-   std::vector<Real_t> m_delv ;  /* m_vnew - m_v */
-   std::vector<Real_t> m_vdov ;  /* volume derivative over volume */
+   Real_p m_v ;     /* relative volume */
+   Real_p m_volo ;  /* reference volume */
+   Real_p m_vnew ;  /* new relative volume -- temporary */
+   Real_p m_delv ;  /* m_vnew - m_v */
+   Real_p m_vdov ;  /* volume derivative over volume */
 
-   std::vector<Real_t> m_arealg ;  /* characteristic length of an element */
+   Real_p m_arealg ;  /* characteristic length of an element */
 
-   std::vector<Real_t> m_ss ;      /* "sound speed" */
+   Real_p m_ss ;      /* "sound speed" */
 
-   std::vector<Real_t> m_elemMass ;  /* mass */
+   Real_p m_elemMass ;  /* mass */
 
    // Cutoffs (treat as constants)
    const Real_t  m_e_cut ;             // energy tolerance

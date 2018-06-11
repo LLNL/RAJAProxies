@@ -229,6 +229,7 @@ void TimeIncrement(Domain& domain)
 /******************************************/
 
 RAJA_STORAGE
+RAJA_HOST_DEVICE
 void CollectDomainNodesToElemNodes(const Real_p& d_x,
                                    const Real_p& d_y,
                                    const Real_p& d_z,
@@ -288,7 +289,7 @@ void InitStressTermsForElems(Domain* domain,
    auto d_q = domain->q();
 
    RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-      [=] LULESH_DEVICE (int i) {
+      [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
       sigxx[i] = sigyy[i] = sigzz[i] =  - d_p[i] - d_q[i] ;
    } );
 }
@@ -525,7 +526,7 @@ void IntegrateStressForElems( Domain* domain,
 
   // loop over all elements
   RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-     [=] LULESH_DEVICE (int k) {
+     [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int k) LULESH_LAMBDA_CLOSURE_ATTR {
     const Index_t* const elemToNode = &(d_nodelist[8*k]);
     Real_t B[3][8] __attribute__((aligned(32))) ;// shape function derivatives
     Real_t x_local[8] __attribute__((aligned(32))) ;
@@ -571,7 +572,7 @@ void IntegrateStressForElems( Domain* domain,
   auto d_nodeElemStart = domain->nodeElemStart();
   auto d_nodeElemCornerList = domain->nodeElemCornerList();
   RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-                                 [=] LULESH_DEVICE (int gnode) {
+                                 [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int gnode) LULESH_LAMBDA_CLOSURE_ATTR {
      Index_t count = d_nodeElemStart[gnode+1] - d_nodeElemStart[gnode] ;
      Index_t *cornerList = &d_nodeElemCornerList[d_nodeElemStart[gnode]] ;
      Real_t fx_sum = Real_t(0.0) ;
@@ -588,9 +589,9 @@ void IntegrateStressForElems( Domain* domain,
      d_fz[gnode] = fz_sum ;
   } );
 
-  elemMemPool.release(fz_elem) ;
-  elemMemPool.release(fy_elem) ;
-  elemMemPool.release(fx_elem) ;
+  elemMemPool.release(&fz_elem) ;
+  elemMemPool.release(&fy_elem) ;
+  elemMemPool.release(&fx_elem) ;
 #endif
 }
 
@@ -752,7 +753,7 @@ void CalcFBHourglassForceForElems( Domain* domain,
    auto d_yd = domain->yd();
    auto d_zd = domain->zd();
    RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-      [=] LULESH_DEVICE (int i2) {
+      [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i2) LULESH_LAMBDA_CLOSURE_ATTR {
 
 #if !defined(OMP_FINE_SYNC)
       Real_t hgfx[8], hgfy[8], hgfz[8] ;
@@ -930,7 +931,7 @@ void CalcFBHourglassForceForElems( Domain* domain,
    auto d_nodeElemStart = domain->nodeElemStart();
    auto d_nodeElemCornerList = domain->nodeElemCornerList();
    RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-                                  [=] LULESH_DEVICE (int gnode) {
+                                  [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int gnode) LULESH_LAMBDA_CLOSURE_ATTR {
       Index_t count = d_nodeElemStart[gnode+1] - d_nodeElemStart[gnode] ;
       Index_t *cornerList = &d_nodeElemCornerList[d_nodeElemStart[gnode]] ;
       Real_t fx_sum = Real_t(0.0) ;
@@ -947,9 +948,9 @@ void CalcFBHourglassForceForElems( Domain* domain,
       d_fz[gnode] += fz_sum ;
    } );
 
-   elemMemPool.release(fz_elem) ;
-   elemMemPool.release(fy_elem) ;
-   elemMemPool.release(fx_elem) ;
+   elemMemPool.release(&fz_elem) ;
+   elemMemPool.release(&fy_elem) ;
+   elemMemPool.release(&fx_elem) ;
 #endif
 }
 
@@ -980,7 +981,7 @@ void CalcHourglassControlForElems(Domain* domain,
 
    /* start loop over elements */
    RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-        [=] LULESH_DEVICE (int i) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
 #if 1
       /* This variant makes overall runtime 2% faster on CPU */
       Real_t  x1[8],  y1[8],  z1[8] ;
@@ -1035,12 +1036,12 @@ void CalcHourglassControlForElems(Domain* domain,
                                     hgcoef, numElem ) ;
    }
 
-   elemMemPool.release(z8n) ;
-   elemMemPool.release(y8n) ;
-   elemMemPool.release(x8n) ;
-   elemMemPool.release(dvdz) ;
-   elemMemPool.release(dvdy) ;
-   elemMemPool.release(dvdx) ;
+   elemMemPool.release(&z8n) ;
+   elemMemPool.release(&y8n) ;
+   elemMemPool.release(&x8n) ;
+   elemMemPool.release(&dvdz) ;
+   elemMemPool.release(&dvdy) ;
+   elemMemPool.release(&dvdx) ;
 
    return ;
 }
@@ -1069,7 +1070,7 @@ void CalcVolumeForceForElems(Domain* domain)
       // check for negative element volume
       RAJA::ReduceMin<reduce_policy, Real_t> minvol(Real_t(1.0e+20));
       RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-           [=] LULESH_DEVICE (int k) {
+           [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int k) LULESH_LAMBDA_CLOSURE_ATTR {
          minvol.min(determ[k]);
       } );
 
@@ -1083,10 +1084,10 @@ void CalcVolumeForceForElems(Domain* domain)
 
       CalcHourglassControlForElems(domain, determ, hgcoef) ;
 
-      elemMemPool.release(determ) ;
-      elemMemPool.release(sigzz) ;
-      elemMemPool.release(sigyy) ;
-      elemMemPool.release(sigxx) ;
+      elemMemPool.release(&determ) ;
+      elemMemPool.release(&sigzz) ;
+      elemMemPool.release(&sigyy) ;
+      elemMemPool.release(&sigxx) ;
    }
 }
 
@@ -1104,7 +1105,7 @@ RAJA_STORAGE void CalcForceForNodes(Domain* domain)
   auto d_fy = domain->fy();
   auto d_fz = domain->fz();
   RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-       [=] LULESH_DEVICE (int i) {
+       [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
      d_fx[i] = Real_t(0.0) ;
      d_fy[i] = Real_t(0.0) ;
      d_fz[i] = Real_t(0.0) ;
@@ -1119,12 +1120,6 @@ RAJA_STORAGE void CalcForceForNodes(Domain* domain)
   fieldData[1] = &Domain::fy ;
   fieldData[2] = &Domain::fz ;
   
-  #if defined(RAJA_ENABLE_CHAI)
-  d_fx = (Real_t*) domain->fx();
-  d_fy = (Real_t*) domain->fy();
-  d_fz = (Real_t*) domain->fz();
-  #endif
-
   CommSend(*domain, MSG_COMM_SBN, 3, fieldData,
            domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() +  1,
            true, false) ;
@@ -1146,7 +1141,7 @@ void CalcAccelerationForNodes(Domain* domain)
    auto d_zdd = domain->zdd();
    auto d_nodalMass = domain->nodalMass();
    RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-        [=] LULESH_DEVICE (int i) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
       d_xdd[i] = d_fx[i] / d_nodalMass[i];
       d_ydd[i] = d_fy[i] / d_nodalMass[i];
       d_zdd[i] = d_fz[i] / d_nodalMass[i];
@@ -1162,17 +1157,17 @@ void ApplyAccelerationBoundaryConditionsForNodes(Domain* domain)
    auto d_ydd = domain->ydd();
    auto d_zdd = domain->zdd();
    RAJA::forall<symnode_exec_policy>(domain->getXSymNodeISet(),
-        [=] LULESH_DEVICE (int i) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
       d_xdd[i] = Real_t(0.0) ;
    } );
 
    RAJA::forall<symnode_exec_policy>(domain->getYSymNodeISet(),
-        [=] LULESH_DEVICE (int i) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
       d_ydd[i] = Real_t(0.0) ;
    } );
 
    RAJA::forall<symnode_exec_policy>(domain->getZSymNodeISet(),
-        [=] LULESH_DEVICE (int i) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
       d_zdd[i] = Real_t(0.0) ;
    } );
 }
@@ -1190,7 +1185,7 @@ void CalcVelocityForNodes(Domain* domain, const Real_t dt, const Real_t u_cut)
    auto d_ydd = domain->ydd();
    auto d_zdd = domain->zdd();
    RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-       [=] LULESH_DEVICE (int i) {
+       [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
      Real_t xdtmp, ydtmp, zdtmp ;
 
      xdtmp = d_xd[i] + d_xdd[i] * dt ;
@@ -1219,7 +1214,7 @@ void CalcPositionForNodes(Domain* domain, const Real_t dt)
    auto d_yd = domain->yd();
    auto d_zd = domain->zd();
    RAJA::forall<node_exec_policy>(domain->getNodeISet(),
-       [=] LULESH_DEVICE (int i) {
+       [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
      d_x[i] += d_xd[i] * dt ;
      d_y[i] += d_yd[i] * dt ;
      d_z[i] += d_zd[i] * dt ;
@@ -1265,15 +1260,6 @@ void LagrangeNodal(Domain* domain)
   fieldData[3] = &Domain::xd ;
   fieldData[4] = &Domain::yd ;
   fieldData[5] = &Domain::zd ;
-
-  #if defined(RAJA_ENABLE_CHAI)
-  auto d_x = (Real_t*) domain->x();
-  auto d_y = (Real_t*) domain->y();
-  auto d_z = (Real_t*) domain->z();
-  auto d_xd = (Real_t*) domain->xd();
-  auto d_yd = (Real_t*) domain->yd();
-  auto d_zd = (Real_t*) domain->zd();
-  #endif
 
    CommSend(*domain, MSG_SYNC_POS_VEL, 6, fieldData,
             domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() + 1,
@@ -1545,7 +1531,7 @@ void CalcKinematicsForElems( Domain* domain,
   auto d_arealg = domain->arealg();
   // loop over all elements
   RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-      [=] LULESH_DEVICE (int k) { 
+      [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int k) LULESH_LAMBDA_CLOSURE_ATTR { 
     Real_t B[3][8] ; /** shape function derivatives */
     Real_t D[6] ;
     Real_t x_local[8] ;
@@ -1627,7 +1613,7 @@ void CalcLagrangeElements(Domain* domain)
 
       // element loop to do some stuff not included in the elemlib function.
       RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-           [=] LULESH_DEVICE (int k) {
+           [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int k) LULESH_LAMBDA_CLOSURE_ATTR {
          // calc strain rate and apply as constraint (only done in FB element)
          Real_t vdov = d_dxx[k] + d_dyy[k] + d_dzz[k] ;
          Real_t vdovthird = vdov/Real_t(3.0) ;
@@ -1674,7 +1660,7 @@ void CalcMonotonicQGradientsForElems(Domain* domain)
    auto d_delv_eta = domain->delv_eta();
    auto d_delv_zeta = domain->delv_zeta();
    RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-        [=] LULESH_DEVICE (int i) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
       const Real_t ptiny = Real_t(1.e-36) ;
       Real_t ax,ay,az ;
       Real_t dxv,dyv,dzv ;
@@ -1850,7 +1836,7 @@ void CalcMonotonicQRegionForElems(Domain* domain, Int_t r,
    auto d_ql = domain->ql();
 
    RAJA::forall<mat_exec_policy>(domain->getRegionISet(r),
-        [=] LULESH_DEVICE (int ielem) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {
       Real_t qlin, qquad ;
       Real_t phixi, phieta, phizeta ;
       Int_t bcMask = d_elemBC[ielem] ;
@@ -2059,12 +2045,6 @@ void CalcQForElems(Domain* domain)
       fieldData[1] = &Domain::delv_eta ;
       fieldData[2] = &Domain::delv_zeta ;
 
-      #if defined(RAJA_ENABLE_CHAI)
-      auto d_delv_xi = (Real_t*) domain->delv_xi();
-      auto d_delv_eta = (Real_t*) domain->delv_eta();
-      auto d_delv_zeta = (Real_t*) domain->delv_zeta();
-      #endif
-
       CommSend(*domain, MSG_MONOQ, 3, fieldData,
                domain->sizeX(), domain->sizeY(), domain->sizeZ(),
                true, true) ;
@@ -2082,7 +2062,7 @@ void CalcQForElems(Domain* domain)
              maxQ(domain->qstop() - Real_t(1.0)) ;
       auto d_q = domain->q();
       RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-           [=] LULESH_DEVICE (int ielem) {
+           [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {
          maxQ.max(d_q[ielem]) ;
       } ) ;
 
@@ -2107,14 +2087,14 @@ void CalcPressureForElems(Real_p& p_new, Real_p& bvc,
                           LULESH_ISET& regISet)
 {
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {
       Real_t const  c1s = Real_t(2.0)/Real_t(3.0) ;
       bvc[ielem] = c1s * (compression[ielem] + Real_t(1.));
       pbvc[ielem] = c1s;
    } );
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {
       p_new[ielem] = bvc[ielem] * e_old[ielem] ;
 
       if    (FABS(p_new[ielem]) <  p_cut   )
@@ -2147,7 +2127,7 @@ void CalcEnergyForElems(Domain* domain,
    auto d_q = domain->q();
    auto d_delv = domain->delv();
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {  
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {  
       e_new[ielem] = d_e[ielem]
          - Real_t(0.5) * d_delv[ielem] * (p_old[ielem] + d_q[ielem])
          + Real_t(0.5) * work[ielem];
@@ -2165,7 +2145,7 @@ void CalcEnergyForElems(Domain* domain,
    auto d_ql = domain->ql();
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {  
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {  
       Real_t vhalf = Real_t(1.) / (Real_t(1.) + compHalfStep[ielem]) ;
 
       if ( d_delv[ielem] > Real_t(0.) ) {
@@ -2190,7 +2170,7 @@ void CalcEnergyForElems(Domain* domain,
    } );
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {  
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {  
       e_new[ielem] += Real_t(0.5) * work[ielem];
 
       if (FABS(e_new[ielem]) < e_cut) {
@@ -2206,7 +2186,7 @@ void CalcEnergyForElems(Domain* domain,
                         regISet);
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {  
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {  
       const Real_t sixth = Real_t(1.0) / Real_t(6.0) ;
       Real_t q_tilde ;
 
@@ -2243,7 +2223,7 @@ void CalcEnergyForElems(Domain* domain,
                         regISet);
 
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {
       if ( d_delv[ielem] <= Real_t(0.) ) {
          Real_t ssc = ( pbvc[ielem] * e_new[ielem]
             + vnewc[ielem] * vnewc[ielem] * bvc[ielem] * p_new[ielem] ) / rho0;
@@ -2274,7 +2254,7 @@ void CalcSoundSpeedForElems(Domain* domain,
 {
    auto d_ss = domain->ss();
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (int ielem) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int ielem) LULESH_LAMBDA_CLOSURE_ATTR {
       Real_t ssTmp = (pbvc[ielem] * enewc[ielem] + vnewc[ielem] * vnewc[ielem] *
                  bvc[ielem] * pnewc[ielem]) / rho0;
       if (ssTmp <= Real_t(.1111111e-36)) {
@@ -2316,13 +2296,13 @@ void EvalEOSForElems(Domain* domain,
    for(Int_t j = 0; j < rep; j++) {
       /* compress data, minimal set */
       RAJA::forall<mat_exec_policy>(regISet,
-           [=] LULESH_DEVICE (Index_t ielem) {
+           [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (Index_t ielem) LULESH_LAMBDA_CLOSURE_ATTR {
          p_old[ielem] = d_p[ielem] ;
          work[ielem] = Real_t(0.0) ;
       } );
 
       RAJA::forall<mat_exec_policy>(regISet,
-           [=] LULESH_DEVICE (Index_t ielem) {
+           [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (Index_t ielem) LULESH_LAMBDA_CLOSURE_ATTR {
          Real_t vchalf ;
          compression[ielem] = Real_t(1.) / vnewc[ielem] - Real_t(1.);
          vchalf = vnewc[ielem] - d_delv[ielem] * Real_t(.5);
@@ -2332,7 +2312,7 @@ void EvalEOSForElems(Domain* domain,
       /* Check for v > eosvmax or v < eosvmin */
       if ( eosvmin != Real_t(0.) ) {
          RAJA::forall<mat_exec_policy>(regISet,
-              [=] LULESH_DEVICE (Index_t ielem) {
+              [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (Index_t ielem) LULESH_LAMBDA_CLOSURE_ATTR {
             if (vnewc[ielem] <= eosvmin) { /* impossible due to calling func? */
                compHalfStep[ielem] = compression[ielem] ;
             }
@@ -2341,7 +2321,7 @@ void EvalEOSForElems(Domain* domain,
 
       if ( eosvmax != Real_t(0.) ) {
          RAJA::forall<mat_exec_policy>(regISet,
-              [=] LULESH_DEVICE (Index_t ielem) {
+              [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (Index_t ielem) LULESH_LAMBDA_CLOSURE_ATTR {
             if (vnewc[ielem] >= eosvmax) { /* impossible due to calling func? */
                p_old[ielem]        = Real_t(0.) ;
                compression[ielem]  = Real_t(0.) ;
@@ -2361,7 +2341,7 @@ void EvalEOSForElems(Domain* domain,
    auto d_e = domain->e();
    auto d_q = domain->q();
    RAJA::forall<mat_exec_policy>(regISet,
-        [=] LULESH_DEVICE (Index_t ielem) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (Index_t ielem) LULESH_LAMBDA_CLOSURE_ATTR {
       d_p[ielem] = p_new[ielem] ;
       d_e[ielem] = e_new[ielem] ;
       d_q[ielem] = q_new[ielem] ;
@@ -2400,14 +2380,14 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
 
     auto d_vnew = domain->vnew();
     RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-         [=] LULESH_DEVICE (int i) {
+         [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
        vnewc[i] = d_vnew[i] ;
     } );
 
     // Bound the updated relative volumes with eosvmin/max
     if (eosvmin != Real_t(0.)) {
        RAJA::forall<elem_exec_policy>(domain->getElemISet(), 
-            [=] LULESH_DEVICE (int i) {
+            [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
           if (vnewc[i] < eosvmin)
              vnewc[i] = eosvmin ;
        } );
@@ -2415,7 +2395,7 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
 
     if (eosvmax != Real_t(0.)) {
        RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-            [=] LULESH_DEVICE (int i) {
+            [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
           if (vnewc[i] > eosvmax)
              vnewc[i] = eosvmax ;
        } );
@@ -2429,7 +2409,7 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
     // just leave it in, please
     auto d_v = domain->v();
     RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-         [=] LULESH_DEVICE (int i) {
+         [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR {
        Real_t vc = d_v[i] ;
        if (eosvmin != Real_t(0.)) {
           if (vc < eosvmin)
@@ -2468,17 +2448,17 @@ void ApplyMaterialPropertiesForElems(Domain* domain)
                        reg_num, rep);
     }
 
-    elemMemPool.release(pHalfStep) ;
-    elemMemPool.release(pbvc) ;
-    elemMemPool.release(bvc) ;
-    elemMemPool.release(q_new) ;
-    elemMemPool.release(e_new) ;
-    elemMemPool.release(p_new) ;
-    elemMemPool.release(work) ;
-    elemMemPool.release(compHalfStep) ;
-    elemMemPool.release(compression) ;
-    elemMemPool.release(p_old) ;
-    elemMemPool.release(vnewc) ;
+    elemMemPool.release(&pHalfStep) ;
+    elemMemPool.release(&pbvc) ;
+    elemMemPool.release(&bvc) ;
+    elemMemPool.release(&q_new) ;
+    elemMemPool.release(&e_new) ;
+    elemMemPool.release(&p_new) ;
+    elemMemPool.release(&work) ;
+    elemMemPool.release(&compHalfStep) ;
+    elemMemPool.release(&compression) ;
+    elemMemPool.release(&p_old) ;
+    elemMemPool.release(&vnewc) ;
   }
 }
 
@@ -2491,7 +2471,7 @@ void UpdateVolumesForElems(Domain* domain,
    auto d_v = domain->v();
    auto d_vnew = domain->vnew();
    RAJA::forall<elem_exec_policy>(domain->getElemISet(),
-        [=] LULESH_DEVICE (int i) { 
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int i) LULESH_LAMBDA_CLOSURE_ATTR { 
       Real_t tmpV = d_vnew[i] ;
 
       if ( FABS(tmpV - Real_t(1.0)) < v_cut )
@@ -2532,7 +2512,7 @@ void CalcCourantConstraintForElems(Domain* domain, int reg_num,
    auto d_arealg = domain->arealg();
 
    RAJA::forall<mat_exec_policy>(domain->getRegionISet(reg_num),
-        [=] LULESH_DEVICE (int indx) {
+        [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int indx) LULESH_LAMBDA_CLOSURE_ATTR {
 
       Real_t dtf = d_ss[indx] * d_ss[indx] ;
 
@@ -2567,7 +2547,7 @@ void CalcHydroConstraintForElems(Domain* domain, int reg_num,
 
    auto d_vdov = domain->vdov();
    RAJA::forall<mat_exec_policy>(domain->getRegionISet(reg_num),
-         [=] LULESH_DEVICE (int indx) {
+         [LULESH_LAMBDA_CAPTURE_MODE] LULESH_DEVICE (int indx) LULESH_LAMBDA_CLOSURE_ATTR {
 
        Real_t dtvov_cmp = (d_vdov[indx] != Real_t(0.))
                         ? (dvovmax / (FABS(d_vdov[indx])+Real_t(1.e-20)))
@@ -2640,15 +2620,6 @@ void LagrangeLeapFrog(Domain* domain)
    fieldData[4] = &Domain::yd ;
    fieldData[5] = &Domain::zd ;
    
-   #if defined(RAJA_ENABLE_CHAI)
-   auto d_x = (Real_t*) domain->x();
-   auto d_y = (Real_t*) domain->y();
-   auto d_z = (Real_t*) domain->z();
-   auto d_xd = (Real_t*) domain->xd();
-   auto d_yd = (Real_t*) domain->yd();
-   auto d_zd = (Real_t*) domain->zd();
-   #endif
-
    CommSend(*domain, MSG_SYNC_POS_VEL, 6, fieldData,
             domain->sizeX() + 1, domain->sizeY() + 1, domain->sizeZ() + 1,
             false, false) ;
@@ -2726,10 +2697,6 @@ int main(int argc, char *argv[])
 #if USE_MPI   
    fieldData = &Domain::nodalMass ;
 
-   #if defined(RAJA_ENABLE_CHAI)
-   auto d_nodalMass = (Real_t*) locDom->nodalMass();
-   #endif
-
    // Initial domain boundary communication 
    CommRecv(*locDom, MSG_COMM_SBN, 1,
             locDom->sizeX() + 1, locDom->sizeY() + 1, locDom->sizeZ() + 1,
@@ -2757,7 +2724,7 @@ int main(int argc, char *argv[])
 //debug to see region sizes
 // for(Int_t i = 0; i < locDom->numReg(); i++) {
 //    std::cout << "region " << i + 1<< " size = " << locDom->regElemSize(i) << std::endl;
-//    RAJA::forall<mat_exec_policy>(locDom->getRegionISet(i), [=] (int idx) { printf("%d ", idx) ; }) ;
+//    RAJA::forall<mat_exec_policy>(locDom->getRegionISet(i), [LULESH_LAMBDA_CAPTURE_MODE] (int idx) { printf("%d ", idx) ; }) ;
 //    printf("\n\n") ;
 // }
    while((locDom->time() < locDom->stoptime()) && (locDom->cycle() < opts.its)) {

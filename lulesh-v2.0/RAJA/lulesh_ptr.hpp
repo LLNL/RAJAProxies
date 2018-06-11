@@ -39,6 +39,9 @@ typedef int    Int_t ;   // integer representation
 typedef Real_t * __restrict__ Real_p ;
 typedef Index_t * __restrict__ Index_p ;
 typedef Int_t * __restrict__ Int_p ;
+typedef Real_p   Real_ptr ;
+typedef Index_p  Index_ptr ;
+typedef Int_p    Int_ptr ;
 
 enum { VolumeError = -1, QStopError = -2 } ;
 
@@ -145,6 +148,8 @@ class Domain {
 
    // Destructor
    ~Domain();
+
+   void registerFirstTouch() {}
 
 #if defined(RAJA_ENABLE_CUDA)
    void *operator new(size_t size)
@@ -268,31 +273,45 @@ class Domain {
    // Node-centered
 
    // Nodal coordinates
+   Real_ptr x()    { return m_x ; }
+   Real_ptr y()    { return m_y ; }
+   Real_ptr z()    { return m_z ; }
    Real_t& x(Index_t idx)    { return m_x[idx] ; }
    Real_t& y(Index_t idx)    { return m_y[idx] ; }
    Real_t& z(Index_t idx)    { return m_z[idx] ; }
 
    // Nodal velocities
+   Real_ptr xd()    { return m_xd ; }
+   Real_ptr yd()    { return m_yd ; }
+   Real_ptr zd()    { return m_zd ; }
    Real_t& xd(Index_t idx)   { return m_xd[idx] ; }
    Real_t& yd(Index_t idx)   { return m_yd[idx] ; }
    Real_t& zd(Index_t idx)   { return m_zd[idx] ; }
 
    // Nodal accelerations
+   Real_ptr xdd()    { return m_xdd ; }
+   Real_ptr ydd()    { return m_ydd ; }
+   Real_ptr zdd()    { return m_zdd ; }
    Real_t& xdd(Index_t idx)  { return m_xdd[idx] ; }
    Real_t& ydd(Index_t idx)  { return m_ydd[idx] ; }
    Real_t& zdd(Index_t idx)  { return m_zdd[idx] ; }
 
    // Nodal forces
+   Real_ptr fx()    { return m_fx ; }
+   Real_ptr fy()    { return m_fy ; }
+   Real_ptr fz()    { return m_fz ; }
    Real_t& fx(Index_t idx)   { return m_fx[idx] ; }
    Real_t& fy(Index_t idx)   { return m_fy[idx] ; }
    Real_t& fz(Index_t idx)   { return m_fz[idx] ; }
 
    // Nodal mass
+   Real_ptr nodalMass()            { return m_nodalMass ; }
    Real_t& nodalMass(Index_t idx) { return m_nodalMass[idx] ; }
 
    //
    // Element-centered
    //
+   Index_ptr  nodelist() { return m_nodelist ; }
    Index_p  nodelist(Index_t idx) { return &m_nodelist[Index_t(8)*idx] ; }
 
 #if !defined(LULESH_LIST_INDEXSET)
@@ -302,6 +321,12 @@ class Domain {
 #endif
 
    // elem connectivities through face
+   Index_ptr  lxim()            { return m_lxim ; }
+   Index_ptr  lxip()            { return m_lxip ; }
+   Index_ptr  letam()            { return m_letam ; }
+   Index_ptr  letap()            { return m_letap ; }
+   Index_ptr  lzetam()            { return m_lzetam ; }
+   Index_ptr  lzetap()            { return m_lzetap ; }
    Index_t&  lxim(Index_t idx) { return m_lxim[idx] ; }
    Index_t&  lxip(Index_t idx) { return m_lxip[idx] ; }
    Index_t&  letam(Index_t idx) { return m_letam[idx] ; }
@@ -310,63 +335,88 @@ class Domain {
    Index_t&  lzetap(Index_t idx) { return m_lzetap[idx] ; }
 
    // elem face symm/free-surface flag
+   Int_ptr  elemBC()            { return m_elemBC ; }
    Int_t&  elemBC(Index_t idx) { return m_elemBC[idx] ; }
 
    // Principal strains - temporary
+   Real_ptr dxx()             { return m_dxx ; }
+   Real_ptr dyy()             { return m_dyy ; }
+   Real_ptr dzz()             { return m_dzz ; }
    Real_t& dxx(Index_t idx)  { return m_dxx[idx] ; }
    Real_t& dyy(Index_t idx)  { return m_dyy[idx] ; }
    Real_t& dzz(Index_t idx)  { return m_dzz[idx] ; }
 
    // New relative volume - temporary
+   Real_ptr vnew()             { return m_vnew ; }
    Real_t& vnew(Index_t idx)  { return m_vnew[idx] ; }
 
    // Velocity gradient - temporary
+   Real_ptr delv_xi()               { return m_delv_xi ; }
+   Real_ptr delv_eta()              { return m_delv_eta ; }
+   Real_ptr delv_zeta()             { return m_delv_zeta ; }
    Real_t& delv_xi(Index_t idx)    { return m_delv_xi[idx] ; }
    Real_t& delv_eta(Index_t idx)   { return m_delv_eta[idx] ; }
    Real_t& delv_zeta(Index_t idx)  { return m_delv_zeta[idx] ; }
 
    // Position gradient - temporary
+   Real_ptr delx_xi()               { return m_delx_xi ; }
+   Real_ptr delx_eta()              { return m_delx_eta ; }
+   Real_ptr delx_zeta()             { return m_delx_zeta ; }
    Real_t& delx_xi(Index_t idx)    { return m_delx_xi[idx] ; }
    Real_t& delx_eta(Index_t idx)   { return m_delx_eta[idx] ; }
    Real_t& delx_zeta(Index_t idx)  { return m_delx_zeta[idx] ; }
 
    // Energy
+   Real_ptr e()                     { return m_e ; }
    Real_t& e(Index_t idx)          { return m_e[idx] ; }
 
    // Pressure
+   Real_ptr p()                     { return m_p ; }
    Real_t& p(Index_t idx)          { return m_p[idx] ; }
 
    // Artificial viscosity
+   Real_ptr q()                     { return m_q ; }
    Real_t& q(Index_t idx)          { return m_q[idx] ; }
 
    // Linear term for q
+   Real_ptr ql()                    { return m_ql ; }
    Real_t& ql(Index_t idx)         { return m_ql[idx] ; }
    // Quadratic term for q
+   Real_ptr qq()                    { return m_qq ; }
    Real_t& qq(Index_t idx)         { return m_qq[idx] ; }
 
    // Relative volume
+   Real_ptr v()                     { return m_v ; }
    Real_t& v(Index_t idx)          { return m_v[idx] ; }
+   Real_ptr delv()                  { return m_delv ; }
    Real_t& delv(Index_t idx)       { return m_delv[idx] ; }
 
    // Reference volume
+   Real_ptr volo()                  { return m_volo ; }
    Real_t& volo(Index_t idx)       { return m_volo[idx] ; }
 
    // volume derivative over volume
+   Real_ptr vdov()                  { return m_vdov ; }
    Real_t& vdov(Index_t idx)       { return m_vdov[idx] ; }
 
    // Element characteristic length
+   Real_ptr arealg()                { return m_arealg ; }
    Real_t& arealg(Index_t idx)     { return m_arealg[idx] ; }
 
    // Sound speed
+   Real_ptr ss()                    { return m_ss ; }
    Real_t& ss(Index_t idx)         { return m_ss[idx] ; }
 
    // Element mass
+   Real_ptr elemMass()             { return m_elemMass ; }
    Real_t& elemMass(Index_t idx)  { return m_elemMass[idx] ; }
 
 #if defined(OMP_FINE_SYNC)
+   Index_ptr nodeElemStart()       { return m_nodeElemStart ; }
    Index_t nodeElemCount(Index_t idx)
    { return m_nodeElemStart[idx+1] - m_nodeElemStart[idx] ; }
 
+   Index_ptr nodeElemCornerList()  { return m_nodeElemCornerList ; }
    Index_p nodeElemCornerList(Index_t idx)
    { return &m_nodeElemCornerList[m_nodeElemStart[idx]] ; }
 #endif
@@ -418,7 +468,7 @@ class Domain {
    Real_t& dtfixed()              { return m_dtfixed ; }
 
    Int_t&  cycle()                { return m_cycle ; }
-   Int_t&  numRanks()           { return m_numRanks ; }
+   Int_t&  numRanks()             { return m_numRanks ; }
 
    Index_t&  colLoc()             { return m_colLoc ; }
    Index_t&  rowLoc()             { return m_rowLoc ; }

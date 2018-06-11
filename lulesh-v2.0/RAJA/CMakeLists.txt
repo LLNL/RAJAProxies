@@ -33,12 +33,9 @@ if (ENABLE_CUDA)
 endif ()
 
 if (ENABLE_CHAI)
-  find_package(umpire)
-
   set (lulesh_depends
     ${lulesh_depends}
-    #chai
-    umpire)
+    chai)
 endif ()
 
 blt_add_executable(
@@ -65,6 +62,8 @@ target_compile_definitions(
   lulesh-v2.0-RAJA-seq.exe
   PUBLIC
   -DLULESH_DEVICE= 
+  -DLULESH_LAMBDA_CAPTURE_MODE=&
+  -DLULESH_LAMBDA_CLOSURE_ATTR=
 )
 
 if (ENABLE_OPENMP)
@@ -82,6 +81,8 @@ if (ENABLE_OPENMP)
     lulesh-v2.0-RAJA-omp.exe
     PUBLIC
     -DLULESH_DEVICE= 
+    -DLULESH_LAMBDA_CAPTURE_MODE=&
+    -DLULESH_LAMBDA_CLOSURE_ATTR=
   )
 endif ()
 
@@ -127,6 +128,8 @@ if (ENABLE_CUDA)
     lulesh-v2.0-RAJA-cuda.exe
     PUBLIC
     -DLULESH_DEVICE=__device__
+    -DLULESH_LAMBDA_CAPTURE_MODE==
+    -DLULESH_LAMBDA_CLOSURE_ATTR=mutable
   )
 
   target_include_directories(

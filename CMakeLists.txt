@@ -22,11 +22,20 @@ if (NOT EXISTS ${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
   git submodule init\n \
   git submodule update")
 endif()
+
+if (ENABLE_CHAI)
+  set(ENABLE_COPY_HEADERS On CACHE BOOL "")
+endif ()
+
 include(${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
 
-add_subdirectory(tpl/RAJA)
-
 set(CUDA_NVCC_FLAGS ${RAJA_NVCC_FLAGS})
+
+if (ENABLE_CHAI)
+  add_subdirectory(chai)
+endif ()
+
+add_subdirectory(tpl/RAJA)
 
 if (ENABLE_DOCUMENTATION)
   add_subdirectory(docs)

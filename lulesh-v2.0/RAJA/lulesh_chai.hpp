@@ -37,13 +37,16 @@ typedef float        real4 ;
 typedef double       real8 ;
 typedef long double  real10 ;  // 10 bytes on x86
 
-typedef RAJA::Index_type Index_t ; // array subscript and loop index
+typedef RAJA::Index_type    Index_t ; // array subscript and loop index
 typedef real8  Real_t ;  // floating point representation
 typedef int    Int_t ;   // integer representation
 
 typedef chai::ManagedArray<Real_t>   Real_p;
 typedef chai::ManagedArray<Index_t>  Index_p;
 typedef chai::ManagedArray<Int_t>    Int_p;
+typedef Real_p&   Real_ptr;
+typedef Index_p&  Index_ptr;
+typedef Int_p&    Int_ptr;
 
 enum { VolumeError = -1, QStopError = -2 } ;
 
@@ -329,46 +332,46 @@ class Domain {
    // Node-centered
 
    // Nodal coordinates
-   Real_p& x()    { return m_x ; }
-   Real_p& y()    { return m_y ; }
-   Real_p& z()    { return m_z ; }
-   Real_t& x(Index_t idx)    { return m_x[(int)idx] ; }
-   Real_t& y(Index_t idx)    { return m_y[(int)idx] ; }
-   Real_t& z(Index_t idx)    { return m_z[(int)idx] ; }
+   Real_ptr x()    { return m_x ; }
+   Real_ptr y()    { return m_y ; }
+   Real_ptr z()    { return m_z ; }
+   Real_t& x(Index_t idx)    { return m_x[idx] ; }
+   Real_t& y(Index_t idx)    { return m_y[idx] ; }
+   Real_t& z(Index_t idx)    { return m_z[idx] ; }
 
    // Nodal velocities
-   Real_p& xd()    { return m_xd ; }
-   Real_p& yd()    { return m_yd ; }
-   Real_p& zd()    { return m_zd ; }
-   Real_t& xd(Index_t idx)   { return m_xd[(int)idx] ; }
-   Real_t& yd(Index_t idx)   { return m_yd[(int)idx] ; }
-   Real_t& zd(Index_t idx)   { return m_zd[(int)idx] ; }
+   Real_ptr xd()    { return m_xd ; }
+   Real_ptr yd()    { return m_yd ; }
+   Real_ptr zd()    { return m_zd ; }
+   Real_t& xd(Index_t idx)   { return m_xd[idx] ; }
+   Real_t& yd(Index_t idx)   { return m_yd[idx] ; }
+   Real_t& zd(Index_t idx)   { return m_zd[idx] ; }
 
    // Nodal accelerations
-   Real_p& xdd()    { return m_xdd ; }
-   Real_p& ydd()    { return m_ydd ; }
-   Real_p& zdd()    { return m_zdd ; }
-   Real_t& xdd(Index_t idx)  { return m_xdd[(int)idx] ; }
-   Real_t& ydd(Index_t idx)  { return m_ydd[(int)idx] ; }
-   Real_t& zdd(Index_t idx)  { return m_zdd[(int)idx] ; }
+   Real_ptr xdd()    { return m_xdd ; }
+   Real_ptr ydd()    { return m_ydd ; }
+   Real_ptr zdd()    { return m_zdd ; }
+   Real_t& xdd(Index_t idx)  { return m_xdd[idx] ; }
+   Real_t& ydd(Index_t idx)  { return m_ydd[idx] ; }
+   Real_t& zdd(Index_t idx)  { return m_zdd[idx] ; }
 
    // Nodal forces
-   Real_p& fx()    { return m_fx ; }
-   Real_p& fy()    { return m_fy ; }
-   Real_p& fz()    { return m_fz ; }
-   Real_t& fx(Index_t idx)   { return m_fx[(int)idx] ; }
-   Real_t& fy(Index_t idx)   { return m_fy[(int)idx] ; }
-   Real_t& fz(Index_t idx)   { return m_fz[(int)idx] ; }
+   Real_ptr fx()    { return m_fx ; }
+   Real_ptr fy()    { return m_fy ; }
+   Real_ptr fz()    { return m_fz ; }
+   Real_t& fx(Index_t idx)   { return m_fx[idx] ; }
+   Real_t& fy(Index_t idx)   { return m_fy[idx] ; }
+   Real_t& fz(Index_t idx)   { return m_fz[idx] ; }
 
    // Nodal mass
-   Real_p& nodalMass()            { return m_nodalMass ; }
-   Real_t& nodalMass(Index_t idx) { return m_nodalMass[(int)idx] ; }
+   Real_ptr nodalMass()            { return m_nodalMass ; }
+   Real_t& nodalMass(Index_t idx) { return m_nodalMass[idx] ; }
 
    //
    // Element-centered
    //
-   Index_p&  nodelist() { return m_nodelist ; }
-   Index_t*  nodelist(Index_t idx) { return &m_nodelist[(int)(Index_t(8)*idx)] ; }
+   Index_ptr  nodelist() { return m_nodelist ; }
+   Index_t*  nodelist(Index_t idx) { return &m_nodelist[Index_t(8)*idx] ; }
 
 #if !defined(LULESH_LIST_INDEXSET)
    Index_t&  perm(Index_t idx)     { return m_perm[idx] ; }
@@ -377,102 +380,102 @@ class Domain {
 #endif
 
    // elem connectivities through face
-   Index_p&  lxim()            { return m_lxim ; }
-   Index_p&  lxip()            { return m_lxip ; }
-   Index_p&  letam()            { return m_letam ; }
-   Index_p&  letap()            { return m_letap ; }
-   Index_p&  lzetam()            { return m_lzetam ; }
-   Index_p&  lzetap()            { return m_lzetap ; }
-   Index_t&  lxim(Index_t idx) { return m_lxim[(int)idx] ; }
-   Index_t&  lxip(Index_t idx) { return m_lxip[(int)idx] ; }
-   Index_t&  letam(Index_t idx) { return m_letam[(int)idx] ; }
-   Index_t&  letap(Index_t idx) { return m_letap[(int)idx] ; }
-   Index_t&  lzetam(Index_t idx) { return m_lzetam[(int)idx] ; }
-   Index_t&  lzetap(Index_t idx) { return m_lzetap[(int)idx] ; }
+   Index_ptr  lxim()            { return m_lxim ; }
+   Index_ptr  lxip()            { return m_lxip ; }
+   Index_ptr  letam()            { return m_letam ; }
+   Index_ptr  letap()            { return m_letap ; }
+   Index_ptr  lzetam()            { return m_lzetam ; }
+   Index_ptr  lzetap()            { return m_lzetap ; }
+   Index_t&  lxim(Index_t idx) { return m_lxim[idx] ; }
+   Index_t&  lxip(Index_t idx) { return m_lxip[idx] ; }
+   Index_t&  letam(Index_t idx) { return m_letam[idx] ; }
+   Index_t&  letap(Index_t idx) { return m_letap[idx] ; }
+   Index_t&  lzetam(Index_t idx) { return m_lzetam[idx] ; }
+   Index_t&  lzetap(Index_t idx) { return m_lzetap[idx] ; }
 
    // elem face symm/free-surface flag
-   Int_p&  elemBC()            { return m_elemBC ; }
-   Int_t&  elemBC(Index_t idx) { return m_elemBC[(int)idx] ; }
+   Int_ptr  elemBC()            { return m_elemBC ; }
+   Int_t&  elemBC(Index_t idx) { return m_elemBC[idx] ; }
 
    // Principal strains - temporary
-   Real_p& dxx()             { return m_dxx ; }
-   Real_p& dyy()             { return m_dyy ; }
-   Real_p& dzz()             { return m_dzz ; }
-   Real_t& dxx(Index_t idx)  { return m_dxx[(int)idx] ; }
-   Real_t& dyy(Index_t idx)  { return m_dyy[(int)idx] ; }
-   Real_t& dzz(Index_t idx)  { return m_dzz[(int)idx] ; }
+   Real_ptr dxx()             { return m_dxx ; }
+   Real_ptr dyy()             { return m_dyy ; }
+   Real_ptr dzz()             { return m_dzz ; }
+   Real_t& dxx(Index_t idx)  { return m_dxx[idx] ; }
+   Real_t& dyy(Index_t idx)  { return m_dyy[idx] ; }
+   Real_t& dzz(Index_t idx)  { return m_dzz[idx] ; }
 
    // New relative volume - temporary
-   Real_p& vnew()             { return m_vnew ; }
-   Real_t& vnew(Index_t idx)  { return m_vnew[(int)idx] ; }
+   Real_ptr vnew()             { return m_vnew ; }
+   Real_t& vnew(Index_t idx)  { return m_vnew[idx] ; }
 
    // Velocity gradient - temporary
-   Real_p& delv_xi()               { return m_delv_xi ; }
-   Real_p& delv_eta()              { return m_delv_eta ; }
-   Real_p& delv_zeta()             { return m_delv_zeta ; }
-   Real_t& delv_xi(Index_t idx)    { return m_delv_xi[(int)idx] ; }
-   Real_t& delv_eta(Index_t idx)   { return m_delv_eta[(int)idx] ; }
-   Real_t& delv_zeta(Index_t idx)  { return m_delv_zeta[(int)idx] ; }
+   Real_ptr delv_xi()               { return m_delv_xi ; }
+   Real_ptr delv_eta()              { return m_delv_eta ; }
+   Real_ptr delv_zeta()             { return m_delv_zeta ; }
+   Real_t& delv_xi(Index_t idx)    { return m_delv_xi[idx] ; }
+   Real_t& delv_eta(Index_t idx)   { return m_delv_eta[idx] ; }
+   Real_t& delv_zeta(Index_t idx)  { return m_delv_zeta[idx] ; }
 
    // Position gradient - temporary
-   Real_p& delx_xi()               { return m_delx_xi ; }
-   Real_p& delx_eta()              { return m_delx_eta ; }
-   Real_p& delx_zeta()             { return m_delx_zeta ; }
-   Real_t& delx_xi(Index_t idx)    { return m_delx_xi[(int)idx] ; }
-   Real_t& delx_eta(Index_t idx)   { return m_delx_eta[(int)idx] ; }
-   Real_t& delx_zeta(Index_t idx)  { return m_delx_zeta[(int)idx] ; }
+   Real_ptr delx_xi()               { return m_delx_xi ; }
+   Real_ptr delx_eta()              { return m_delx_eta ; }
+   Real_ptr delx_zeta()             { return m_delx_zeta ; }
+   Real_t& delx_xi(Index_t idx)    { return m_delx_xi[idx] ; }
+   Real_t& delx_eta(Index_t idx)   { return m_delx_eta[idx] ; }
+   Real_t& delx_zeta(Index_t idx)  { return m_delx_zeta[idx] ; }
 
    // Energy
-   Real_p& e()                     { return m_e ; }
-   Real_t& e(Index_t idx)          { return m_e[(int)idx] ; }
+   Real_ptr e()                     { return m_e ; }
+   Real_t& e(Index_t idx)          { return m_e[idx] ; }
 
    // Pressure
-   Real_p& p()                     { return m_p ; }
-   Real_t& p(Index_t idx)          { return m_p[(int)idx] ; }
+   Real_ptr p()                     { return m_p ; }
+   Real_t& p(Index_t idx)          { return m_p[idx] ; }
 
    // Artificial viscosity
-   Real_p& q()                     { return m_q ; }
-   Real_t& q(Index_t idx)          { return m_q[(int)idx] ; }
+   Real_ptr q()                     { return m_q ; }
+   Real_t& q(Index_t idx)          { return m_q[idx] ; }
 
    // Linear term for q
-   Real_p& ql()                    { return m_ql ; }
-   Real_t& ql(Index_t idx)         { return m_ql[(int)idx] ; }
+   Real_ptr ql()                    { return m_ql ; }
+   Real_t& ql(Index_t idx)         { return m_ql[idx] ; }
    // Quadratic term for q
-   Real_p& qq()                    { return m_qq ; }
-   Real_t& qq(Index_t idx)         { return m_qq[(int)idx] ; }
+   Real_ptr qq()                    { return m_qq ; }
+   Real_t& qq(Index_t idx)         { return m_qq[idx] ; }
 
    // Relative volume
-   Real_p& v()                     { return m_v ; }
-   Real_t& v(Index_t idx)          { return m_v[(int)idx] ; }
-   Real_p& delv()                  { return m_delv ; }
-   Real_t& delv(Index_t idx)       { return m_delv[(int)idx] ; }
+   Real_ptr v()                     { return m_v ; }
+   Real_t& v(Index_t idx)          { return m_v[idx] ; }
+   Real_ptr delv()                  { return m_delv ; }
+   Real_t& delv(Index_t idx)       { return m_delv[idx] ; }
 
    // Reference volume
-   Real_p& volo()                  { return m_volo ; }
-   Real_t& volo(Index_t idx)       { return m_volo[(int)idx] ; }
+   Real_ptr volo()                  { return m_volo ; }
+   Real_t& volo(Index_t idx)       { return m_volo[idx] ; }
 
    // volume derivative over volume
-   Real_p& vdov()                  { return m_vdov ; }
-   Real_t& vdov(Index_t idx)       { return m_vdov[(int)idx] ; }
+   Real_ptr vdov()                  { return m_vdov ; }
+   Real_t& vdov(Index_t idx)       { return m_vdov[idx] ; }
 
    // Element characteristic length
-   Real_p& arealg()                { return m_arealg ; }
-   Real_t& arealg(Index_t idx)     { return m_arealg[(int)idx] ; }
+   Real_ptr arealg()                { return m_arealg ; }
+   Real_t& arealg(Index_t idx)     { return m_arealg[idx] ; }
 
    // Sound speed
-   Real_p& ss()                    { return m_ss ; }
-   Real_t& ss(Index_t idx)         { return m_ss[(int)idx] ; }
+   Real_ptr ss()                    { return m_ss ; }
+   Real_t& ss(Index_t idx)         { return m_ss[idx] ; }
 
    // Element mass
-   Real_p& elemMass()             { return m_elemMass ; }
-   Real_t& elemMass(Index_t idx)  { return m_elemMass[(int)idx] ; }
+   Real_ptr elemMass()             { return m_elemMass ; }
+   Real_t& elemMass(Index_t idx)  { return m_elemMass[idx] ; }
 
 #if defined(OMP_FINE_SYNC)
-   Index_p& nodeElemStart()       { return m_nodeElemStart ; }
+   Index_ptr nodeElemStart()       { return m_nodeElemStart ; }
    Index_t nodeElemCount(Index_t idx)
    { return m_nodeElemStart[idx+1] - m_nodeElemStart[idx] ; }
 
-   Index_p& nodeElemCornerList()  { return m_nodeElemCornerList ; }
+   Index_ptr nodeElemCornerList()  { return m_nodeElemCornerList ; }
    Index_t *nodeElemCornerList(Index_t idx)
    { return &m_nodeElemCornerList[m_nodeElemStart[idx]] ; }
 #endif

@@ -7,3 +7,6 @@
 [submodule "kripke"]
 	path = kripke
 	url = https://github.com/LLNL/Kripke.git
+[submodule "chai"]
+	path = chai
+	url = https://github.com/LLNL/chai
