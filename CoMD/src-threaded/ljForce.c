@@ -144,16 +144,15 @@ void ljPrint(FILE* file, BasePotential* pot)
 
 int ljForce(SimFlat* s)
 {
-// static int pcount = 0 ;
-// ReduceSum<RAJA::omp_reduce, int>  pairsChecked(0) ;
    LjPotential* pot = (LjPotential *) s->pot;
-   real_t sigma = pot->sigma;
-   real_t epsilon = pot->epsilon;
-   real_t rCut = pot->cutoff;
-   real_t rCut2 = rCut*rCut;
+   const real_t sigma = pot->sigma;
+   const real_t epsilon = pot->epsilon;
+   const real_t rCut = pot->cutoff;
+   const real_t rCut2 = rCut*rCut;
 
    // zero forces and energy
-   RAJA::ReduceSum<RAJA::seq_reduce, real_t> ePot(0.0);
+   rajaReduceSumReal ePot(0.0);
+
    s->ePotential = 0.0;
 
    RAJA::forall<atomWork>(*s->isTotal, [=] (int ii) {
@@ -161,21 +160,13 @@ int ljForce(SimFlat* s)
       s->atoms->U[ii] = 0.;
    } ) ;
 
-   real_t s6 = sigma*sigma*sigma*sigma*sigma*sigma;
+   const real_t s6 = sigma*sigma*sigma*sigma*sigma*sigma;
 
-   real_t rCut6 = s6 / (rCut2*rCut2*rCut2);
-   real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
+   const real_t rCut6 = s6 / (rCut2*rCut2*rCut2);
+   const real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
 
    {
-
-     using Pol = RAJA::KernelPolicy<
-       RAJA::statement::For<0, RAJA::seq_exec,
-       RAJA::statement::For<1, RAJA::seq_exec,
-       RAJA::statement::For<2, RAJA::seq_exec,
-       RAJA::statement::For<3, RAJA::seq_exec,
-       RAJA::statement::Lambda<0> > > > > >;
-
-     RAJA::kernel<Pol>(
+     RAJA::kernel<ljForcePolicy>(
        RAJA::make_tuple(
          *s->isLocalSegment,                // local boxes
          RAJA::RangeSegment(0,27),          // 27 neighbor boxes
@@ -183,23 +174,23 @@ int ljForce(SimFlat* s)
          RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
 
        [=] (int iBoxID, int nghb, int iOff, int jOff) {
+         const int nLocalBoxes = s->boxes->nLocalBoxes;
+         const int nTotalBoxes = s->boxes->nTotalBoxes;
+         const int nIBox = s->boxes->nAtoms[iBoxID];
+         const int jBoxID = s->boxes->nbrBoxes[iBoxID][nghb];
+         const int nJBox = s->boxes->nAtoms[jBoxID];
+         const int iOffLocal = iOff;
+         const int jOffLocal = jOff;
 
-         int nLocalBoxes = s->boxes->nLocalBoxes;
-         int nTotalBoxes = s->boxes->nTotalBoxes;
-         int nIBox = s->boxes->nAtoms[iBoxID];
-         int jBoxID = s->boxes->nbrBoxes[iBoxID][nghb];
-         int nJBox = s->boxes->nAtoms[jBoxID];
+         iOff += iBoxID*MAXATOMS;
+         jOff += jBoxID*MAXATOMS;
+         const int iGid = s->atoms->gid[iOff];
+         const int jGid = s->atoms->gid[jOff];
 
-         if (iOff < nIBox && jOff < nJBox) {
-
-           //std::cout<<"nTotalBoxes="<<nTotalBoxes<<", nLocalBoxes="<<nLocalBoxes;
-           //std::cout<<", iBoxID="<<iBoxID<<", nIBox="<<nIBox<<", nghb="<<nghb<<", jBoxID"<<jBoxID<<", nJBox="<<nJBox;
-           //std::cout<<std::endl;
-
-
+         if( (iOffLocal < nIBox && jOffLocal < nJBox) && !(jBoxID < nLocalBoxes && jGid <= iGid)) {
            real3 dr;
            real_t r2 = 0.0;
-           real3_ptr r =  s->atoms->r ;
+           real3_ptr r =  s->atoms->r;
            for (int m=0; m<3; m++)
            {
              dr[m] = r[iOff][m] - r[jOff][m];
@@ -210,13 +201,26 @@ int ljForce(SimFlat* s)
              // Important note:
              // from this point on r actually refers to 1.0/r
              real_ptr U = s->atoms->U ;
-             //real3_ptr f = s->atoms->f ;
+             real3_ptr f = s->atoms->f ;
              r2 = 1.0/r2;
-             real_t r6 = s6 * (r2*r2*r2);
-             real_t eLocal = r6 * (r6 - 1.0) - eShift;
+             const real_t r6 = s6 * (r2*r2*r2);
+             const real_t eLocal = r6 * (r6 - 1.0) - eShift;
              U[iOff] += 0.5*eLocal;
-             ePot += 0.5*eLocal;
 
+             if (jBoxID < nLocalBoxes)
+               ePot += eLocal;
+             else
+               ePot += 0.5*eLocal;
+
+             // different formulation to avoid sqrt computation
+             const real_t fr = - 4.0*epsilon*r6*r2*(12.0*r6 - 6.0);
+
+             for (int m=0; m<3; m++)
+             {
+               dr[m] *= fr;
+               f[iOff][m] -= dr[m];
+               f[jOff][m] += dr[m];
+             }
            }  //end if within cutoff
          }//end if atoms exist
        });
@@ -224,8 +228,6 @@ int ljForce(SimFlat* s)
    }
 
    s->ePotential = ePot*4.0*epsilon;
-
-// printf("pairs = %d\n", pairsChecked) ;
 
    return 0;
 }

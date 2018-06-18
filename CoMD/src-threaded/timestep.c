@@ -91,20 +91,19 @@ void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent
 void kineticEnergy(SimFlat* s)
 {
    real_t eLocal[2];
-   RAJA::ReduceSum<RAJA::seq_reduce, real_t> kenergy(0.0) ;
+   rajaReduceSumReal kenergy(0.0);
+
    eLocal[0] = s->ePotential;
    eLocal[1] = 0;
 
-   {
-   RAJA::forall<atomWork>(*s->isLocal, [&] (int iOff) {
-      int iSpecies = s->atoms->iSpecies[iOff];
-      real_t invMass = 0.5/s->species[iSpecies].mass;
+   RAJA::forall<atomWork>(*s->isLocal, [=] (int iOff) {
+      const int iSpecies = s->atoms->iSpecies[iOff];
+      const real_t invMass = 0.5/s->species[iSpecies].mass;
       kenergy += ( s->atoms->p[iOff][0] * s->atoms->p[iOff][0] +
                    s->atoms->p[iOff][1] * s->atoms->p[iOff][1] +
                    s->atoms->p[iOff][2] * s->atoms->p[iOff][2] )*
                   invMass ;
    } ) ;
-   }
 
    eLocal[1] = kenergy;
 
@@ -139,10 +138,15 @@ void redistributeAtoms(SimFlat* sim)
    stopTimer(atomHaloTimer);
 
    updateIndexSets(sim) ;
-
-//   #pragma omp parallel for //TO DO rewrite this without the pragma but in parallel?
+#ifndef ENABLE_OPENMP
+   //#pragma omp parallel for //TO DO rewrite this without the pragma but in parallel?
    for (int ii=0; ii<sim->boxes->nTotalBoxes; ++ii)
-      sortAtomsInCell(sim->atoms, sim->boxes, ii);
+     sortAtomsInCell(sim->atoms, sim->boxes, ii);
+#else
+   RAJA::forall<linkCellTraversal>(RAJA::RangeSegment(0,sim->boxes->nTotalBoxes), [=] (int ii) {
+     sortAtomsInCell(sim->atoms, sim->boxes, ii);
+   });
+#endif
 }
 
 void updateIndexSets(SimFlat *s)

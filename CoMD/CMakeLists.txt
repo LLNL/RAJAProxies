@@ -25,8 +25,8 @@ include_directories(${RAJA_INCLUDE_DIRS})
 
 set(COMD_VERSION "1.0.0")
 
-configure_file(${PROJECT_SOURCE_DIR}/src/CoMDConfig.h.in
-               ${PROJECT_BINARY_DIR}/include/CoMDConfig.h)
+#configure_file(${PROJECT_SOURCE_DIR}/src/CoMDConfig.h.in
+#               ${PROJECT_BINARY_DIR}/include/CoMDConfig.h)
 
 
 
