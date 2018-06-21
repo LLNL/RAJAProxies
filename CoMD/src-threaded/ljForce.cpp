@@ -151,7 +151,11 @@ int ljForce(SimFlat* s)
    const real_t rCut2 = rCut*rCut;
 
    // zero forces and energy
+#ifdef DO_CUDA
+   rajaReduceSumRealCUDA ePot(0.0);
+#else
    rajaReduceSumReal ePot(0.0);
+#endif
 
    s->ePotential = 0.0;
 
@@ -166,14 +170,21 @@ int ljForce(SimFlat* s)
    const real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
 
    {
-     RAJA::kernel<ljForcePolicy>(
+#ifdef DO_CUDA
+     RAJA::kernel<forcePolicyGPU>(
+#else
+     RAJA::kernel<forcePolicy>(
+#endif
        RAJA::make_tuple(
          *s->isLocalSegment,                // local boxes
          RAJA::RangeSegment(0,27),          // 27 neighbor boxes
          RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
          RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
-
+#ifdef DO_CUDA
+       [=] RAJA_DEVICE (int iBoxID, int nghb, int iOff, int jOff) {
+#else
        [=] (int iBoxID, int nghb, int iOff, int jOff) {
+#endif
          const int nLocalBoxes = s->boxes->nLocalBoxes;
          const int nTotalBoxes = s->boxes->nTotalBoxes;
          const int nIBox = s->boxes->nAtoms[iBoxID];
@@ -218,8 +229,13 @@ int ljForce(SimFlat* s)
              for (int m=0; m<3; m++)
              {
                dr[m] *= fr;
+#ifdef DO_CUDA
+               atomicAdd(&f[iOff][m], -dr[m]);
+               atomicAdd(&f[jOff][m], dr[m]);
+#else
                f[iOff][m] -= dr[m];
                f[jOff][m] += dr[m];
+#endif
              }
            }  //end if within cutoff
          }//end if atoms exist

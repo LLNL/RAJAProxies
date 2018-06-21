@@ -106,21 +106,48 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<1, RAJA::seq_exec,
   RAJA::statement::For<2, RAJA::seq_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > ljForcePolicy;
+  RAJA::statement::Lambda<0> > > > > > forcePolicy;
 
 typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumReal;
-#else
-typedef RAJA::seq_segit linkCellTraversal ;
+
+#elif DO_CUDA
+
+typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
 typedef RAJA::seq_segit task_graph_policy;
 
 typedef RAJA::KernelPolicy<
-  RAJA::statement::For<0, RAJA::simd_exec,
-  RAJA::statement::For<1, RAJA::simd_exec,
-  RAJA::statement::For<2, RAJA::simd_exec,
+  RAJA::statement::For<0, RAJA::seq_exec,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > ljForcePolicy;
+  RAJA::statement::Lambda<0> > > > > > forcePolicy;
+
+typedef RAJA::KernelPolicy<
+  RAJA::statement::CudaKernel<
+    RAJA::statement::For<0, RAJA::cuda_block_exec,
+    RAJA::statement::For<1, RAJA::cuda_thread_exec,
+    RAJA::statement::For<2, RAJA::seq_exec,
+    RAJA::statement::For<3, RAJA::seq_exec,
+    RAJA::statement::Lambda<0> > > > > > > forcePolicyGPU;
+
+typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
+typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, real_t> rajaReduceSumRealCUDA;
+
+#else
+
+typedef RAJA::seq_segit linkCellTraversal;
+typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
+typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
+typedef RAJA::seq_segit task_graph_policy;
+
+typedef RAJA::KernelPolicy<
+  RAJA::statement::For<0, RAJA::seq_exec,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
+  RAJA::statement::For<3, RAJA::simd_exec,
+  RAJA::statement::Lambda<0> > > > > > forcePolicy;
 
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 #endif

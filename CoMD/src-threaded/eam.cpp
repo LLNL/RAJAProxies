@@ -230,53 +230,50 @@ int eamForce(SimFlat* s)
       pot->forceExchangeData->dfEmbed = pot->dfEmbed;
       pot->forceExchangeData->boxes = s->boxes;
    }
-
+   
    real_t rCut2 = pot->cutoff*pot->cutoff;
-   RAJA::ReduceSum<RAJA::seq_reduce, real_t> etot(0.0) ;
 
    // zero forces / energy / rho /rhoprime
-   RAJA::forall<atomWork>(*s->isTotal, [=] (int ii) {
-      zeroReal3(s->atoms->f[ii]);
-      s->atoms->U[ii] = 0.;
-      pot->dfEmbed[ii] = 0.;
-      pot->rhobar[ii] = 0.;
-   } ) ;
 
-   //TO DO rewrite this to use modern RAJA loops
-/*
-   // loop over local boxes
-   RAJA::forall_segments<task_graph_policy>(*s->isLocal,
-   [&] (RAJA::TypedIndexSet<RAJA::RangeSegment> *iBox) {
-      // real_t etotLocal = 0.;
+   memset(s->atoms->f,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real3));
+   memset(s->atoms->U,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
+   memset(pot->dfEmbed, 0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
+   memset(pot->rhobar,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
 
-      RAJA::TypedIndexSet<RAJA::RangeSegment> *iBoxNeighbors =
-           static_cast<RAJA::TypedIndexSet<RAJA::RangeSegment> *>(iBox->getSegment(0)->getPrivate()) ;
+   int nbrBoxes[27];
+//#define DO_SERIAL
+#ifdef DO_SERIAL
+   real_t etot = 0.0;
 
-      RAJA::forall<linkCellWork>(*iBoxNeighbors, [&] (int jOff) {
-         RAJA::forall<linkCellWork>(*iBox, [&] (int iOff) {
-            real3 dr;
-            real_t r2 = 0.0;
-#if 0
-            real3_ptr rp = s->atoms->r ;
-#endif
-            for (int k=0; k<3; k++)
+   for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
+   {
+      int nIBox = s->boxes->nAtoms[iBox];
+      int nNbrBoxes = getNeighborBoxes(s->boxes, iBox, nbrBoxes);
+      // loop over neighbor boxes of iBox (some may be halo boxes)
+      for (int jTmp=0; jTmp<nNbrBoxes; jTmp++)
+      {
+         int jBox = nbrBoxes[jTmp];
+         if (jBox < iBox ) continue;
+
+         int nJBox = s->boxes->nAtoms[jBox];
+         // loop over atoms in iBox
+         for (int iOff=MAXATOMS*iBox,ii=0; ii<nIBox; ii++,iOff++)
+         {
+            // loop over atoms in jBox
+            for (int jOff=MAXATOMS*jBox,ij=0; ij<nJBox; ij++,jOff++)
             {
-#if 1
-               dr[k] = s->atoms->r[iOff][k] - s->atoms->r[jOff][k];
-#else
-               dr[k] = rp[iOff][k] - rp[jOff][k];
-#endif
-               r2+=dr[k]*dr[k];
-            }
+               if ( (iBox==jBox) &&(ij <= ii) ) continue;
 
-            if(r2 <= rCut2 && r2 > 0.0)
-            {
-#if 0
-               real3_ptr fp = s->atoms->f ;
-               real_ptr  Up = s->atoms->U ;
-               real_ptr  rhobar = pot->rhobar ;
-#endif
-               real_t r = sqrt(r2);
+               double r2 = 0.0;
+               real3 dr;
+               for (int k=0; k<3; k++)
+               {
+                  dr[k]=s->atoms->r[iOff][k]-s->atoms->r[jOff][k];
+                  r2+=dr[k]*dr[k];
+               }
+               if(r2>rCut2) continue;
+
+               double r = sqrt(r2);
 
                real_t phiTmp, dPhi, rhoTmp, dRho;
                interpolate(pot->phi, r, &phiTmp, &dPhi);
@@ -284,91 +281,160 @@ int eamForce(SimFlat* s)
 
                for (int k=0; k<3; k++)
                {
-#if 1
                   s->atoms->f[iOff][k] -= dPhi*dr[k]/r;
-#else
-                  fp[iOff][k] -= dPhi*dr[k]/r;
-#endif
+                  s->atoms->f[jOff][k] += dPhi*dr[k]/r;
                }
 
-               // Calculate energy contribution
-#if 1
+               // update energy terms
+               // calculate energy contribution based on whether
+               // the neighbor box is local or remote
+               if (jBox < s->boxes->nLocalBoxes)
+                  etot += phiTmp;
+               else
+                  etot += 0.5*phiTmp;
+
                s->atoms->U[iOff] += 0.5*phiTmp;
-#else
-               Up[iOff] += 0.5*phiTmp;
-#endif
-               // etotLocal += 0.5*phiTmp;
-               etot += 0.5*phiTmp;
+               s->atoms->U[jOff] += 0.5*phiTmp;
 
                // accumulate rhobar for each atom
-#if 1
                pot->rhobar[iOff] += rhoTmp;
-#else
-               rhobar[iOff] += rhoTmp;
-#endif
-            }
-         }) ; // loop over atoms in iBox
-      }) ; // loop over atoms in IBoxNeighbors
-      // etot += etotLocal ;
-   }) ; // loop over local boxes in system
-*/
+               pot->rhobar[jOff] += rhoTmp;
 
+            } // loop over atoms in jBox
+         } // loop over atoms in iBox
+      } // loop over neighbor boxes
+   } // loop over local boxes
+
+#else
+   rajaReduceSumReal etot_raja(0.0);
+
+   RAJA::kernel<forcePolicy>(
+     RAJA::make_tuple(
+       *s->isLocalSegment,                // local boxes
+       RAJA::RangeSegment(0,27),          // 27 neighbor boxes
+       RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
+       RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
+
+     [=] RAJA_HOST_DEVICE(int iBox, int nghb, int iOff, int jOff) {
+       const int jBox = s->boxes->nbrBoxes[iBox][nghb];
+       const int nIBox = s->boxes->nAtoms[iBox];
+       const int nJBox = s->boxes->nAtoms[jBox];
+       const int nLocalBoxes = s->boxes->nLocalBoxes;
+       real_ptr U = s->atoms->U;
+       real_ptr rhobar = pot->rhobar;
+       const real3_ptr rp = s->atoms->r;
+       InterpolationObject *phiLocal = pot->phi;
+       InterpolationObject *rhoLocal = pot->rho;
+       real3_ptr f = s->atoms->f;
+
+       if( (iOff < nIBox && jOff < nJBox) && !(jBox < iBox) && !((iBox == jBox) && (jOff <= iOff)) ) {
+         iOff += iBox*MAXATOMS;
+         jOff += jBox*MAXATOMS;
+
+         real_t r2 = 0.0;
+         real3 dr;
+
+         for (int k=0; k<3; k++)
+         {
+           dr[k] = rp[iOff][k] - rp[jOff][k];
+           r2 += dr[k] * dr[k];
+         }
+         if(r2 <= rCut2 && r2 > 0.0) {
+           real_t r = sqrt(r2);
+
+           real_t phiTmp, dPhi, rhoTmp, dRho;
+
+           interpolate(phiLocal, r, &phiTmp, &dPhi);
+           interpolate(rhoLocal, r, &rhoTmp, &dRho);
+
+           for (int k=0; k<3; k++)
+           {
+             f[iOff][k] -= dPhi*dr[k]/r;
+             f[jOff][k] += dPhi*dr[k]/r;
+           }
+
+           // update energy terms
+           // calculate energy contribution based on whether
+           // the neighbor box is local or remote
+           if (jBox < nLocalBoxes)
+             etot_raja += phiTmp;
+           else
+             etot_raja += 0.5*phiTmp;
+
+           //real_ptr U = s->atoms->U;
+
+           U[iOff] += 0.5*phiTmp;
+           U[jOff] += 0.5*phiTmp;
+
+           //real_ptr rhobar = pot->rhobar;
+
+           // accumulate rhobar for each atom
+           rhobar[iOff] += rhoTmp;
+           rhobar[jOff] += rhoTmp;
+         }
+       }
+            //} // loop over atoms in jBox
+         //} // loop over atoms in iBox
+      //} // loop over neighbor boxes
+     }); // loop over local boxes
+
+   real_t etot = etot_raja;
+#endif
 
    // Compute Embedding Energy
    // loop over all local boxes
-   RAJA::forall<atomWork>(*s->isLocal, [&] (int iOff) {
-#if 1
-      real_t fEmbed, dfEmbed;
-      interpolate(pot->f, pot->rhobar[iOff], &fEmbed, &dfEmbed);
-      pot->dfEmbed[iOff] = dfEmbed; // save derivative for halo exchange
-      s->atoms->U[iOff] += fEmbed;
-#else
-      real_ptr  rhobarp = pot->rhobar ;
-      real_ptr  dfEmbedp = pot->dfEmbed ;
-      real_ptr  Up = s->atoms->U ;
-      real_t fEmbed, dfEmbed;
-      interpolate(pot->f, rhobarp[iOff], &fEmbed, &dfEmbed);
-      dfEmbedp[iOff] = dfEmbed; // save derivative for halo exchange
-      Up[iOff] += fEmbed;
-#endif
-      etot += fEmbed ;
-   } ) ;
+   for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
+   {
+      int iOff;
+      int nIBox =  s->boxes->nAtoms[iBox];
+
+      // loop over atoms in iBox
+      for (int iOff=MAXATOMS*iBox,ii=0; ii<nIBox; ii++,iOff++)
+      {
+         real_t fEmbed, dfEmbed;
+         interpolate(pot->f, pot->rhobar[iOff], &fEmbed, &dfEmbed);
+         pot->dfEmbed[iOff] = dfEmbed; // save derivative for halo exchange
+         etot += fEmbed; 
+         s->atoms->U[iOff] += fEmbed;
+      }
+   }
 
    // exchange derivative of the embedding energy with repsect to rhobar
    startTimer(eamHaloTimer);
    haloExchange(pot->forceExchange, pot->forceExchangeData);
    stopTimer(eamHaloTimer);
 
-   updateIndexSets(s) ;
-
-//TO DO rewrite this to use modern RAJA constructs
-/*
-
    // third pass
+#ifdef DO_SERIAL
    // loop over local boxes
-   RAJA::forall_segments<task_graph_policy>(*s->isLocal,
-   [=] (RAJA::TypedIndexSet<RAJA::RangeSegment> *iBox) {
+   for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
+   {
+      int nIBox =  s->boxes->nAtoms[iBox];
+      int nNbrBoxes = getNeighborBoxes(s->boxes, iBox, nbrBoxes);
+      // loop over neighbor boxes of iBox (some may be halo boxes)
+      for (int jTmp=0; jTmp<nNbrBoxes; jTmp++)
+      {
+         int jBox = nbrBoxes[jTmp];
+         if(jBox < iBox) continue;
 
-      RAJA::TypedIndexSet<RAJA::RangeSegment> *iBoxNeighbors =
-           static_cast<RAJA::TypedIndexSet<RAJA::RangeSegment> *>(iBox->getSegment(0)->getPrivate()) ;
+         int nJBox = s->boxes->nAtoms[jBox];
+         // loop over atoms in iBox
+         for (int iOff=MAXATOMS*iBox,ii=0; ii<nIBox; ii++,iOff++)
+         {
+            // loop over atoms in jBox
+            for (int jOff=MAXATOMS*jBox,ij=0; ij<nJBox; ij++,jOff++)
+            { 
+               if ((iBox==jBox) && (ij <= ii))  continue;
 
-      RAJA::forall<linkCellWork>(*iBoxNeighbors, [=] (int jOff) {
-         RAJA::forall<linkCellWork>(*iBox, [=] (int iOff) {
-            real3_ptr rp = s->atoms->r ;
-            real_t r2 = 0.0;
-            real3 dr;
-            for (int k=0; k<3; k++)
-            {
-               dr[k]=rp[iOff][k] - rp[jOff][k];
-               r2+=dr[k]*dr[k];
-            }
+               double r2 = 0.0;
+               real3 dr;
+               for (int k=0; k<3; k++)
+               {
+                  dr[k]=s->atoms->r[iOff][k]-s->atoms->r[jOff][k];
+                  r2+=dr[k]*dr[k];
+               }
+               if(r2>=rCut2) continue;
 
-            if(r2 <= rCut2 && r2 > 0.0)
-            {
-#if 0
-               real_ptr  dfEmbedp = pot->dfEmbed ;
-               real3_ptr fp = s->atoms->f ;
-#endif
                real_t r = sqrt(r2);
 
                real_t rhoTmp, dRho;
@@ -376,20 +442,64 @@ int eamForce(SimFlat* s)
 
                for (int k=0; k<3; k++)
                {
-#if 1
-                  s->atoms->f[iOff][k] -= (pot->dfEmbed[iOff] + pot->dfEmbed[jOff])*dRho*dr[k]/r;
-#else
-                  fp[iOff][k] -= (dfEmbedp[iOff] + dfEmbedp[jOff])*dRho*dr[k]/r;
-#endif
+                  s->atoms->f[iOff][k] -= (pot->dfEmbed[iOff]+pot->dfEmbed[jOff])*dRho*dr[k]/r;
+                  s->atoms->f[jOff][k] += (pot->dfEmbed[iOff]+pot->dfEmbed[jOff])*dRho*dr[k]/r;
                }
-            }
-         }) ; // loop over atoms in iBox
-      }) ; // loop over atoms in IBoxNeighbors
-   }) ; // loop over local boxes in system
 
-*/
+            } // loop over atoms in jBox
+         } // loop over atoms in iBox
+      } // loop over neighbor boxes
+   } // loop over local boxes
+#else
 
-   s->ePotential = etot;
+   RAJA::kernel<forcePolicy>(
+     RAJA::make_tuple(
+       *s->isLocalSegment,                // local boxes
+       RAJA::RangeSegment(0,27),          // 27 neighbor boxes
+       RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
+       RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
+
+     [=] (int iBox, int nghb, int iOff, int jOff) {
+       const int jBox = s->boxes->nbrBoxes[iBox][nghb];
+       const int nIBox = s->boxes->nAtoms[iBox];
+       const int nJBox = s->boxes->nAtoms[jBox];
+       const int nLocalBoxes = s->boxes->nLocalBoxes;
+       real_ptr U = s->atoms->U;
+       real_ptr rhobar = pot->rhobar;
+       InterpolationObject *rhoLocal = pot->rho;
+       real3_ptr f = s->atoms->f;
+       real_ptr dfEmbed = pot->dfEmbed;
+       real3_ptr rp = s->atoms->r;
+
+       if( (iOff < nIBox && jOff < nJBox) && !(jBox < iBox) && !((iBox == jBox) && (jOff <= iOff)) ) {
+         iOff += iBox*MAXATOMS;
+         jOff += jBox*MAXATOMS;
+
+         double r2 = 0.0;
+         real3 dr;
+
+         for (int k=0; k<3; k++)
+         {
+           dr[k] = rp[iOff][k] - rp[jOff][k];
+           r2 += dr[k] * dr[k];
+         }
+
+         real_t r = sqrt(r2);
+
+         real_t rhoTmp, dRho;
+
+         interpolate(rhoLocal, r, &rhoTmp, &dRho);
+
+         for (int k=0; k<3; k++)
+         {
+           f[iOff][k] -= (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r;
+           f[jOff][k] += (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r;
+         }
+       }
+     }); // loop over local boxes
+#endif
+
+   s->ePotential = (real_t) etot;
 
    return 0;
 }
@@ -529,7 +639,7 @@ void destroyInterpolationObject(InterpolationObject** a)
 /// \param [in] r Point where function value is needed.
 /// \param [out] f The interpolated value of f(r).
 /// \param [out] df The interpolated value of df(r)/dr.
-void interpolate(InterpolationObject* table, real_t r, real_t* f, real_t* df)
+inline void interpolate(InterpolationObject* table, real_t r, real_t* f, real_t* df)
 {
    const real_t* tt = table->values; // alias
 

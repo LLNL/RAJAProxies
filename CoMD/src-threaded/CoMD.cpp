@@ -468,6 +468,7 @@ void sanityChecks(Command cmd, double cutoff, double latticeConst, char latticeT
    if (nProcs != getNRanks())
    {
       failCode |= 1;
+      printf("Running with %d MPI ranks\n", getNRanks());
       if (printRank() )
          fprintf(screenOut,
                  "\nNumber of MPI ranks must match xproc * yproc * zproc\n");
