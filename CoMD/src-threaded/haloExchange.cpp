@@ -149,7 +149,7 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    int size1 = (boxes->gridSize[0]+2)*(boxes->gridSize[2]+2);
    int size2 = (boxes->gridSize[0]+2)*(boxes->gridSize[1]+2);
    int maxSize = MAX(size0, size1);
-   maxSize = MAX(size1, size2);
+   maxSize = MAX(size1, size2); // Shouldn't this be MAX(maxSize, size2)?
    hh->bufCapacity = maxSize*2*MAXATOMS*sizeof(AtomMsg);
 
    hh->loadBuffer = loadAtomsBuffer;
