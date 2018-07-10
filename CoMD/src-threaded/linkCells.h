@@ -12,6 +12,7 @@
 
 struct DomainSt;
 struct AtomsSt;
+struct SimFlatSt;
 
 /// Link cell data.  For convenience, we keep a copy of the localMin and
 /// localMax coordinates that are also found in the DomainsSt.
@@ -49,8 +50,11 @@ int getBoxFromTuple(LinkCell* boxes, int x, int y, int z);
 void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, int iBox, int jBox);
 
 /// Update link cell data structures when the atoms have moved.
+#ifdef DO_CUDA
+void updateLinkCells(struct SimFlatSt* sim);
+#else
 void updateLinkCells(LinkCell* boxes, struct AtomsSt* atoms);
-
+#endif
 int maxOccupancy(LinkCell* boxes);
 
 

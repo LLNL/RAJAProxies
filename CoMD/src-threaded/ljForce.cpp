@@ -144,11 +144,18 @@ void ljPrint(FILE* file, BasePotential* pot)
 
 int ljForce(SimFlat* s)
 {
+#ifdef DO_CUDA
+   LjPotential* pot = (LjPotential *) globalSim->pot;
+#else
    LjPotential* pot = (LjPotential *) s->pot;
+#endif
    const real_t sigma = pot->sigma;
    const real_t epsilon = pot->epsilon;
    const real_t rCut = pot->cutoff;
    const real_t rCut2 = rCut*rCut;
+   const real_t s6 = sigma*sigma*sigma*sigma*sigma*sigma;
+   const real_t rCut6 = s6 / (rCut2*rCut2*rCut2);
+   const real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
 
    // zero forces and energy
 #ifdef DO_CUDA
@@ -157,17 +164,35 @@ int ljForce(SimFlat* s)
    rajaReduceSumReal ePot(0.0);
 #endif
 
+#ifdef DO_CUDA
+   globalSim->ePotential = 0.0;
+#else
    s->ePotential = 0.0;
+#endif
 
+#ifdef DO_CUDA
+  RAJA::kernel<atomWorkGPU>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(0, globalSim->boxes->nLocalBoxes),
+    RAJA::RangeSegment(0, MAXATOMS) ),
+    [=] RAJA_DEVICE (int iBox, int iOffLocal) {
+      const int nIBox = s->boxes->nAtoms[iBox];
+      if(iOffLocal < nIBox) {
+        const int iOff = iOffLocal + (iBox * MAXATOMS);
+        real3_ptr f = s->atoms->f;
+        real_ptr U = s->atoms->U;
+        f[iOff][0] = 0.0;
+        f[iOff][1] = 0.0;
+        f[iOff][2] = 0.0;
+        U[iOff] = 0.0;
+      }
+    } ) ;
+#else
    RAJA::forall<atomWork>(*s->isTotal, [=] (int ii) {
       zeroReal3(s->atoms->f[ii]);
       s->atoms->U[ii] = 0.;
    } ) ;
-
-   const real_t s6 = sigma*sigma*sigma*sigma*sigma*sigma;
-
-   const real_t rCut6 = s6 / (rCut2*rCut2*rCut2);
-   const real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
+#endif
 
    {
 #ifdef DO_CUDA
@@ -176,7 +201,11 @@ int ljForce(SimFlat* s)
      RAJA::kernel<forcePolicy>(
 #endif
        RAJA::make_tuple(
+#ifdef DO_CUDA
+         RAJA::RangeSegment(0,globalSim->boxes->nLocalBoxes),          // local boxes
+#else
          *s->isLocalSegment,                // local boxes
+#endif
          RAJA::RangeSegment(0,27),          // 27 neighbor boxes
          RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
          RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
@@ -186,7 +215,7 @@ int ljForce(SimFlat* s)
        [=] (int iBoxID, int nghb, int iOff, int jOff) {
 #endif
          const int nLocalBoxes = s->boxes->nLocalBoxes;
-         const int nTotalBoxes = s->boxes->nTotalBoxes;
+         //const int nTotalBoxes = s->boxes->nTotalBoxes;
          const int nIBox = s->boxes->nAtoms[iBoxID];
          const int jBoxID = s->boxes->nbrBoxes[iBoxID][nghb];
          const int nJBox = s->boxes->nAtoms[jBoxID];
@@ -243,7 +272,11 @@ int ljForce(SimFlat* s)
 
    }
 
+#ifdef DO_CUDA
+   globalSim->ePotential = ePot*4.0*epsilon;
+#else
    s->ePotential = ePot*4.0*epsilon;
+#endif
 
    return 0;
 }

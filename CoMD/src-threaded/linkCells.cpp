@@ -290,8 +290,200 @@ void moveAtom(LinkCell* boxes, Atoms* atoms, int iId, int iBox, int jBox)
 /// to halo atoms.  Such atom must be sent to other tasks by a halo
 /// exchange to avoid being lost.
 /// \see redistributeAtoms
+#ifdef DO_CUDA
+void updateLinkCells(SimFlat* sim)
+#else
 void updateLinkCells(LinkCell* boxes, Atoms* atoms)
+#endif
 {
+#ifdef DO_CUDA
+  CALI_MARK_BEGIN("emptyHaloCells");
+
+  RAJA::kernel<redistributeGPU>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(globalSim->boxes->nLocalBoxes, globalSim->boxes->nTotalBoxes)),
+    [=] RAJA_DEVICE (int ii)
+    {
+      LinkCell *b = sim->boxes;
+      b->nAtoms[ii] = 0;
+    } );
+  CALI_MARK_END("emptyHaloCells");
+  
+
+  RAJA::kernel<redistributeGPU>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(0, globalSim->boxes->nLocalBoxes)),
+    [=] RAJA_DEVICE (int iBox)
+  {
+    LinkCell *boxes = sim->boxes;
+    Atoms *atoms = sim->atoms;
+
+    int iOff = iBox*MAXATOMS;
+    int ii=0;
+    int nAtoms = boxes->nAtoms[iBox];
+    while (ii < nAtoms)
+    {
+      //int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
+      int jBox = -1;
+      real3 rr;
+      real3_ptr rp = atoms->r;
+      rr[0] = rp[iOff+ii][0];
+      rr[1] = rp[iOff+ii][1];
+      rr[2] = rp[iOff+ii][2];
+
+      const real_t* localMin = boxes->localMin; // alias
+      const real_t* localMax = boxes->localMax; // alias
+      const int*    gridSize = boxes->gridSize; // alias
+      int ix = (int)(floor((rr[0] - localMin[0])*boxes->invBoxSize[0]));
+      int iy = (int)(floor((rr[1] - localMin[1])*boxes->invBoxSize[1]));
+      int iz = (int)(floor((rr[2] - localMin[2])*boxes->invBoxSize[2]));
+
+      // For each axis, if we are inside the local domain, make sure we get
+      // a local link cell.  Otherwise, make sure we get a halo link cell.
+      if (rr[0] < localMax[0])
+      {
+        if (ix == gridSize[0]) ix = gridSize[0] - 1;
+      }
+      else
+        ix = gridSize[0]; // assign to halo cell
+      if (rr[1] < localMax[1])
+      {
+        if (iy == gridSize[1]) iy = gridSize[1] - 1;
+      }
+      else
+        iy = gridSize[1];
+      if (rr[2] < localMax[2])
+      {
+        if (iz == gridSize[2]) iz = gridSize[2] - 1;
+      }
+      else
+        iz = gridSize[2];
+
+      // Halo in Z+
+      if (iz == gridSize[2])
+      {
+        jBox = boxes->nLocalBoxes + 2*gridSize[2]*gridSize[1] + 2*gridSize[2]*(gridSize[0]+2) +
+          (gridSize[0]+2)*(gridSize[1]+2) + (gridSize[0]+2)*(iy+1) + (ix+1);
+      }
+      // Halo in Z-
+      else if (iz == -1)
+      {
+        jBox = boxes->nLocalBoxes + 2*gridSize[2]*gridSize[1] + 2*gridSize[2]*(gridSize[0]+2) +
+          (gridSize[0]+2)*(iy+1) + (ix+1);
+      }
+      // Halo in Y+
+      else if (iy == gridSize[1])
+      {
+        jBox = boxes->nLocalBoxes + 2*gridSize[2]*gridSize[1] + gridSize[2]*(gridSize[0]+2) +
+          (gridSize[0]+2)*iz + (ix+1);
+      }
+      // Halo in Y-
+      else if (iy == -1)
+      {
+        jBox = boxes->nLocalBoxes + 2*gridSize[2]*gridSize[1] + iz*(gridSize[0]+2) + (ix+1);
+      }
+      // Halo in X+
+      else if (ix == gridSize[0])
+      {
+        jBox = boxes->nLocalBoxes + gridSize[1]*gridSize[2] + iz*gridSize[1] + iy;
+      }
+      // Halo in X-
+      else if (ix == -1)
+      {
+        jBox = boxes->nLocalBoxes + iz*gridSize[1] + iy;
+      }
+      // local link celll.
+      else
+      {
+        jBox = ix + gridSize[0]*iy + gridSize[0]*gridSize[1]*iz;
+      }
+      assert(jBox >= 0);
+      assert(jBox < boxes->nTotalBoxes);
+
+      /////////////////////////////////
+      if (jBox != iBox) {
+        //moveAtom(boxes, atoms, ii, iBox, jBox);
+        //void moveAtom(LinkCell* boxes, Atoms* atoms, int iId, int iBox, int jBox)
+        int iId = ii; // TODO remove this alias
+
+        int nj = boxes->nAtoms[jBox];
+        //copyAtom(boxes, atoms, iId, iBox, nj, jBox);
+        //void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox)s
+        int iAtom = iId, jAtom = nj; // TODO remove these aliases.
+        // Begin copyAtom code
+        const int iOff = MAXATOMS*iBox+iAtom;
+        const int jOff = MAXATOMS*jBox+jAtom;
+        int *gid_ptr = atoms->gid;
+        int *iSpecies_ptr = atoms->iSpecies;
+        gid_ptr[jOff] = gid_ptr[iOff];
+        iSpecies_ptr[jOff] = iSpecies_ptr[iOff];
+        //memcpy(atoms->r[jOff], atoms->r[iOff], sizeof(real3));
+        real3_ptr r = atoms->r;
+        r[jOff][0] = r[iOff][0];
+        r[jOff][1] = r[iOff][1];
+        r[jOff][2] = r[iOff][2];
+        //memcpy(atoms->p[jOff], atoms->p[iOff], sizeof(real3));
+        real3_ptr p = atoms->p;
+        p[jOff][0] = p[iOff][0];
+        p[jOff][1] = p[iOff][1];
+        p[jOff][2] = p[iOff][2];
+        //memcpy(atoms->f[jOff], atoms->f[iOff], sizeof(real3));
+        real3_ptr f = atoms->f;
+        f[jOff][0] = f[iOff][0];
+        f[jOff][1] = f[iOff][1];
+        f[jOff][2] = f[iOff][2];
+        //memcpy(atoms->U+jOff,  atoms->U+iOff,  sizeof(real_t));
+        real_ptr U = atoms->U;
+        U[jOff] = U[iOff];
+        // End copyAtom code
+
+        boxes->nAtoms[jBox]++;
+
+        assert(boxes->nAtoms[jBox] < MAXATOMS);
+
+        boxes->nAtoms[iBox]--;
+        int ni = boxes->nAtoms[iBox];
+        if (ni) {
+          //copyAtom(boxes, atoms, ni, iBox, iId, iBox);
+          //void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox)
+          int iAtom = ni, jAtom = iId; // TODO remove these aliases.
+          int jBox = iBox;
+          const int iOff = MAXATOMS*iBox+iAtom;
+          const int jOff = MAXATOMS*jBox+jAtom;
+          int *gid_ptr = atoms->gid;
+          int *iSpecies_ptr = atoms->iSpecies;
+          gid_ptr[jOff] = gid_ptr[iOff];
+          iSpecies_ptr[jOff] = iSpecies_ptr[iOff];
+          //memcpy(atoms->r[jOff], atoms->r[iOff], sizeof(real3));
+          real3_ptr r = atoms->r;
+          r[jOff][0] = r[iOff][0];
+          r[jOff][1] = r[iOff][1];
+          r[jOff][2] = r[iOff][2];
+          //memcpy(atoms->p[jOff], atoms->p[iOff], sizeof(real3));
+          real3_ptr p = atoms->p;
+          p[jOff][0] = p[iOff][0];
+          p[jOff][1] = p[iOff][1];
+          p[jOff][2] = p[iOff][2];
+          //memcpy(atoms->f[jOff], atoms->f[iOff], sizeof(real3));
+          real3_ptr f = atoms->f;
+          f[jOff][0] = f[iOff][0];
+          f[jOff][1] = f[iOff][1];
+          f[jOff][2] = f[iOff][2];
+          //memcpy(atoms->U+jOff,  atoms->U+iOff,  sizeof(real_t));
+          real_ptr U = atoms->U;
+          U[jOff] = U[iOff];
+        }
+        
+        if (jBox > boxes->nLocalBoxes)
+          --atoms->nLocal;
+      }
+      else
+        ++ii;
+      }
+  } );
+#else
+  //  LinkCell *boxes = sim->boxes;
+  //Atoms *atoms = sim->atoms;
    emptyHaloCells(boxes);
 
    for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
@@ -301,12 +493,14 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
       while (ii < boxes->nAtoms[iBox])
       {
          int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
+
          if (jBox != iBox)
             moveAtom(boxes, atoms, ii, iBox, jBox);
          else
             ++ii;
       }
    }
+#endif
 }
 
 /// \return The largest number of atoms in any link cell.

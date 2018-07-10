@@ -97,6 +97,10 @@ void createFccLattice(int nx, int ny, int nz, real_t lat, SimFlat* s)
                if (ry < localMin[1] || ry >= localMax[1]) continue;
                if (rz < localMin[2] || rz >= localMax[2]) continue;
                int id = ib+nb*(iz+nz*(iy+ny*(ix)));
+               if(id < 0){
+                 printf("Negative Id: %d\n", id);
+                 exit(-1);
+               }
                putAtomInBox(s->boxes, s->atoms, id, 0, rx, ry, rz, px, py, pz);
             }
 
@@ -158,7 +162,11 @@ void setTemperature(SimFlat* s, real_t temperature)
    real_t vZero[3] = {0., 0., 0.};
    setVcm(s, vZero);
    kineticEnergy(s);
+#ifdef DO_CUDA
+   real_t temp = (globalSim->eKinetic/s->atoms->nGlobal)/kB_eV/1.5;
+#else
    real_t temp = (s->eKinetic/s->atoms->nGlobal)/kB_eV/1.5;
+#endif
    // scale the velocities to achieve the target temperature
    real_t scaleFactor = sqrt(temperature/temp);
    RAJA::forall<atomWork>(*s->isLocal, [=] (int iOff) {
@@ -167,7 +175,11 @@ void setTemperature(SimFlat* s, real_t temperature)
       s->atoms->p[iOff][2] *= scaleFactor;
    } ) ;
    kineticEnergy(s);
+#ifdef DO_CUDA
+   temp = globalSim->eKinetic/s->atoms->nGlobal/kB_eV/1.5;
+#else
    temp = s->eKinetic/s->atoms->nGlobal/kB_eV/1.5;
+#endif
 }
 
 /// Add a random displacement to the atom positions.

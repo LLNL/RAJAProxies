@@ -87,7 +87,9 @@ typedef struct SimFlatSt
 
 } SimFlat;
 
-
+#ifdef DO_CUDA
+extern SimFlat *globalSim;
+#endif
 //
 // RAJA execution policies
 //
@@ -117,6 +119,24 @@ typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
 typedef RAJA::seq_segit task_graph_policy;
 
+
+typedef RAJA::KernelPolicy<
+  RAJA::statement::CudaKernel<
+    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<32>,
+    RAJA::statement::For<1, RAJA::seq_exec,
+    RAJA::statement::Lambda<0> > > > > atomWorkGPU;
+
+typedef RAJA::KernelPolicy<
+  RAJA::statement::CudaKernel<
+    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<32>,
+    RAJA::statement::Lambda<0> > > > redistributeGPU;
+
+typedef RAJA::KernelPolicy<
+  RAJA::statement::CudaKernel<
+    RAJA::statement::For<0, RAJA::cuda_block_exec,
+    RAJA::statement::For<1, RAJA::cuda_thread_exec,
+    RAJA::statement::Lambda<0> > > > > atomPackGPU;
+
 typedef RAJA::KernelPolicy<
   RAJA::statement::For<0, RAJA::seq_exec,
   RAJA::statement::For<1, RAJA::seq_exec,
@@ -134,6 +154,7 @@ typedef RAJA::KernelPolicy<
 
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, real_t> rajaReduceSumRealCUDA;
+typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, int> rajaReduceSumIntCUDA;
 
 #else
 
