@@ -4,6 +4,7 @@
 #define __PERFORMANCE_TIMERS_H_
 
 #include <stdio.h>
+#include <caliper/cali.h>
 
 /// Timer handles
 enum TimerHandle{
@@ -13,6 +14,7 @@ enum TimerHandle{
    positionTimer, 
    velocityTimer,  
    redistributeTimer, 
+   updateLinkCellsTimer,
    atomHaloTimer, 
    computeForceTimer, 
    eamHaloTimer, 
