@@ -155,11 +155,7 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    int maxSize = MAX(size0, size1);
    maxSize = MAX(size1, size2); // Shouldn't this be MAX(maxSize, size2)?
 
-   int intsSize = (maxSize+1) * sizeof(int);
-   if( (intsSize % sizeof(AtomMsg)) != 0 )
-     intsSize += sizeof(AtomMsg) - (intsSize % sizeof(AtomMsg));
-
-   hh->bufCapacity = maxSize*2*MAXATOMS*sizeof(AtomMsg) + intsSize;
+   hh->bufCapacity = maxSize*2*MAXATOMS*sizeof(AtomMsg);
 
    hh->loadBuffer = loadAtomsBuffer;
    hh->unloadBuffer = unloadAtomsBuffer;
@@ -168,19 +164,30 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    AtomExchangeParms* parms = (AtomExchangeParms*) comdMalloc(sizeof(AtomExchangeParms));
 
    parms->nCells[HALO_X_MINUS] = 2*(boxes->gridSize[1]+2)*(boxes->gridSize[2]+2);
-   maxSize = parms->nCells[HALO_X_MINUS];
    parms->nCells[HALO_Y_MINUS] = 2*(boxes->gridSize[0]+2)*(boxes->gridSize[2]+2);
-   if(parms->nCells[HALO_Y_MINUS] > maxSize) maxSize = parms->nCells[HALO_Y_MINUS];
    parms->nCells[HALO_Z_MINUS] = 2*(boxes->gridSize[0]+2)*(boxes->gridSize[1]+2);
-   if(parms->nCells[HALO_Z_MINUS] > maxSize) maxSize = parms->nCells[HALO_Z_MINUS];
    parms->nCells[HALO_X_PLUS]  = parms->nCells[HALO_X_MINUS];
-   if(parms->nCells[HALO_X_PLUS] > maxSize) maxSize = parms->nCells[HALO_X_PLUS];
    parms->nCells[HALO_Y_PLUS]  = parms->nCells[HALO_Y_MINUS];
-   if(parms->nCells[HALO_Y_PLUS] > maxSize) maxSize = parms->nCells[HALO_Y_PLUS];
    parms->nCells[HALO_Z_PLUS]  = parms->nCells[HALO_Z_MINUS];
+
+#ifdef DO_CUDA
+   /* Make sure there is enough space in the buffer for the integer array of
+    * offsets to allow for parallel packing/unpacking.  TODO: Expand this
+    * to the CPU implementations as well, not just the CUDA implementation.
+    */
+   maxSize = parms->nCells[HALO_X_MINUS];
+   if(parms->nCells[HALO_Y_MINUS] > maxSize) maxSize = parms->nCells[HALO_Y_MINUS];
+   if(parms->nCells[HALO_Z_MINUS] > maxSize) maxSize = parms->nCells[HALO_Z_MINUS];
+   if(parms->nCells[HALO_X_PLUS] > maxSize) maxSize = parms->nCells[HALO_X_PLUS];
+   if(parms->nCells[HALO_Y_PLUS] > maxSize) maxSize = parms->nCells[HALO_Y_PLUS];
    if(parms->nCells[HALO_Z_PLUS] > maxSize) maxSize = parms->nCells[HALO_Z_PLUS];
 
-   hh->bufCapacity += maxSize*sizeof(int);
+   int intsSize = (maxSize+1) * sizeof(int);
+   if( (intsSize % sizeof(AtomMsg)) != 0 )
+     intsSize += sizeof(AtomMsg) - (intsSize % sizeof(AtomMsg));
+
+   hh->bufCapacity += intsSize;
+#endif
 
    for (int ii=0; ii<6; ++ii)
       parms->cellList[ii] = mkAtomCellList(boxes, HaloFaceOrder(ii), parms->nCells[ii]);
@@ -303,28 +310,11 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
    enum HaloFaceOrder faceM = HaloFaceOrder(2*iAxis);
    enum HaloFaceOrder faceP = HaloFaceOrder(faceM+1);
 
-#if 0
-   char* sendBufM;
-   cudaMallocHost(&sendBufM, haloExchange->bufCapacity);
-   char* sendBufP;
-   cudaMallocHost(&sendBufP, haloExchange->bufCapacity);
-   char* recvBufM;
-   cudaMallocHost(&recvBufM, haloExchange->bufCapacity);
-   char* recvBufP;
-   cudaMallocHost(&recvBufP, haloExchange->bufCapacity);
-#else
-   /*
-   char* sendBufM = (char *) comdMalloc(haloExchange->bufCapacity);
-   char* sendBufP = (char *) comdMalloc(haloExchange->bufCapacity);
-   char* recvBufM = (char *) comdMalloc(haloExchange->bufCapacity);
-   char* recvBufP = (char *) comdMalloc(haloExchange->bufCapacity);
-   */
    AtomExchangeParms* parms = (AtomExchangeParms*) haloExchange->parms;
    char* sendBufM = parms->sendBufM;
    char* sendBufP = parms->sendBufP;
    char* recvBufM = parms->recvBufM;
    char* recvBufP = parms->recvBufP;
-#endif
 
    CALI_MARK_BEGIN("Load Minus");
    int nSendM = haloExchange->loadBuffer(haloExchange->parms, data, faceM, sendBufM);
@@ -349,19 +339,6 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
    CALI_MARK_BEGIN("Unload Plus");
    haloExchange->unloadBuffer(haloExchange->parms, data, faceP, nRecvP, recvBufP);
    CALI_MARK_END("Unload Plus");
-#if 0
-   cudaFreeHost(recvBufP);
-   cudaFreeHost(recvBufM);
-   cudaFreeHost(sendBufP);
-   cudaFreeHost(sendBufM);
-#else
-   /*
-   comdFree(recvBufP);
-   comdFree(recvBufM);
-   comdFree(sendBufP);
-   comdFree(sendBufM);
-   */
-#endif
 }
 
 /// Make a list of link cells that need to be sent across the specified
@@ -418,20 +395,6 @@ int* mkAtomCellList(LinkCell* boxes, enum HaloFaceOrder iFace, const int nCells)
 /// parameters.
 int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 {
-  /*
-   AtomExchangeParms* parms = (AtomExchangeParms*) vparms;
-   SimFlat* s = (SimFlat*) data;
-   AtomMsg* buf = (AtomMsg*) charBuf;
-
-   real_t* pbcFactor = parms->pbcFactor[face];
-*/
-#ifndef DO_CUDA
-   real3 shift;
-   shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
-   shift[1] = pbcFactor[1] * s->domain->globalExtent[1];
-   shift[2] = pbcFactor[2] * s->domain->globalExtent[2];
-#endif
-
 #ifdef DO_CUDA
    //rajaReduceSumRealCUDA nBufReduce(0.0);
    rajaReduceSumIntCUDA nBufReduce(0);
@@ -511,6 +474,19 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 
   return (nBuf*sizeof(AtomMsg)) + size;
 #else
+   AtomExchangeParms* parms = (AtomExchangeParms*) vparms;
+   SimFlat* s = (SimFlat*) data;
+   AtomMsg* buf = (AtomMsg*) charBuf;
+
+   real_t* pbcFactor = parms->pbcFactor[face];
+
+   real3 shift;
+   shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
+   shift[1] = pbcFactor[1] * s->domain->globalExtent[1];
+   shift[2] = pbcFactor[2] * s->domain->globalExtent[2];
+
+   int nCells = parms->nCells[face];
+   int* cellList = parms->cellList[face];
    int nBuf = 0;
 
    // This should be parallelized using bufferOffset and the return should be altered to match
@@ -548,11 +524,6 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* charBuf)
 {
    SimFlat* s = (SimFlat*) data;
-#ifndef DO_CUDA
-   AtomMsg* buf = (AtomMsg*) charBuf;
-   int nBuf = bufSize / sizeof(AtomMsg);
-   assert(bufSize % sizeof(AtomMsg) == 0);
-#endif
 
 #ifdef DO_CUDA
    const int nCells = *((int*)charBuf);
@@ -701,6 +672,9 @@ void putAtomInBox(LinkCell* boxes, Atoms* atoms,
 
 #else
    AtomMsg* buf = (AtomMsg*) charBuf;
+   int nBuf = bufSize / sizeof(AtomMsg);
+   assert(bufSize % sizeof(AtomMsg) == 0);
+
    for (int ii=0; ii<nBuf; ++ii)
    {
       int gid   = buf[ii].gid;

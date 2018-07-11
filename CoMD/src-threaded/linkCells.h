@@ -55,6 +55,7 @@ void updateLinkCells(struct SimFlatSt* sim);
 #else
 void updateLinkCells(LinkCell* boxes, struct AtomsSt* atoms);
 #endif
+
 int maxOccupancy(LinkCell* boxes);
 
 

@@ -482,8 +482,6 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
       }
   } );
 #else
-  //  LinkCell *boxes = sim->boxes;
-  //Atoms *atoms = sim->atoms;
    emptyHaloCells(boxes);
 
    for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
@@ -493,7 +491,6 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
       while (ii < boxes->nAtoms[iBox])
       {
          int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
-
          if (jBox != iBox)
             moveAtom(boxes, atoms, ii, iBox, jBox);
          else

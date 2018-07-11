@@ -88,15 +88,17 @@ typedef struct SimFlatSt
 } SimFlat;
 
 #ifdef DO_CUDA
+/* This will become essentially a copy of the SimFlat structure that is passed throughout many of
+ * the CoMD functions.  Only the constant values and variables only needed on the CPU will be
+ * copied into this structure, none of the atom data or large arrays.
+ *
+ * The purpose of this is to avoid accessing the simulation structure on the CPU side after it has
+ * been transferred to GPU memory.  This creates unnecessary page faults and drastically reduces
+ * the performance of this code.
+ */
 extern SimFlat *globalSim;
 #endif
-//
-// RAJA execution policies
-//
-//typedef RAJA::omp_parallel_for_segit linkCellTraversal ;
-//typedef RAJA::TypedIndexSet<RAJA::RangeSegment>::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
-//typedef RAJA::TypedIndexSet<RAJA::RangeSegment>::ExecPolicy<RAJA::omp_parallel_for_segit, RAJA::simd_exec> atomWork;
-//typedef RAJA::omp_parallel_segit task_graph_policy;
+
 #ifdef ENABLE_OPENMP
 typedef RAJA::omp_parallel_for_segit linkCellTraversal ;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
@@ -111,14 +113,24 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::Lambda<0> > > > > > forcePolicy;
 
 typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumReal;
+#endif
 
-#elif DO_CUDA
-
+#ifdef DO_CUDA
+#ifndef ENABLE_OPENMP
 typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
 typedef RAJA::seq_segit task_graph_policy;
 
+typedef RAJA::KernelPolicy<
+  RAJA::statement::For<0, RAJA::seq_exec,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
+  RAJA::statement::For<3, RAJA::simd_exec,
+  RAJA::statement::Lambda<0> > > > > > forcePolicy;
+
+typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
+#endif
 
 typedef RAJA::KernelPolicy<
   RAJA::statement::CudaKernel<
@@ -138,13 +150,6 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::Lambda<0> > > > > atomPackGPU;
 
 typedef RAJA::KernelPolicy<
-  RAJA::statement::For<0, RAJA::seq_exec,
-  RAJA::statement::For<1, RAJA::seq_exec,
-  RAJA::statement::For<2, RAJA::seq_exec,
-  RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > forcePolicy;
-
-typedef RAJA::KernelPolicy<
   RAJA::statement::CudaKernel<
     RAJA::statement::For<0, RAJA::cuda_block_exec,
     RAJA::statement::For<1, RAJA::cuda_thread_exec,
@@ -152,12 +157,12 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::For<3, RAJA::seq_exec,
     RAJA::statement::Lambda<0> > > > > > > forcePolicyGPU;
 
-typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, real_t> rajaReduceSumRealCUDA;
 typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, int> rajaReduceSumIntCUDA;
+#endif
 
-#else
-
+#ifndef ENABLE_OPENMP
+#ifndef DO_CUDA
 typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
@@ -172,8 +177,6 @@ typedef RAJA::KernelPolicy<
 
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 #endif
-// "task-graph" requires segment dependency graph is set up...not yet...
-//typedef RAJA::omp_taskgraph_segit task_graph_policy;
-//typedef RAJA::seq_segit task_graph_policy;
+#endif
 
 #endif
