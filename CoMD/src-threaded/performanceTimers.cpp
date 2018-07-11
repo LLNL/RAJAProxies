@@ -99,8 +99,8 @@ static TimerGlobal perfGlobal;
 
 void profileStart(const enum TimerHandle handle)
 {
-  CALI_MARK_BEGIN(timerName[handle]);
-  perfTimer[handle].start = getTime();
+   CALI_MARK_BEGIN(timerName[handle]);
+   perfTimer[handle].start = getTime();
 }
 
 void profileStop(const enum TimerHandle handle)
@@ -109,7 +109,7 @@ void profileStop(const enum TimerHandle handle)
    uint64_t delta = getTime() - perfTimer[handle].start;
    perfTimer[handle].total += delta;
    perfTimer[handle].elapsed += delta;
-  CALI_MARK_END(timerName[handle]);
+   CALI_MARK_END(timerName[handle]);
 }
 
 /// \details

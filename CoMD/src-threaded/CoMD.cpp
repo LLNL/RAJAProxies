@@ -68,6 +68,9 @@
 
 static SimFlat* initSimulation(Command cmd);
 #ifdef DO_CUDA
+/* A global copy of the simulation structure to be accessed only on the CPU.  Only data needed
+ * on the CPU side is copied in here and this should ONLY be accessed on the CPU.
+ */
 SimFlat *globalSim = NULL;
 #endif
 static void destroySimulation(SimFlat** ps);
@@ -111,9 +114,15 @@ int main(int argc, char** argv)
    timestampBarrier("Starting simulation\n");
 
    // This is the CoMD main loop
-   const int nSteps = globalSim->nSteps;//sim->nSteps;
-   const int printRate = globalSim->printRate;//sim->printRate;
-   const real_t dt = globalSim->dt;//sim->dt;
+#ifdef DO_CUDA
+   const int nSteps    = globalSim->nSteps;
+   const int printRate = globalSim->printRate;
+   const real_t dt     = globalSim->dt;
+#else
+   const int nSteps    = sim->nSteps;
+   const int printRate = sim->printRate;
+   const real_t dt     = sim->dt;
+#endif
    int iStep = 0;
    profileStart(loopTimer);
    for (; iStep<nSteps;)
@@ -125,10 +134,11 @@ int main(int argc, char** argv)
       printThings(sim, iStep, getElapsedTime(timestepTimer));
 
       startTimer(timestepTimer);
+      // Make sure the number of steps is what the user specified, without rounding
+      // up to the next print rate.
       int steps = printRate;
       if(nSteps - iStep < printRate)
         steps = nSteps - iStep;
-      //timestep(sim, printRate, dt);
       timestep(sim, steps, dt);
       stopTimer(timestepTimer);
 
@@ -187,6 +197,12 @@ SimFlat* initSimulation(Command cmd)
    sim->atomExchange = NULL;
 
 #ifdef DO_CUDA
+   /* This is a hint to the CUDA runtime that this structure is mostly read only.  This
+    * creates read-only copies on the CPU and GPU to avoid unnecessary thrashing as this
+    * structure is needed throughout the code.  Technically, this structure should only
+    * be accessed (dereferenced) on the GPU once GPU code starts but this is apparently
+    * insufficient to avoid this thrashing.
+    */
    int device;
    cudaGetDevice(&device);
    cudaMemAdvise(sim, sizeof(SimFlat), cudaMemAdviseSetReadMostly, device);
@@ -290,23 +306,8 @@ SimFlat* initSimulation(Command cmd)
    globalSim->species = (SpeciesData*)comdMalloc(sizeof(SpeciesData));
    memcpy(globalSim->species, sim->species, sizeof(SpeciesData));
 
-   //globalSim->ePotential = sim->ePotential;
-   //globalSim->eKinetic   = sim->eKinetic;
-
-   //globalSim->pot = (BasePotential*)comdMalloc(sizeof(BasePotential));
-   //memcpy(globalSim->pot, sim->pot, sizeof(BasePotential));
-
    globalSim->atomExchange = NULL;
    globalSim->atomExchange = initAtomHaloExchange(sim->domain, sim->boxes);
-   //globalSim->atomExchange = (HaloExchange*)comdMalloc(sizeof(HaloExchange));
-   //memcpy(globalSim->atomExchange, sim->atomExchange, sizeof(HaloExchange));
-   //globalSim->atomExchange->parms = NULL;
-
-   //memcpy(globalSim->isTotal, sim->isTotal, sizeof(RAJA::TypedIndexSet<RAJA::RangeSegment>));
-
-   //memcpy(globalSim->isLocal, sim->isLocal, sizeof(RAJA::TypedIndexSet<RAJA::RangeSegment>));
-
-   //memcpy(globalSim->isLocalSegment, sim->isLocalSegment, sizeof(RAJA::RangeSegment));
 #endif
 
    // Forces must be computed before we call the time stepper.
@@ -453,6 +454,9 @@ void sumAtoms(SimFlat* s)
 #ifdef DO_CUDA
   rajaReduceSumIntCUDA nLocal(0);
 
+  /* Make sure the simulation structure is only accessed on the GPU to avoid
+   * unnecessary page faults.
+   */
   RAJA::kernel<redistributeGPU>(
   RAJA::make_tuple(
     RAJA::RangeSegment(0, globalSim->boxes->nLocalBoxes)),

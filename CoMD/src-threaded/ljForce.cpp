@@ -215,7 +215,6 @@ int ljForce(SimFlat* s)
        [=] (int iBoxID, int nghb, int iOff, int jOff) {
 #endif
          const int nLocalBoxes = s->boxes->nLocalBoxes;
-         //const int nTotalBoxes = s->boxes->nTotalBoxes;
          const int nIBox = s->boxes->nAtoms[iBoxID];
          const int jBoxID = s->boxes->nbrBoxes[iBoxID][nghb];
          const int nJBox = s->boxes->nAtoms[jBoxID];

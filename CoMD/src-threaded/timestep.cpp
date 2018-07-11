@@ -13,6 +13,10 @@
 static void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt);
 static void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt);
 
+/* This structure is redefined here in order to inline some functions from
+ * linkCells.cpp here.  TODO: Mark the functions needed as both host and
+ * device functions with a macro if DO_CUDA is defined.
+ */
 typedef struct AtomMsgSt
 {
    int gid;
@@ -22,6 +26,10 @@ typedef struct AtomMsgSt
 }
 AtomMsg;
 
+/* This variable acts as a flag as to whether the timestep function has been
+ * called yet or not.  This changes the functionality of the kineticEnergy
+ * function depending on whether initalization is finished or not.
+ */
 int inTimestep = 0;
 
 /// Advance the simulation time to t+dt using a leap frog method
@@ -240,6 +248,10 @@ void redistributeAtoms(SimFlat* sim)
 {
    startTimer(updateLinkCellsTimer);
 #ifdef DO_CUDA
+   /* The updateLinkCells function has been altered to only accept sim
+    * in order to avoid dereferencing any of the members of sim in CPU
+    * code which could trigger an unnecessary page fault.
+    */
    updateLinkCells(sim);
 #else
    updateLinkCells(sim->boxes, sim->atoms);
@@ -254,8 +266,6 @@ void redistributeAtoms(SimFlat* sim)
 #endif
    stopTimer(atomHaloTimer);
 
-   //updateIndexSets(sim) ;
-   // Is this necessary?
 #ifdef DO_CUDA
    CALI_MARK_BEGIN("sortAtoms");
    RAJA::kernel<redistributeGPU>(
@@ -287,12 +297,14 @@ void redistributeAtoms(SimFlat* sim)
        }
      }
      if(!sorted){
-     //qsort(&tmp, nAtoms, sizeof(AtomMsg), sortAtomsById);
      /* Begin Insertion Sort */
+     /* This has been changed to an insertion sort instead of a quick sort because the
+      * elements of this array are already mostly sorted and insertion sort works well
+      * on mostly sorted data.
+      */
      int i, j;
      AtomMsg key;
      for (i = 1; i < nAtoms; i++) {
-       //key = arr[i];
        key.gid  = tmp[i].gid;
        key.type = tmp[i].type;
        key.rx   = tmp[i].rx;
@@ -307,10 +319,8 @@ void redistributeAtoms(SimFlat* sim)
        /* Move elements of tmp[0..i-1], that are
           greater than key, to one position ahead
           of their current position */
-       //while (j >= 0 && arr[j] > key)
        while (j >= 0 && tmp[j].gid > key.gid)
        {
-         //arr[j+1] = arr[j];
          tmp[j+1].gid  = tmp[j].gid;
          tmp[j+1].type = tmp[j].type;
          tmp[j+1].rx   = tmp[j].rx;
@@ -321,7 +331,6 @@ void redistributeAtoms(SimFlat* sim)
          tmp[j+1].pz   = tmp[j].pz;
          j = j-1;
        }
-       //arr[j+1] = key
        tmp[j+1].gid  = key.gid;
        tmp[j+1].type = key.type;
        tmp[j+1].rx   = key.rx;
