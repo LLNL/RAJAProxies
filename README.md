@@ -1,6 +1,6 @@
 # RAJA Proxy Applications
 
-This project contains a collections of proxy applications written using the 
+This project contains a collection of proxy applications written using the 
 [RAJA Rerformance Portability Layer](https://github.com/LLNL/RAJA). 
 These applications are examples of how RAJA is used in real codes and 
 provideng a convenient vehicle for testing features and analyzing performance.
