@@ -144,6 +144,7 @@ int main(int argc, char** argv)
 
       iStep += printRate;
    }
+   cudaStreamSynchronize(0);
    profileStop(loopTimer);
 
    sumAtoms(sim);

@@ -267,7 +267,6 @@ void redistributeAtoms(SimFlat* sim)
    stopTimer(atomHaloTimer);
 
 #ifdef DO_CUDA
-   CALI_MARK_BEGIN("sortAtoms");
    RAJA::kernel<redistributeGPU>(
    RAJA::make_tuple(
    RAJA::RangeSegment(0, globalSim->boxes->nTotalBoxes)),
@@ -354,7 +353,6 @@ void redistributeAtoms(SimFlat* sim)
      }
      }
    } );
-   CALI_MARK_END("sortAtoms");
 #else
    RAJA::forall<linkCellTraversal>(RAJA::RangeSegment(0,sim->boxes->nTotalBoxes), [=] (int ii) {
      sortAtomsInCell(sim->atoms, sim->boxes, ii);
