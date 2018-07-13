@@ -4,7 +4,6 @@
 #define __PERFORMANCE_TIMERS_H_
 
 #include <stdio.h>
-#include <caliper/cali.h>
 
 /// Timer handles
 enum TimerHandle{

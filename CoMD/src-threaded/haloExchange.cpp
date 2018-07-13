@@ -316,12 +316,8 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
    char* recvBufM = parms->recvBufM;
    char* recvBufP = parms->recvBufP;
 
-   CALI_MARK_BEGIN("Load Minus");
    int nSendM = haloExchange->loadBuffer(haloExchange->parms, data, faceM, sendBufM);
-   CALI_MARK_END("Load Minus");
-   CALI_MARK_BEGIN("Load Plus");
    int nSendP = haloExchange->loadBuffer(haloExchange->parms, data, faceP, sendBufP);
-   CALI_MARK_END("Load Plus");
 
    int nbrRankM = haloExchange->nbrRank[faceM];
    int nbrRankP = haloExchange->nbrRank[faceP];
@@ -333,12 +329,8 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
    nRecvM = sendReceiveParallel(sendBufP, nSendP, nbrRankP, recvBufM, haloExchange->bufCapacity, nbrRankM);
    stopTimer(commHaloTimer);
 
-   CALI_MARK_BEGIN("Unload Minus");
    haloExchange->unloadBuffer(haloExchange->parms, data, faceM, nRecvM, recvBufM);
-   CALI_MARK_END("Unload Minus");
-   CALI_MARK_BEGIN("Unload Plus");
    haloExchange->unloadBuffer(haloExchange->parms, data, faceP, nRecvP, recvBufP);
-   CALI_MARK_END("Unload Plus");
 }
 
 /// Make a list of link cells that need to be sent across the specified
@@ -411,7 +403,6 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 
    AtomMsg* buf = (AtomMsg*) (charBuf + size);
 
-   CALI_MARK_BEGIN("Pack Kernel");
   RAJA::kernel<atomPackGPU>(
   RAJA::make_tuple(
                    RAJA::RangeSegment(0, nCells),
@@ -456,7 +447,6 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
       nBufReduce += 1;
     }
   } );
-   CALI_MARK_END("Pack Kernel");
 
    const int nBuf = (int)nBufReduce;
 

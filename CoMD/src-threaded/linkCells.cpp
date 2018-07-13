@@ -297,8 +297,6 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
 #endif
 {
 #ifdef DO_CUDA
-  CALI_MARK_BEGIN("emptyHaloCells");
-
   RAJA::kernel<redistributeGPU>(
   RAJA::make_tuple(
     RAJA::RangeSegment(globalSim->boxes->nLocalBoxes, globalSim->boxes->nTotalBoxes)),
@@ -307,8 +305,6 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
       LinkCell *b = sim->boxes;
       b->nAtoms[ii] = 0;
     } );
-  CALI_MARK_END("emptyHaloCells");
-  
 
   RAJA::kernel<redistributeGPU>(
   RAJA::make_tuple(

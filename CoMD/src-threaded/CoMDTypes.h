@@ -132,29 +132,47 @@ typedef RAJA::KernelPolicy<
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 #endif
 
+//#define CUDA_ASYNC
+
 typedef RAJA::KernelPolicy<
+#ifdef CUDA_ASYNC
+  RAJA::statement::CudaKernelAsync<
+#else
   RAJA::statement::CudaKernel<
+#endif
     RAJA::statement::For<0, RAJA::cuda_threadblock_exec<32>,
     RAJA::statement::For<1, RAJA::seq_exec,
     RAJA::statement::Lambda<0> > > > > atomWorkGPU;
 
 typedef RAJA::KernelPolicy<
+#ifdef CUDA_ASYNC
+  RAJA::statement::CudaKernelAsync<
+#else
   RAJA::statement::CudaKernel<
+#endif
     RAJA::statement::For<0, RAJA::cuda_threadblock_exec<32>,
     RAJA::statement::Lambda<0> > > > redistributeGPU;
 
 typedef RAJA::KernelPolicy<
+#ifdef CUDA_ASYNC
+  RAJA::statement::CudaKernelAsync<
+#else
   RAJA::statement::CudaKernel<
+#endif
     RAJA::statement::For<0, RAJA::cuda_block_exec,
     RAJA::statement::For<1, RAJA::cuda_thread_exec,
     RAJA::statement::Lambda<0> > > > > atomPackGPU;
 
 typedef RAJA::KernelPolicy<
+#ifdef CUDA_ASYNC
+  RAJA::statement::CudaKernelAsync<
+#else
   RAJA::statement::CudaKernel<
+#endif
     RAJA::statement::For<0, RAJA::cuda_block_exec,
-    RAJA::statement::For<1, RAJA::cuda_thread_exec,
-    RAJA::statement::For<2, RAJA::seq_exec,
-    RAJA::statement::For<3, RAJA::seq_exec,
+    RAJA::statement::For<1, RAJA::cuda_block_exec,
+    RAJA::statement::For<2, RAJA::cuda_thread_exec,
+    RAJA::statement::For<3, RAJA::cuda_thread_exec,
     RAJA::statement::Lambda<0> > > > > > > forcePolicyGPU;
 
 typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, real_t> rajaReduceSumRealCUDA;
