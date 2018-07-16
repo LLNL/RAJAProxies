@@ -5,6 +5,11 @@
 
 #include <stdio.h>
 
+//#define USE_CALIPER
+#ifdef USE_CALIPER
+#include <caliper/cali.h>
+#endif
+
 /// Timer handles
 enum TimerHandle{
    totalTimer, 
@@ -14,9 +19,18 @@ enum TimerHandle{
    velocityTimer,  
    redistributeTimer, 
    updateLinkCellsTimer,
+   emptyHaloCellsTimer,
+   updateLinkCellsWorkTimer,
    atomHaloTimer, 
-   computeForceTimer, 
-   eamHaloTimer, 
+   atomPackTimer,
+   atomCommTimer,
+   atomUnpackTimer,
+   atomSortTimer,
+   computeForceTimer,
+   forceZeroingTimer,
+   forceFunctionTimer,
+   eamHaloTimer,
+   kineticEnergyTimer,
    commHaloTimer, 
    commReduceTimer, 
    numberOfTimers};

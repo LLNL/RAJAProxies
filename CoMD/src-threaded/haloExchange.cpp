@@ -316,21 +316,25 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
    char* recvBufM = parms->recvBufM;
    char* recvBufP = parms->recvBufP;
 
+   startTimer(atomPackTimer);
    int nSendM = haloExchange->loadBuffer(haloExchange->parms, data, faceM, sendBufM);
    int nSendP = haloExchange->loadBuffer(haloExchange->parms, data, faceP, sendBufP);
+   stopTimer(atomPackTimer);
 
    int nbrRankM = haloExchange->nbrRank[faceM];
    int nbrRankP = haloExchange->nbrRank[faceP];
 
    int nRecvM, nRecvP;
 
-   startTimer(commHaloTimer);
+   startTimer(atomCommTimer);
    nRecvP = sendReceiveParallel(sendBufM, nSendM, nbrRankM, recvBufP, haloExchange->bufCapacity, nbrRankP);
    nRecvM = sendReceiveParallel(sendBufP, nSendP, nbrRankP, recvBufM, haloExchange->bufCapacity, nbrRankM);
-   stopTimer(commHaloTimer);
+   stopTimer(atomCommTimer);
 
+   startTimer(atomUnpackTimer);
    haloExchange->unloadBuffer(haloExchange->parms, data, faceM, nRecvM, recvBufM);
    haloExchange->unloadBuffer(haloExchange->parms, data, faceP, nRecvP, recvBufP);
+   stopTimer(atomUnpackTimer);
 }
 
 /// Make a list of link cells that need to be sent across the specified

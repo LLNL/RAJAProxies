@@ -297,6 +297,7 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
 #endif
 {
 #ifdef DO_CUDA
+  startTimer(emptyHaloCellsTimer);
   RAJA::kernel<redistributeGPU>(
   RAJA::make_tuple(
     RAJA::RangeSegment(globalSim->boxes->nLocalBoxes, globalSim->boxes->nTotalBoxes)),
@@ -305,7 +306,8 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
       LinkCell *b = sim->boxes;
       b->nAtoms[ii] = 0;
     } );
-
+  stopTimer(emptyHaloCellsTimer);
+  startTimer(updateLinkCellsWorkTimer);
   RAJA::kernel<redistributeGPU>(
   RAJA::make_tuple(
     RAJA::RangeSegment(0, globalSim->boxes->nLocalBoxes)),
@@ -477,9 +479,12 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
         ++ii;
       }
   } );
+  stopTimer(updateLinkCellsWorkTimer);
 #else
+  startTimer(emptyHaloCellsTimer);
    emptyHaloCells(boxes);
-
+  stopTimer(emptyHaloCellsTimer);
+  startTimer(updateLinkCellsWorkTimer);
    for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
    {
       int iOff = iBox*MAXATOMS;
@@ -493,6 +498,7 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
             ++ii;
       }
    }
+  stopTimer(updateLinkCellsWorkTimer);
 #endif
 }
 

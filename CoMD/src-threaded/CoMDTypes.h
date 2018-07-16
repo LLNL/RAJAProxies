@@ -10,6 +10,7 @@
 #include "linkCells.h"
 #include "decomposition.h"
 #include "initAtoms.h"
+#include "performanceTimers.h"
 #include "RAJA/RAJA.hpp"
 
 struct SimFlatSt;

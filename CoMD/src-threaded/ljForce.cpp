@@ -170,6 +170,7 @@ int ljForce(SimFlat* s)
    s->ePotential = 0.0;
 #endif
 
+   profileStart(forceZeroingTimer);
 #ifdef DO_CUDA
   RAJA::kernel<atomWorkGPU>(
   RAJA::make_tuple(
@@ -193,8 +194,10 @@ int ljForce(SimFlat* s)
       s->atoms->U[ii] = 0.;
    } ) ;
 #endif
+   profileStop(forceZeroingTimer);
 
    {
+   profileStart(forceFunctionTimer);
 #ifdef DO_CUDA
      RAJA::kernel<forcePolicyGPU>(
 #else
@@ -268,7 +271,7 @@ int ljForce(SimFlat* s)
            }  //end if within cutoff
          }//end if atoms exist
        });
-
+   profileStop(forceFunctionTimer);
    }
 
 #ifdef DO_CUDA
