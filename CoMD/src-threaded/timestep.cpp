@@ -87,7 +87,9 @@ double timestep(SimFlat* s, int nSteps, real_t dt)
       stopTimer(velocityTimer);
    }
 
+   startTimer(kineticEnergyTimer);
    kineticEnergy(s);
+   stopTimer(kineticEnergyTimer);
 
 #ifdef DO_CUDA
    return globalSim->ePotential;
@@ -265,7 +267,7 @@ void redistributeAtoms(SimFlat* sim)
    haloExchange(sim->atomExchange, sim);
 #endif
    stopTimer(atomHaloTimer);
-
+   startTimer(atomSortTimer);
 #ifdef DO_CUDA
    RAJA::kernel<redistributeGPU>(
    RAJA::make_tuple(
@@ -358,7 +360,7 @@ void redistributeAtoms(SimFlat* sim)
      sortAtomsInCell(sim->atoms, sim->boxes, ii);
    });
 #endif
-
+   stopTimer(atomSortTimer);
 }
 
 void updateIndexSets(SimFlat *s)
