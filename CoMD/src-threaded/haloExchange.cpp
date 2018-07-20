@@ -407,13 +407,15 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 
    AtomMsg* buf = (AtomMsg*) (charBuf + size);
 
-  RAJA::kernel<atomPackGPU>(
+   //  RAJA::kernel<atomPackGPU>(
+  RAJA::kernel<redistributeGPU>(
   RAJA::make_tuple(
-                   RAJA::RangeSegment(0, nCells),
-                   RAJA::RangeSegment(0, MAXATOMS)),
-  [=] RAJA_DEVICE (int iCell, int ii) {
+                   RAJA::RangeSegment(0, nCells)),
+                   //                   RAJA::RangeSegment(0, 32)),
+  //  [=] RAJA_DEVICE (int iCell, int ii) {
+  [=] RAJA_DEVICE (int iCell) {
     SimFlat* s = (SimFlat*) data;
-    //int* offsetBuf = (int*)charBuf;
+    int* offsetBuf = (int*)charBuf;
 
     real3 shift;
     shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
@@ -421,10 +423,10 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
     shift[2] = pbcFactor[2] * s->domain->globalExtent[2];
 
     int sum = 0;
-    //offsetBuf[0] = nCells;
+    offsetBuf[0] = nCells;
     for(int i = 0; i < nCells; i++) {
       bufferOffset[i] = sum;
-      //offsetBuf[i+1] = sum;
+      offsetBuf[i+1] = sum;
       sum += s->boxes->nAtoms[cellList[i]];
     }
 
@@ -437,9 +439,10 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 
     int iBox = cellList[iCell];
     int iOff = iBox*MAXATOMS;
-    offset += ii;
-    ii += iOff;
-    if(ii < iOff+s->boxes->nAtoms[iBox]) {
+    //offset += ii;
+    //ii += iOff;
+    int ii = iOff;
+    while(ii < iOff+s->boxes->nAtoms[iBox]) {
       buf[offset].gid  = gid[ii];
       buf[offset].type = iSpecies[ii];
       buf[offset].rx = r[ii][0] + shift[0];
@@ -449,11 +452,13 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
       buf[offset].py = p[ii][1];
       buf[offset].pz = p[ii][2];
       nBufReduce += 1;
+      ii++;
+      offset++;
     }
   } );
 
    const int nBuf = (int)nBufReduce;
-
+   /*
    RAJA::kernel<redistributeGPU>(
     RAJA::make_tuple(
     RAJA::RangeSegment(0, nCells)),
@@ -463,7 +468,7 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
       bufferOffset_ptr[0]   = nCells;
       bufferOffset_ptr[i+1] = bufferOffset[i];
     } );
-
+*/
   comdFree(bufferOffset);
 
   return (nBuf*sizeof(AtomMsg)) + size;

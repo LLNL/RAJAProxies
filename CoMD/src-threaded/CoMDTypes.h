@@ -133,7 +133,7 @@ typedef RAJA::KernelPolicy<
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 #endif
 
-//#define CUDA_ASYNC
+#define CUDA_ASYNC
 
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
