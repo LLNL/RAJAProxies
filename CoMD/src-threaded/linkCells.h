@@ -45,9 +45,9 @@ void putAtomInBox(LinkCell* boxes, struct AtomsSt* atoms,
                   const int gid, const int iType,
                   const real_t x,  const real_t y,  const real_t z,
                   const real_t px, const real_t py, const real_t pz);
-int getBoxFromTuple(LinkCell* boxes, int x, int y, int z);
+__host__ __device__ int getBoxFromTuple(LinkCell* boxes, int x, int y, int z);
 
-void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, int iBox, int jBox);
+__host__ __device__ void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, int iBox, int jBox);
 
 /// Update link cell data structures when the atoms have moved.
 #ifdef DO_CUDA

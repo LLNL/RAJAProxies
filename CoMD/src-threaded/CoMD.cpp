@@ -454,25 +454,40 @@ void validateResult(const Validate* val, SimFlat* sim)
 void sumAtoms(SimFlat* s)
 {
    // sum atoms across all processers
-#ifdef DO_CUDA
-  rajaReduceSumIntCUDA nLocal(0);
+  //#ifdef DO_CUDA
+#if 1
+  rajaReduceSumIntCUDA nLocalReduce(0);
+  const int nLocalBoxes = globalSim->boxes->nLocalBoxes;
 
   /* Make sure the simulation structure is only accessed on the GPU to avoid
    * unnecessary page faults.
    */
   RAJA::kernel<redistributeGPU>(
   RAJA::make_tuple(
-    RAJA::RangeSegment(0, globalSim->boxes->nLocalBoxes)),
+    RAJA::RangeSegment(0, nLocalBoxes)),
     [=] RAJA_DEVICE (int i)
     {
-      nLocal += s->boxes->nAtoms[i];
+      nLocalReduce += s->boxes->nAtoms[i];
     } );
 
-  globalSim->atoms->nLocal = (int)nLocal;
+  globalSim->atoms->nLocal = (int)nLocalReduce;
 
   startTimer(commReduceTimer);
   addIntParallel(&globalSim->atoms->nLocal, &globalSim->atoms->nGlobal, 1);
   stopTimer(commReduceTimer);
+
+  const int nLocal  = globalSim->atoms->nLocal;
+  const int nGlobal = globalSim->atoms->nGlobal;
+
+  RAJA::kernel<redistributeGPU>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(0, 1)),
+    [=] RAJA_DEVICE (int notUsed)
+    {
+      s->atoms->nLocal  = nLocal;
+      s->atoms->nGlobal = nGlobal;
+    } );
+
 #else
    s->atoms->nLocal = 0;
    for (int i = 0; i < s->boxes->nLocalBoxes; i++)
