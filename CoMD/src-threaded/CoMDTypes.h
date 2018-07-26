@@ -12,6 +12,7 @@
 #include "initAtoms.h"
 #include "performanceTimers.h"
 #include "RAJA/RAJA.hpp"
+//#include "RAJA/policy/cuda/kernel/CudaKernel.hpp"
 
 struct SimFlatSt;
 
@@ -141,8 +142,8 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<32>,
-    RAJA::statement::For<1, RAJA::seq_exec,
+    RAJA::statement::For<0, RAJA::cuda_block_exec,
+    RAJA::statement::For<1, RAJA::cuda_thread_exec,
     RAJA::statement::Lambda<0> > > > > atomWorkGPU;
 
 typedef RAJA::KernelPolicy<
@@ -151,7 +152,7 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<32>,
+    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
     RAJA::statement::Lambda<0> > > > redistributeGPU;
 
 typedef RAJA::KernelPolicy<

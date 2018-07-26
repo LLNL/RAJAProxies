@@ -14,17 +14,23 @@
 
 set(RAJA_COMPILER "RAJA_COMPILER_GNU" CACHE STRING "")
 
-set(CMAKE_CXX_COMPILER "/usr/tcetmp/bin/g++" CACHE PATH "")
+#set(CMAKE_CXX_COMPILER "/usr/tcetmp/bin/g++" CACHE PATH "")
+
+set(CMAKE_C_COMPILER "/usr/tce/packages/gcc/gcc-4.9.3/bin/gcc" CACHE PATH "")
+set(CMAKE_CXX_COMPILER "/usr/tce/packages/gcc/gcc-4.9.3/bin/g++" CACHE PATH "")
 
 set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -finline-functions" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g -finline-functions" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 
 
-set(CUDA_COMMON_OPT_FLAGS -restrict; -arch sm_60; -std c++11; --expt-extended-lambda)
+set(CUDA_COMMON_OPT_FLAGS -restrict; -gencode=arch=compute_60,code=sm_60; -std c++11; --expt-extended-lambda)
+#set(CUDA_COMMON_OPT_FLAGS -restrict; -arch sm_60; -std c++11; --expt-extended-lambda)
+#set(CUDA_COMMON_OPT_FLAGS -restrict; -arch compute_35; -std c++11; --expt-extended-lambda)
 set(CUDA_COMMON_DEBUG_FLAGS -restrict; -arch compute_30; -std c++11; --expt-extended-lambda)
 
-set(HOST_OPT_FLAGS -Xcompiler -O3 -Xcompiler -finline-functions -Xcompiler -fopenmp)
+#set(HOST_OPT_FLAGS -Xcompiler -O3 -Xcompiler -finline-functions -Xcompiler -fopenmp)
+set(HOST_OPT_FLAGS -Xcompiler -O3 -Xcompiler -finline-functions -Xcompiler)
 
 if(CMAKE_BUILD_TYPE MATCHES Release)
   set(RAJA_NVCC_FLAGS -O3; ${CUDA_COMMON_OPT_FLAGS}; -ccbin; ${CMAKE_CXX_COMPILER} ; ${HOST_OPT_FLAGS} CACHE LIST "")
