@@ -75,8 +75,8 @@
 #define   MIN(A,B) ((A) < (B) ? (A) : (B))
 #define   MAX(A,B) ((A) > (B) ? (A) : (B))
 
-__host__ __device__ static void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox);
-__host__ __device__ static int getBoxFromCoord(LinkCell* boxes, real_t rr[3]);
+COMD_HOST_DEVICE static void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox);
+COMD_HOST_DEVICE static int getBoxFromCoord(LinkCell* boxes, real_t rr[3]);
 static void emptyHaloCells(LinkCell* boxes);
 static void getTuple(LinkCell* boxes, int iBox, int* ixp, int* iyp, int* izp);
 
@@ -335,9 +335,11 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
   } );
   stopTimer(updateLinkCellsWorkTimer);
 #else
+#ifdef DO_CUDA
   LinkCell *boxes = sim->boxes;
   Atoms *atoms = sim->atoms;
   cudaStreamSynchronize(0);
+#endif
   startTimer(emptyHaloCellsTimer);
    emptyHaloCells(boxes);
   stopTimer(emptyHaloCellsTimer);
@@ -379,7 +381,7 @@ int maxOccupancy(LinkCell* boxes)
 /// Copy atom iAtom in link cell iBox to atom jAtom in link cell jBox.
 /// Any data at jAtom, jBox is overwritten.  This routine can be used to
 /// re-order atoms within a link cell.
-__host__ __device__ void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox)
+COMD_HOST_DEVICE void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox)
 {
    const int iOff = MAXATOMS*iBox+iAtom;
    const int jOff = MAXATOMS*jBox+jAtom;
@@ -401,7 +403,7 @@ __host__ __device__ void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int 
 /// assignments for atoms that are near a link cell boundaries.  If no
 /// ranks claim an atom in a local cell it will be lost.  If multiple
 /// ranks claim an atom it will be duplicated.
-__host__ __device__ int getBoxFromCoord(LinkCell* boxes, real_t rr[3])
+COMD_HOST_DEVICE int getBoxFromCoord(LinkCell* boxes, real_t rr[3])
 {
    const real_t* localMin = boxes->localMin; // alias
    const real_t* localMax = boxes->localMax; // alias

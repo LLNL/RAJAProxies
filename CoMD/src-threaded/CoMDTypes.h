@@ -12,7 +12,6 @@
 #include "initAtoms.h"
 #include "performanceTimers.h"
 #include "RAJA/RAJA.hpp"
-//#include "RAJA/policy/cuda/kernel/CudaKernel.hpp"
 
 struct SimFlatSt;
 
@@ -139,11 +138,15 @@ typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
   RAJA::statement::CudaKernelAsync<
+//RAJA::statement::CudaKernelExt<typename cuda_explicit_launch<true, 56, 128>, // This doesn't compile
 #else
   RAJA::statement::CudaKernel<
 #endif
     RAJA::statement::For<0, RAJA::cuda_block_exec,
     RAJA::statement::For<1, RAJA::cuda_thread_exec,
+/* This is what was used for the poster submission */
+//    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
+//    RAJA::statement::For<1, RAJA::seq_exec,
     RAJA::statement::Lambda<0> > > > > atomWorkGPU;
 
 typedef RAJA::KernelPolicy<
