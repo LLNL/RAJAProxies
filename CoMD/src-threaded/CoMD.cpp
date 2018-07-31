@@ -454,8 +454,7 @@ void validateResult(const Validate* val, SimFlat* sim)
 void sumAtoms(SimFlat* s)
 {
    // sum atoms across all processers
-  //#ifdef DO_CUDA
-#if 1
+#ifdef DO_CUDA
   rajaReduceSumIntCUDA nLocalReduce(0);
   const int nLocalBoxes = globalSim->boxes->nLocalBoxes;
 

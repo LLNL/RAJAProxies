@@ -7,6 +7,12 @@
 #include "mytype.h"
 #include "RAJA/RAJA.hpp"
 
+#ifdef DO_CUDA
+#define COMD_HOST_DEVICE __host__ __device__
+#else
+#define COMD_HOST_DEVICE
+#endif
+
 /// The maximum number of atoms that can be stored in a link cell.
 #define MAXATOMS 64
 
@@ -45,9 +51,9 @@ void putAtomInBox(LinkCell* boxes, struct AtomsSt* atoms,
                   const int gid, const int iType,
                   const real_t x,  const real_t y,  const real_t z,
                   const real_t px, const real_t py, const real_t pz);
-__host__ __device__ int getBoxFromTuple(LinkCell* boxes, int x, int y, int z);
+COMD_HOST_DEVICE int getBoxFromTuple(LinkCell* boxes, int x, int y, int z);
 
-__host__ __device__ void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, int iBox, int jBox);
+COMD_HOST_DEVICE void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, int iBox, int jBox);
 
 /// Update link cell data structures when the atoms have moved.
 #ifdef DO_CUDA
