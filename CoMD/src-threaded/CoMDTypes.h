@@ -13,12 +13,6 @@
 #include "performanceTimers.h"
 #include "RAJA/RAJA.hpp"
 
-#ifdef DO_CUDA
-#define COMD_DEVICE __device__
-#else
-#define COMD_DEVICE
-#endif
-
 struct SimFlatSt;
 
 /// The base struct from which all potentials derive.  Think of this as an
@@ -104,6 +98,10 @@ typedef struct SimFlatSt
  * the performance of this code.
  */
 extern SimFlat *globalSim;
+// Allows for __device__ to be put before kernels only when CUDA is enabled
+#define COMD_DEVICE __device__
+#else
+#define COMD_DEVICE
 #endif
 
 #ifdef ENABLE_OPENMP

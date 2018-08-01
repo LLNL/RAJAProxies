@@ -55,19 +55,11 @@ double timestep(SimFlat* s, int nSteps, real_t dt)
    for (int ii=0; ii<nSteps; ++ii)
    {
       startTimer(velocityTimer);
-#ifdef DO_CUDA
-      advanceVelocity(s, globalSim->isLocal, 0.5*dt);
-#else
       advanceVelocity(s, s->isLocal, 0.5*dt);
-#endif
       stopTimer(velocityTimer);
 
       startTimer(positionTimer);
-#ifdef DO_CUDA
-      advancePosition(s, globalSim->isLocal, dt);
-#else
       advancePosition(s, s->isLocal, dt);
-#endif
       stopTimer(positionTimer);
 
       startTimer(redistributeTimer);
@@ -79,11 +71,7 @@ double timestep(SimFlat* s, int nSteps, real_t dt)
       stopTimer(computeForceTimer);
 
       startTimer(velocityTimer);
-#ifdef DO_CUDA
-      advanceVelocity(s, globalSim->isLocal, 0.5*dt);
-#else
       advanceVelocity(s, s->isLocal, 0.5*dt);
-#endif
       stopTimer(velocityTimer);
    }
 
@@ -100,11 +88,7 @@ double timestep(SimFlat* s, int nSteps, real_t dt)
 
 void computeForce(SimFlat* s)
 {
-#ifdef DO_CUDA
-   globalSim->pot->force(s);
-#else
    s->pot->force(s);
-#endif
 }
 
 
