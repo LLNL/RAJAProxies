@@ -81,6 +81,6 @@ void destroyHaloExchange(HaloExchange** haloExchange);
 void haloExchange(HaloExchange* haloExchange, void* data);
 
 /// Sort the atoms by gid in the specified link cell.
-void sortAtomsInCell(struct AtomsSt* atoms, struct LinkCellSt* boxes, int iBox);
+//COMD_HOST_DEVICE void sortAtomsInCell(struct AtomsSt* atoms, struct LinkCellSt* boxes, int iBox);
 
 #endif

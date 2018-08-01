@@ -870,57 +870,6 @@ void destroyForceExchange(void* vparms)
    }
 }
 
-/// \details
-/// The force exchange assumes that the atoms are in the same order in
-/// both a given local link cell and the corresponding remote cell(s).
-/// However, the atom exchange does not guarantee this property,
-/// especially when atoms cross a domain decomposition boundary and move
-/// from one task to another.  Trying to maintain the atom order during
-/// the atom exchange would immensely complicate that code.  Instead, we
-/// just sort the atoms after the atom exchange.
-void sortAtomsInCell(Atoms* atoms, LinkCell* boxes, int iBox)
-{
-   int nAtoms = boxes->nAtoms[iBox];
-
-   AtomMsg tmp[nAtoms];
-
-   int begin = iBox*MAXATOMS;
-   int end = begin + nAtoms;
-
-   int sorted = 1;
-   for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
-   {
-      tmp[iTmp].gid  = atoms->gid[ii];
-      tmp[iTmp].type = atoms->iSpecies[ii];
-      tmp[iTmp].rx =   atoms->r[ii][0];
-      tmp[iTmp].ry =   atoms->r[ii][1];
-      tmp[iTmp].rz =   atoms->r[ii][2];
-      tmp[iTmp].px =   atoms->p[ii][0];
-      tmp[iTmp].py =   atoms->p[ii][1];
-      tmp[iTmp].pz =   atoms->p[ii][2];
-      if(iTmp > 0) {
-        if(tmp[iTmp].gid < tmp[iTmp-1].gid)
-          sorted = 0;
-      }
-   }
-   if(!sorted) {
-     return;
-   }
-   qsort(&tmp, nAtoms, sizeof(AtomMsg), sortAtomsById);
-   for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
-   {
-      atoms->gid[ii]   = tmp[iTmp].gid;
-      atoms->iSpecies[ii] = tmp[iTmp].type;
-      atoms->r[ii][0]  = tmp[iTmp].rx;
-      atoms->r[ii][1]  = tmp[iTmp].ry;
-      atoms->r[ii][2]  = tmp[iTmp].rz;
-      atoms->p[ii][0]  = tmp[iTmp].px;
-      atoms->p[ii][1]  = tmp[iTmp].py;
-      atoms->p[ii][2]  = tmp[iTmp].pz;
-   }
-
-}
-
 ///  A function suitable for passing to qsort to sort atoms by gid.
 ///  Because every atom in the simulation is supposed to have a unique
 ///  id, this function checks that the atoms have different gids.  If

@@ -13,6 +13,12 @@
 #include "performanceTimers.h"
 #include "RAJA/RAJA.hpp"
 
+#ifdef DO_CUDA
+#define COMD_DEVICE __device__
+#else
+#define COMD_DEVICE
+#endif
+
 struct SimFlatSt;
 
 /// The base struct from which all potentials derive.  Think of this as an
@@ -107,6 +113,15 @@ typedef RAJA::ExecPolicy<RAJA::omp_parallel_for_segit, RAJA::simd_exec> atomWork
 typedef RAJA::omp_parallel_segit task_graph_policy;
 
 typedef RAJA::KernelPolicy<
+    RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
+    RAJA::statement::For<1, RAJA::simd_exec,
+    RAJA::statement::Lambda<0> > > > atomWorkKernel;
+
+typedef RAJA::KernelPolicy<
+    RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
+    RAJA::statement::Lambda<0> > > redistributeKernel;
+
+typedef RAJA::KernelPolicy<
   RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
   RAJA::statement::For<1, RAJA::seq_exec,
   RAJA::statement::For<2, RAJA::seq_exec,
@@ -147,7 +162,7 @@ typedef RAJA::KernelPolicy<
 /* This is what was used for the poster submission */
 //    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
 //    RAJA::statement::For<1, RAJA::seq_exec,
-    RAJA::statement::Lambda<0> > > > > atomWorkGPU;
+    RAJA::statement::Lambda<0> > > > > atomWorkKernel;
 
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
@@ -164,9 +179,8 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::For<0, RAJA::cuda_block_exec,
-    RAJA::statement::For<1, RAJA::cuda_thread_exec,
-    RAJA::statement::Lambda<0> > > > > atomPackGPU;
+    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
+    RAJA::statement::Lambda<0> > > > redistributeKernel;
 
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
@@ -190,6 +204,15 @@ typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
 typedef RAJA::seq_segit task_graph_policy;
+
+typedef RAJA::KernelPolicy<
+    RAJA::statement::For<0, RAJA::seq_segit,
+    RAJA::statement::For<1, RAJA::simd_exec,
+    RAJA::statement::Lambda<0> > > > atomWorkKernel;
+
+typedef RAJA::KernelPolicy<
+    RAJA::statement::For<0, RAJA::seq_exec,
+    RAJA::statement::Lambda<0> > > redistributeKernel;
 
 typedef RAJA::KernelPolicy<
   RAJA::statement::For<0, RAJA::seq_exec,

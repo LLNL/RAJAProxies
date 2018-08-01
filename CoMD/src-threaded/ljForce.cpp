@@ -171,12 +171,11 @@ int ljForce(SimFlat* s)
 #endif
 
    profileStart(forceZeroingTimer);
-#ifdef DO_CUDA
-  RAJA::kernel<atomWorkGPU>(
+  RAJA::kernel<atomWorkKernel>(
   RAJA::make_tuple(
-    RAJA::RangeSegment(0, globalSim->boxes->nLocalBoxes),
+    RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
     RAJA::RangeSegment(0, MAXATOMS) ),
-    [=] RAJA_DEVICE (int iBox, int iOffLocal) {
+    [=] COMD_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
       if(iOffLocal < nIBox) {
         const int iOff = iOffLocal + (iBox * MAXATOMS);
@@ -188,12 +187,7 @@ int ljForce(SimFlat* s)
         U[iOff] = 0.0;
       }
     } ) ;
-#else
-   RAJA::forall<atomWork>(*s->isTotal, [=] (int ii) {
-      zeroReal3(s->atoms->f[ii]);
-      s->atoms->U[ii] = 0.;
-   } ) ;
-#endif
+
    profileStop(forceZeroingTimer);
 
    {

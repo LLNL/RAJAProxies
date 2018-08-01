@@ -110,10 +110,9 @@ void computeForce(SimFlat* s)
 
 void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt)
 {
-#ifdef DO_CUDA
-  RAJA::kernel<atomWorkGPU>(
+  RAJA::kernel<atomWorkKernel>(
   RAJA::make_tuple(
-    RAJA::RangeSegment(0, globalSim->boxes->nLocalBoxes),
+    RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
     RAJA::RangeSegment(0, MAXATOMS) ),
     [=] RAJA_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
@@ -127,23 +126,15 @@ void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent
         p[iOff][2] += dt*f[iOff][2];
       }
     } );
-#else
-   RAJA::forall<atomWork>(*extent, [=] (int iOff) {
-      s->atoms->p[iOff][0] += dt*s->atoms->f[iOff][0];
-      s->atoms->p[iOff][1] += dt*s->atoms->f[iOff][1];
-      s->atoms->p[iOff][2] += dt*s->atoms->f[iOff][2];
-   } ) ;
-#endif
 }
 
 void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt)
 {
-#ifdef DO_CUDA
-  RAJA::kernel<atomWorkGPU>(
+  RAJA::kernel<atomWorkKernel>(
   RAJA::make_tuple(
-  RAJA::RangeSegment(0, globalSim->boxes->nLocalBoxes),
+  RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
     RAJA::RangeSegment(0, MAXATOMS) ),
-    [=] RAJA_DEVICE (int iBox, int iOffLocal) {
+    [=] COMD_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
       if(iOffLocal < nIBox) {
         const int iOff = iOffLocal + (iBox * MAXATOMS);
@@ -157,15 +148,6 @@ void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent
         r[iOff][2] += dt*p[iOff][2]*invMass;
       }
     } ) ;
-#else
-   RAJA::forall<atomWork>(*extent, [=] (int iOff) {
-      int iSpecies = s->atoms->iSpecies[iOff];
-      real_t invMass = 1.0/s->species[iSpecies].mass;
-      s->atoms->r[iOff][0] += dt*s->atoms->p[iOff][0]*invMass;
-      s->atoms->r[iOff][1] += dt*s->atoms->p[iOff][1]*invMass;
-      s->atoms->r[iOff][2] += dt*s->atoms->p[iOff][2]*invMass;
-   } ) ;
-#endif
 }
 
 /// Calculates total kinetic and potential energy across all tasks.  The
@@ -181,19 +163,13 @@ void kineticEnergy(SimFlat* s)
    eLocal[0] = s->ePotential;
 #endif
 
-   eLocal[1] = 0;
-#ifdef DO_CUDA
-   int localBoxes;
-   if(inTimestep)
-     localBoxes = globalSim->boxes->nLocalBoxes;
-   else
-     localBoxes = s->boxes->nLocalBoxes;
-  RAJA::kernel<atomWorkGPU>(
+   eLocal[1] = 0.0;
+
+  RAJA::kernel<atomWorkKernel>(
   RAJA::make_tuple(
-    //RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
-    RAJA::RangeSegment(0, localBoxes),
+    RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
     RAJA::RangeSegment(0, MAXATOMS) ),
-    [=] RAJA_DEVICE (int iBox, int iOffLocal) {
+    [=] COMD_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
       if(iOffLocal < nIBox) {
         const int iOff = iOffLocal + (iBox * MAXATOMS);
@@ -207,16 +183,7 @@ void kineticEnergy(SimFlat* s)
                      invMass ;
       }
     } ) ;
-#else
-   RAJA::forall<atomWork>(*s->isLocal, [=] (int iOff) {
-      const int iSpecies = s->atoms->iSpecies[iOff];
-      const real_t invMass = 0.5/s->species[iSpecies].mass;
-      kenergy += ( s->atoms->p[iOff][0] * s->atoms->p[iOff][0] +
-                   s->atoms->p[iOff][1] * s->atoms->p[iOff][1] +
-                   s->atoms->p[iOff][2] * s->atoms->p[iOff][2] )*
-                  invMass ;
-   } ) ;
-#endif
+
    eLocal[1] = kenergy;
 
    real_t eSum[2];
@@ -231,6 +198,106 @@ void kineticEnergy(SimFlat* s)
    s->ePotential = eSum[0];
    s->eKinetic = eSum[1];
 #endif
+}
+
+/// \details
+/// The force exchange assumes that the atoms are in the same order in
+/// both a given local link cell and the corresponding remote cell(s).
+/// However, the atom exchange does not guarantee this property,
+/// especially when atoms cross a domain decomposition boundary and move
+/// from one task to another.  Trying to maintain the atom order during
+/// the atom exchange would immensely complicate that code.  Instead, we
+/// just sort the atoms after the atom exchange.
+COMD_HOST_DEVICE void sortAtomsInCell(Atoms* atoms, LinkCell* boxes, int iBox)
+{
+   int nAtoms = boxes->nAtoms[iBox];
+
+   //AtomMsg tmp[nAtoms];
+   AtomMsg tmp[MAXATOMS];
+
+   int begin = iBox*MAXATOMS;
+   int end = begin + nAtoms;
+
+   int sorted = 1;
+   for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
+   {
+      tmp[iTmp].gid  = atoms->gid[ii];
+      tmp[iTmp].type = atoms->iSpecies[ii];
+      tmp[iTmp].rx =   atoms->r[ii][0];
+      tmp[iTmp].ry =   atoms->r[ii][1];
+      tmp[iTmp].rz =   atoms->r[ii][2];
+      tmp[iTmp].px =   atoms->p[ii][0];
+      tmp[iTmp].py =   atoms->p[ii][1];
+      tmp[iTmp].pz =   atoms->p[ii][2];
+      if(iTmp > 0) {
+        if(tmp[iTmp].gid < tmp[iTmp-1].gid)
+          sorted = 0;
+      }
+   }
+   if(!sorted) {
+     return;
+   }
+   //qsort(&tmp, nAtoms, sizeof(AtomMsg), sortAtomsById);
+   /* TODO: Make this into a function like qsort to clean things up.
+    * Note: Switching from qsort to insertion sort roughly doubles sorting performance
+    */
+     /* Begin Insertion Sort */
+     /* This has been changed to an insertion sort instead of a quick sort because the
+      * elements of this array are already mostly sorted and insertion sort works well
+      * on mostly sorted data.
+      */
+     int i, j;
+     AtomMsg key;
+     for (i = 1; i < nAtoms; i++) {
+       key.gid  = tmp[i].gid;
+       key.type = tmp[i].type;
+       key.rx   = tmp[i].rx;
+       key.ry   = tmp[i].ry;
+       key.rz   = tmp[i].rz;
+       key.px   = tmp[i].px;
+       key.py   = tmp[i].py;
+       key.pz   = tmp[i].pz;
+       
+       j = i-1;
+ 
+       /* Move elements of tmp[0..i-1], that are
+          greater than key, to one position ahead
+          of their current position */
+       while (j >= 0 && tmp[j].gid > key.gid)
+       {
+         tmp[j+1].gid  = tmp[j].gid;
+         tmp[j+1].type = tmp[j].type;
+         tmp[j+1].rx   = tmp[j].rx;
+         tmp[j+1].ry   = tmp[j].ry;
+         tmp[j+1].rz   = tmp[j].rz;
+         tmp[j+1].px   = tmp[j].px;
+         tmp[j+1].py   = tmp[j].py;
+         tmp[j+1].pz   = tmp[j].pz;
+         j = j-1;
+       }
+       tmp[j+1].gid  = key.gid;
+       tmp[j+1].type = key.type;
+       tmp[j+1].rx   = key.rx;
+       tmp[j+1].ry   = key.ry;
+       tmp[j+1].rz   = key.rz;
+       tmp[j+1].px   = key.px;
+       tmp[j+1].py   = key.py;
+       tmp[j+1].pz   = key.pz;
+     }
+     /* End Insertion Sort */
+
+   for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
+   {
+      atoms->gid[ii]   = tmp[iTmp].gid;
+      atoms->iSpecies[ii] = tmp[iTmp].type;
+      atoms->r[ii][0]  = tmp[iTmp].rx;
+      atoms->r[ii][1]  = tmp[iTmp].ry;
+      atoms->r[ii][2]  = tmp[iTmp].rz;
+      atoms->p[ii][0]  = tmp[iTmp].px;
+      atoms->p[ii][1]  = tmp[iTmp].py;
+      atoms->p[ii][2]  = tmp[iTmp].pz;
+   }
+
 }
 
 /// \details
@@ -268,7 +335,8 @@ void redistributeAtoms(SimFlat* sim)
 #endif
    stopTimer(atomHaloTimer);
    startTimer(atomSortTimer);
-#ifdef DO_CUDA
+   //#ifdef DO_CUDA
+#if 0
    RAJA::kernel<redistributeGPU>(
    RAJA::make_tuple(
    RAJA::RangeSegment(0, globalSim->boxes->nTotalBoxes)),
@@ -356,9 +424,17 @@ void redistributeAtoms(SimFlat* sim)
      }
    } );
 #else
+   RAJA::kernel<redistributeKernel>(
+   RAJA::make_tuple(
+   RAJA::RangeSegment(0, sim->boxes->nTotalBoxes)),
+   [=] RAJA_DEVICE (int iBox) {
+     sortAtomsInCell(sim->atoms, sim->boxes, iBox);
+   } );
+   /*
    RAJA::forall<linkCellTraversal>(RAJA::RangeSegment(0,sim->boxes->nTotalBoxes), [=] (int ii) {
      sortAtomsInCell(sim->atoms, sim->boxes, ii);
    });
+   */
 #endif
    stopTimer(atomSortTimer);
 }

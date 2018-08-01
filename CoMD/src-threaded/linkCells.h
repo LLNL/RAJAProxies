@@ -7,12 +7,6 @@
 #include "mytype.h"
 #include "RAJA/RAJA.hpp"
 
-#ifdef DO_CUDA
-#define COMD_HOST_DEVICE __host__ __device__
-#else
-#define COMD_HOST_DEVICE
-#endif
-
 /// The maximum number of atoms that can be stored in a link cell.
 #define MAXATOMS 64
 
