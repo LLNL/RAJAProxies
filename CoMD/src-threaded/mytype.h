@@ -19,6 +19,12 @@ typedef real_t * __restrict__ /* __attribute__((align_value(64))) */ real_ptr ;
 typedef real_t real3[3]; //!< a convenience vector with three real_t 
 typedef real3 * __restrict__ /* __attribute__((align_value(64))) */ real3_ptr ;
 
+#ifdef DO_CUDA
+#define COMD_HOST_DEVICE __host__ __device__
+#else
+#define COMD_HOST_DEVICE
+#endif
+
 static void zeroReal3(real3 a)
 {
    a[0] = 0.0;
