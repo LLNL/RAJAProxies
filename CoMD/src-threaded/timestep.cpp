@@ -114,7 +114,7 @@ void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent
   RAJA::make_tuple(
     RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
     RAJA::RangeSegment(0, MAXATOMS) ),
-    [=] RAJA_DEVICE (int iBox, int iOffLocal) {
+    [=] COMD_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
       if(iOffLocal < nIBox) {
         const int iOff = iOffLocal + (iBox * MAXATOMS);
@@ -156,12 +156,12 @@ void kineticEnergy(SimFlat* s)
 {
    real_t eLocal[2];
 #ifdef DO_CUDA
-   rajaReduceSumRealCUDA kenergy(0.0);
    eLocal[0] = globalSim->ePotential;
 #else
-   rajaReduceSumReal kenergy(0.0);
    eLocal[0] = s->ePotential;
 #endif
+
+   rajaReduceSumRealKernel kenergy(0.0);
 
    eLocal[1] = 0.0;
 
@@ -316,126 +316,20 @@ COMD_HOST_DEVICE void sortAtomsInCell(Atoms* atoms, LinkCell* boxes, int iBox)
 void redistributeAtoms(SimFlat* sim)
 {
    startTimer(updateLinkCellsTimer);
-#ifdef DO_CUDA
-   /* The updateLinkCells function has been altered to only accept sim
-    * in order to avoid dereferencing any of the members of sim in CPU
-    * code which could trigger an unnecessary page fault.
-    */
-   updateLinkCells(sim);
-#else
    updateLinkCells(sim->boxes, sim->atoms);
-#endif
    stopTimer(updateLinkCellsTimer);
 
    startTimer(atomHaloTimer);
-#ifdef DO_CUDA
-   haloExchange(globalSim->atomExchange, sim);
-#else
    haloExchange(sim->atomExchange, sim);
-#endif
    stopTimer(atomHaloTimer);
+
    startTimer(atomSortTimer);
-   //#ifdef DO_CUDA
-#if 0
-   RAJA::kernel<redistributeGPU>(
-   RAJA::make_tuple(
-   RAJA::RangeSegment(0, globalSim->boxes->nTotalBoxes)),
-   [=] RAJA_DEVICE (int iBox) {
-     Atoms *atoms = sim->atoms;
-     LinkCell *boxes = sim->boxes;
-     int nAtoms = boxes->nAtoms[iBox];
-
-     AtomMsg tmp[MAXATOMS];
-
-     int begin = iBox*MAXATOMS;
-     int end = begin + nAtoms;
-     int sorted = 1;
-     for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
-     {
-       tmp[iTmp].gid  = atoms->gid[ii];
-       tmp[iTmp].type = atoms->iSpecies[ii];
-       tmp[iTmp].rx =   atoms->r[ii][0];
-       tmp[iTmp].ry =   atoms->r[ii][1];
-       tmp[iTmp].rz =   atoms->r[ii][2];
-       tmp[iTmp].px =   atoms->p[ii][0];
-       tmp[iTmp].py =   atoms->p[ii][1];
-       tmp[iTmp].pz =   atoms->p[ii][2];
-       if(iTmp > 0){
-         if(tmp[iTmp].gid < tmp[iTmp-1].gid)
-           sorted = 0;
-       }
-     }
-     if(!sorted){
-     /* Begin Insertion Sort */
-     /* This has been changed to an insertion sort instead of a quick sort because the
-      * elements of this array are already mostly sorted and insertion sort works well
-      * on mostly sorted data.
-      */
-     int i, j;
-     AtomMsg key;
-     for (i = 1; i < nAtoms; i++) {
-       key.gid  = tmp[i].gid;
-       key.type = tmp[i].type;
-       key.rx   = tmp[i].rx;
-       key.ry   = tmp[i].ry;
-       key.rz   = tmp[i].rz;
-       key.px   = tmp[i].px;
-       key.py   = tmp[i].py;
-       key.pz   = tmp[i].pz;
-       
-       j = i-1;
- 
-       /* Move elements of tmp[0..i-1], that are
-          greater than key, to one position ahead
-          of their current position */
-       while (j >= 0 && tmp[j].gid > key.gid)
-       {
-         tmp[j+1].gid  = tmp[j].gid;
-         tmp[j+1].type = tmp[j].type;
-         tmp[j+1].rx   = tmp[j].rx;
-         tmp[j+1].ry   = tmp[j].ry;
-         tmp[j+1].rz   = tmp[j].rz;
-         tmp[j+1].px   = tmp[j].px;
-         tmp[j+1].py   = tmp[j].py;
-         tmp[j+1].pz   = tmp[j].pz;
-         j = j-1;
-       }
-       tmp[j+1].gid  = key.gid;
-       tmp[j+1].type = key.type;
-       tmp[j+1].rx   = key.rx;
-       tmp[j+1].ry   = key.ry;
-       tmp[j+1].rz   = key.rz;
-       tmp[j+1].px   = key.px;
-       tmp[j+1].py   = key.py;
-       tmp[j+1].pz   = key.pz;
-     }
-     /* End Insertion Sort */
-     for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
-     {
-       atoms->gid[ii]   = tmp[iTmp].gid;
-       atoms->iSpecies[ii] = tmp[iTmp].type;
-       atoms->r[ii][0]  = tmp[iTmp].rx;
-       atoms->r[ii][1]  = tmp[iTmp].ry;
-       atoms->r[ii][2]  = tmp[iTmp].rz;
-       atoms->p[ii][0]  = tmp[iTmp].px;
-       atoms->p[ii][1]  = tmp[iTmp].py;
-       atoms->p[ii][2]  = tmp[iTmp].pz;
-     }
-     }
-   } );
-#else
    RAJA::kernel<redistributeKernel>(
    RAJA::make_tuple(
    RAJA::RangeSegment(0, sim->boxes->nTotalBoxes)),
-   [=] RAJA_DEVICE (int iBox) {
+   [=] COMD_DEVICE (int iBox) {
      sortAtomsInCell(sim->atoms, sim->boxes, iBox);
    } );
-   /*
-   RAJA::forall<linkCellTraversal>(RAJA::RangeSegment(0,sim->boxes->nTotalBoxes), [=] (int ii) {
-     sortAtomsInCell(sim->atoms, sim->boxes, ii);
-   });
-   */
-#endif
    stopTimer(atomSortTimer);
 }
 

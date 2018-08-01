@@ -121,6 +121,7 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
     RAJA::statement::Lambda<0> > > redistributeKernel;
 
+// Used for eam
 typedef RAJA::KernelPolicy<
   RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
   RAJA::statement::For<1, RAJA::seq_exec,
@@ -128,7 +129,17 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<3, RAJA::simd_exec,
   RAJA::statement::Lambda<0> > > > > > forcePolicy;
 
+// Used for ljForce
+typedef RAJA::KernelPolicy<
+  RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
+  RAJA::statement::For<3, RAJA::simd_exec,
+  RAJA::statement::Lambda<0> > > > > > forcePolicyKernel;
+
 typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumReal;
+typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumRealKernel;
+typedef RAJA::ReduceSum<RAJA::seq_reduce, int> rajaReduceSumInt;
 #endif
 
 #ifdef DO_CUDA
@@ -137,15 +148,6 @@ typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
 typedef RAJA::seq_segit task_graph_policy;
-
-typedef RAJA::KernelPolicy<
-  RAJA::statement::For<0, RAJA::seq_exec,
-  RAJA::statement::For<1, RAJA::seq_exec,
-  RAJA::statement::For<2, RAJA::seq_exec,
-  RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > forcePolicy;
-
-typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 #endif
 
 #define CUDA_ASYNC
@@ -171,17 +173,17 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::CudaKernel<
 #endif
     RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
-    RAJA::statement::Lambda<0> > > > redistributeGPU;
-
-typedef RAJA::KernelPolicy<
-#ifdef CUDA_ASYNC
-  RAJA::statement::CudaKernelAsync<
-#else
-  RAJA::statement::CudaKernel<
-#endif
-    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
     RAJA::statement::Lambda<0> > > > redistributeKernel;
 
+// Used for eam (No GPU version yet)
+typedef RAJA::KernelPolicy<
+  RAJA::statement::For<0, RAJA::seq_exec,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
+  RAJA::statement::For<3, RAJA::simd_exec,
+  RAJA::statement::Lambda<0> > > > > > forcePolicy;
+
+// Used for ljForce
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
   RAJA::statement::CudaKernelAsync<
@@ -192,10 +194,11 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::For<1, RAJA::cuda_block_exec,
     RAJA::statement::For<2, RAJA::cuda_thread_exec,
     RAJA::statement::For<3, RAJA::cuda_thread_exec,
-    RAJA::statement::Lambda<0> > > > > > > forcePolicyGPU;
+    RAJA::statement::Lambda<0> > > > > > > forcePolicyKernel;
 
-typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, real_t> rajaReduceSumRealCUDA;
-typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, int> rajaReduceSumIntCUDA;
+typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
+typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, real_t> rajaReduceSumRealKernel;
+typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, int> rajaReduceSumInt;
 #endif
 
 #ifndef ENABLE_OPENMP
@@ -214,6 +217,7 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::For<0, RAJA::seq_exec,
     RAJA::statement::Lambda<0> > > redistributeKernel;
 
+// Used for eam
 typedef RAJA::KernelPolicy<
   RAJA::statement::For<0, RAJA::seq_exec,
   RAJA::statement::For<1, RAJA::seq_exec,
@@ -221,7 +225,17 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<3, RAJA::simd_exec,
   RAJA::statement::Lambda<0> > > > > > forcePolicy;
 
+// Used for ljForce
+typedef RAJA::KernelPolicy<
+  RAJA::statement::For<0, RAJA::seq_exec,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
+  RAJA::statement::For<3, RAJA::simd_exec,
+  RAJA::statement::Lambda<0> > > > > > forcePolicyKernel;
+
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
+typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumRealKernel;
+typedef RAJA::ReduceSum<RAJA::seq_reduce, int> rajaReduceSumInt;
 #endif
 #endif
 

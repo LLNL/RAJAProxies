@@ -172,6 +172,12 @@ int getNeighborBoxes(LinkCell* boxes, int iBox, int* nbrBoxes)
 /// \param [in] px    The x-component of the atom's momentum.
 /// \param [in] py    The y-component of the atom's momentum.
 /// \param [in] pz    The z-component of the atom's momentum.
+/* ###########################################################
+ * ####### This is reimplemented in haloExchange.cpp #########
+ * #######    Make all changes in BOTH locations     #########
+ * #######     This is due to CUDA build issues      #########
+ * ###########################################################
+ */
 void putAtomInBox(LinkCell* boxes, Atoms* atoms,
                   const int gid, const int iType,
                   const real_t x,  const real_t y,  const real_t z,
@@ -290,76 +296,29 @@ void moveAtom(LinkCell* boxes, Atoms* atoms, int iId, int iBox, int jBox)
 /// to halo atoms.  Such atom must be sent to other tasks by a halo
 /// exchange to avoid being lost.
 /// \see redistributeAtoms
-#ifdef DO_CUDA
-void updateLinkCells(SimFlat* sim)
-#else
 void updateLinkCells(LinkCell* boxes, Atoms* atoms)
-#endif
 {
-  //#ifdef DO_CUDA
-#if 0
-  const int nLocalBoxes = globalSim->boxes->nLocalBoxes;
-  const int nTotalBoxes = globalSim->boxes->nTotalBoxes;
-  startTimer(emptyHaloCellsTimer);
-  RAJA::kernel<redistributeGPU>(
-  RAJA::make_tuple(
-    RAJA::RangeSegment(nLocalBoxes, nTotalBoxes)),
-    [=] RAJA_DEVICE (int ii)
-    {
-      LinkCell *b = sim->boxes;
-      b->nAtoms[ii] = 0;
-    } );
-  stopTimer(emptyHaloCellsTimer);
-
-  startTimer(updateLinkCellsWorkTimer);
-  RAJA::kernel<redistributeGPU>(
-  RAJA::make_tuple(
-    RAJA::RangeSegment(0, 1)),
-    [=] RAJA_DEVICE (int notUsed)
-  {
-    LinkCell *boxes = sim->boxes;
-    Atoms *atoms = sim->atoms;
-    for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
-    {
-      int iOff = iBox*MAXATOMS;
-      int ii=0;
-      while (ii < boxes->nAtoms[iBox])
-      {
-        int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
-        if (jBox != iBox)
-          moveAtom(boxes, atoms, ii, iBox, jBox);
-        else
-          ++ii;
-      }
-    }
-  } );
-  stopTimer(updateLinkCellsWorkTimer);
-#else
 #ifdef DO_CUDA
-  LinkCell *boxes = sim->boxes;
-  Atoms *atoms = sim->atoms;
   cudaStreamSynchronize(0);
 #endif
   startTimer(emptyHaloCellsTimer);
    emptyHaloCells(boxes);
   stopTimer(emptyHaloCellsTimer);
   startTimer(updateLinkCellsWorkTimer);
-   for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
-   {
-      int iOff = iBox*MAXATOMS;
-      int ii=0;
-      while (ii < boxes->nAtoms[iBox])
-      {
-         int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
-         if (jBox != iBox)
-            moveAtom(boxes, atoms, ii, iBox, jBox);
-         else
-            ++ii;
-      }
-   }
+  for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
+  {
+    int iOff = iBox*MAXATOMS;
+    int ii=0;
+    while (ii < boxes->nAtoms[iBox])
+    {
+      int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
+      if (jBox != iBox)
+        moveAtom(boxes, atoms, ii, iBox, jBox);
+      else
+        ++ii;
+    }
+  }
   stopTimer(updateLinkCellsWorkTimer);
-
-#endif
 }
 
 /// \return The largest number of atoms in any link cell.
