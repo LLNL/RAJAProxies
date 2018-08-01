@@ -41,7 +41,7 @@ LinkCell* initLinkCells(const struct DomainSt* domain, real_t cutoff);
 void destroyLinkCells(LinkCell** boxes);
 
 int getNeighborBoxes(LinkCell* boxes, int iBox, int* nbrBoxes);
-void putAtomInBox(LinkCell* boxes, struct AtomsSt* atoms,
+COMD_HOST_DEVICE void putAtomInBox(LinkCell* boxes, struct AtomsSt* atoms,
                   const int gid, const int iType,
                   const real_t x,  const real_t y,  const real_t z,
                   const real_t px, const real_t py, const real_t pz);
@@ -50,11 +50,7 @@ COMD_HOST_DEVICE int getBoxFromTuple(LinkCell* boxes, int x, int y, int z);
 COMD_HOST_DEVICE void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, int iBox, int jBox);
 
 /// Update link cell data structures when the atoms have moved.
-#ifdef DO_CUDA
-void updateLinkCells(struct SimFlatSt* sim);
-#else
 void updateLinkCells(LinkCell* boxes, struct AtomsSt* atoms);
-#endif
 
 int maxOccupancy(LinkCell* boxes);
 

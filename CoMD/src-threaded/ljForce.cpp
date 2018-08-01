@@ -158,11 +158,7 @@ int ljForce(SimFlat* s)
    const real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
 
    // zero forces and energy
-#ifdef DO_CUDA
-   rajaReduceSumRealCUDA ePot(0.0);
-#else
-   rajaReduceSumReal ePot(0.0);
-#endif
+   rajaReduceSumRealKernel ePot(0.0);
 
 #ifdef DO_CUDA
    globalSim->ePotential = 0.0;
@@ -192,25 +188,13 @@ int ljForce(SimFlat* s)
 
    {
    profileStart(forceFunctionTimer);
-#ifdef DO_CUDA
-     RAJA::kernel<forcePolicyGPU>(
-#else
-     RAJA::kernel<forcePolicy>(
-#endif
+     RAJA::kernel<forcePolicyKernel>(
        RAJA::make_tuple(
-#ifdef DO_CUDA
-         RAJA::RangeSegment(0,globalSim->boxes->nLocalBoxes),          // local boxes
-#else
          *s->isLocalSegment,                // local boxes
-#endif
          RAJA::RangeSegment(0,27),          // 27 neighbor boxes
          RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
          RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
-#ifdef DO_CUDA
-       [=] RAJA_DEVICE (int iBoxID, int nghb, int iOff, int jOff) {
-#else
-       [=] (int iBoxID, int nghb, int iOff, int jOff) {
-#endif
+       [=] COMD_DEVICE (int iBoxID, int nghb, int iOff, int jOff) {
          const int nLocalBoxes = s->boxes->nLocalBoxes;
          const int nIBox = s->boxes->nAtoms[iBoxID];
          const int jBoxID = s->boxes->nbrBoxes[iBoxID][nghb];
