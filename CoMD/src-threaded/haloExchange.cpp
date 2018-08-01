@@ -170,10 +170,8 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    parms->nCells[HALO_Y_PLUS]  = parms->nCells[HALO_Y_MINUS];
    parms->nCells[HALO_Z_PLUS]  = parms->nCells[HALO_Z_MINUS];
 
-#ifdef DO_CUDA
    /* Make sure there is enough space in the buffer for the integer array of
-    * offsets to allow for parallel packing/unpacking.  TODO: Expand this
-    * to the CPU implementations as well, not just the CUDA implementation.
+    * offsets to allow for parallel packing/unpacking.
     */
    maxSize = parms->nCells[HALO_X_MINUS];
    if(parms->nCells[HALO_Y_MINUS] > maxSize) maxSize = parms->nCells[HALO_Y_MINUS];
@@ -187,7 +185,6 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
      intsSize += sizeof(AtomMsg) - (intsSize % sizeof(AtomMsg));
 
    hh->bufCapacity += intsSize;
-#endif
 
    for (int ii=0; ii<6; ++ii)
       parms->cellList[ii] = mkAtomCellList(boxes, HaloFaceOrder(ii), parms->nCells[ii]);
@@ -578,7 +575,7 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 #endif
 
    AtomMsg* buf = (AtomMsg*) (charBuf + size);
-   //TODO: Optimize this.  It's not very fast on CPU.
+   //TODO: Try to optimize this.
   RAJA::kernel<redistributeKernel>(
   RAJA::make_tuple(
                    RAJA::RangeSegment(0, nCells)),

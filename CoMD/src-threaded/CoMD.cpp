@@ -114,15 +114,10 @@ int main(int argc, char** argv)
    timestampBarrier("Starting simulation\n");
 
    // This is the CoMD main loop
-#ifdef DO_CUDA
-   const int nSteps    = globalSim->nSteps;
-   const int printRate = globalSim->printRate;
-   const real_t dt     = globalSim->dt;
-#else
    const int nSteps    = sim->nSteps;
    const int printRate = sim->printRate;
    const real_t dt     = sim->dt;
-#endif
+
    int iStep = 0;
    profileStart(loopTimer);
    for (; iStep<nSteps;)
@@ -144,6 +139,8 @@ int main(int argc, char** argv)
 
       iStep += printRate;
    }
+   // This is to alleviate issues with having asynchronous kernels and then accessing
+   // data used on those kernels in CPU-side code.
 #ifdef DO_CUDA
    cudaStreamSynchronize(0);
 #endif
@@ -183,11 +180,6 @@ int main(int argc, char** argv)
 /// must be initialized before the atoms.
 SimFlat* initSimulation(Command cmd)
 {
-#ifdef DO_CUDA
-   globalSim = (SimFlat*)comdMalloc(sizeof(SimFlat));
-   globalSim->ePotential = 0.0;
-   globalSim->eKinetic   = 0.0;
-#endif
    SimFlat* sim = (SimFlat *) comdMalloc(sizeof(SimFlat));
    sim->nSteps = cmd.nSteps;
    sim->printRate = cmd.printRate;
@@ -200,6 +192,9 @@ SimFlat* initSimulation(Command cmd)
    sim->atomExchange = NULL;
 
 #ifdef DO_CUDA
+   globalSim = (SimFlat*)comdMalloc(sizeof(SimFlat));
+   globalSim->ePotential = 0.0;
+   globalSim->eKinetic   = 0.0;
    /* This is a hint to the CUDA runtime that this structure is mostly read only.  This
     * creates read-only copies on the CPU and GPU to avoid unnecessary thrashing as this
     * structure is needed throughout the code.  Technically, this structure should only
@@ -210,7 +205,7 @@ SimFlat* initSimulation(Command cmd)
    cudaGetDevice(&device);
    cudaMemAdvise(sim, sizeof(SimFlat), cudaMemAdviseSetReadMostly, device);
 
-   globalSim->pot = initPotential(cmd.doeam, cmd.potDir, cmd.potName, cmd.potType);
+   //globalSim->pot = initPotential(cmd.doeam, cmd.potDir, cmd.potName, cmd.potType);
 #endif
    sim->pot = initPotential(cmd.doeam, cmd.potDir, cmd.potName, cmd.potType);
    real_t latticeConstant = cmd.lat;
@@ -282,6 +277,7 @@ SimFlat* initSimulation(Command cmd)
 
    sim->atomExchange = initAtomHaloExchange(sim->domain, sim->boxes);
 
+   // Much of this can probably be removed.
 #ifdef DO_CUDA
    globalSim->nSteps    = sim->nSteps;
    globalSim->printRate = sim->printRate;

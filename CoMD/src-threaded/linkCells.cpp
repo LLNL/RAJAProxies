@@ -298,6 +298,9 @@ void moveAtom(LinkCell* boxes, Atoms* atoms, int iId, int iBox, int jBox)
 /// \see redistributeAtoms
 void updateLinkCells(LinkCell* boxes, Atoms* atoms)
 {
+  //TODO: Implement this function on the GPU and remove this synchronization.
+  //Note: The synchronization is here to alleviate performance issues with using
+  //      asynchronous kernels and then suddenly needing that data on the CPU...
 #ifdef DO_CUDA
   cudaStreamSynchronize(0);
 #endif

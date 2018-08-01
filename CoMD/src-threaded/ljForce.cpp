@@ -144,11 +144,7 @@ void ljPrint(FILE* file, BasePotential* pot)
 
 int ljForce(SimFlat* s)
 {
-#ifdef DO_CUDA
-   LjPotential* pot = (LjPotential *) globalSim->pot;
-#else
    LjPotential* pot = (LjPotential *) s->pot;
-#endif
    const real_t sigma = pot->sigma;
    const real_t epsilon = pot->epsilon;
    const real_t rCut = pot->cutoff;
