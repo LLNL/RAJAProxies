@@ -685,21 +685,6 @@ void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* ch
       putAtomInBoxHalo(s->boxes, s->atoms, gid, type, rx, ry, rz, px, py, pz);
    }
   });
-   /*
-
-   for (int ii=0; ii<nBuf; ++ii)
-   {
-      int gid   = buf[ii].gid;
-      int type  = buf[ii].type;
-      real_t rx = buf[ii].rx;
-      real_t ry = buf[ii].ry;
-      real_t rz = buf[ii].rz;
-      real_t px = buf[ii].px;
-      real_t py = buf[ii].py;
-      real_t pz = buf[ii].pz;
-      putAtomInBox(s->boxes, s->atoms, gid, type, rx, ry, rz, px, py, pz);
-   }
-   */
 }
 
 void destroyAtomsExchange(void* vparms)

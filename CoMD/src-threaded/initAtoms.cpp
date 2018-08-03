@@ -158,11 +158,7 @@ void setTemperature(SimFlat* s, real_t temperature)
    real_t vZero[3] = {0., 0., 0.};
    setVcm(s, vZero);
    kineticEnergy(s);
-#ifdef DO_CUDA
-   real_t temp = (globalSim->eKinetic/s->atoms->nGlobal)/kB_eV/1.5;
-#else
-   real_t temp = (s->eKinetic/s->atoms->nGlobal)/kB_eV/1.5;
-#endif
+   real_t temp = (eKinetic/s->atoms->nGlobal)/kB_eV/1.5;
    // scale the velocities to achieve the target temperature
    real_t scaleFactor = sqrt(temperature/temp);
    RAJA::forall<atomWork>(*s->isLocal, [=] (int iOff) {
@@ -171,11 +167,7 @@ void setTemperature(SimFlat* s, real_t temperature)
       s->atoms->p[iOff][2] *= scaleFactor;
    } ) ;
    kineticEnergy(s);
-#ifdef DO_CUDA
-   temp = globalSim->eKinetic/s->atoms->nGlobal/kB_eV/1.5;
-#else
-   temp = s->eKinetic/s->atoms->nGlobal/kB_eV/1.5;
-#endif
+   temp = eKinetic/s->atoms->nGlobal/kB_eV/1.5;
 }
 
 /// Add a random displacement to the atom positions.

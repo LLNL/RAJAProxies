@@ -14,8 +14,7 @@ static void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> 
 static void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt);
 
 /* This structure is redefined here in order to inline some functions from
- * linkCells.cpp here.  TODO: Mark the functions needed as both host and
- * device functions with a macro if DO_CUDA is defined.
+ * linkCells.cpp here.
  */
 typedef struct AtomMsgSt
 {
@@ -25,12 +24,6 @@ typedef struct AtomMsgSt
    real_t px, py, pz;
 }
 AtomMsg;
-
-/* This variable acts as a flag as to whether the timestep function has been
- * called yet or not.  This changes the functionality of the kineticEnergy
- * function depending on whether initalization is finished or not.
- */
-int inTimestep = 0;
 
 /// Advance the simulation time to t+dt using a leap frog method
 /// (equivalent to velocity verlet).
@@ -50,8 +43,6 @@ int inTimestep = 0;
 /// After nSteps the kinetic energy is computed for diagnostic output.
 double timestep(SimFlat* s, int nSteps, real_t dt)
 {
-  if(!inTimestep)
-    inTimestep = 1;
    for (int ii=0; ii<nSteps; ++ii)
    {
       startTimer(velocityTimer);
@@ -79,11 +70,7 @@ double timestep(SimFlat* s, int nSteps, real_t dt)
    kineticEnergy(s);
    stopTimer(kineticEnergyTimer);
 
-#ifdef DO_CUDA
-   return globalSim->ePotential;
-#else
-   return s->ePotential;
-#endif
+   return ePotential;
 }
 
 void computeForce(SimFlat* s)
@@ -139,11 +126,7 @@ void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent
 void kineticEnergy(SimFlat* s)
 {
    real_t eLocal[2];
-#ifdef DO_CUDA
-   eLocal[0] = globalSim->ePotential;
-#else
-   eLocal[0] = s->ePotential;
-#endif
+   eLocal[0] = ePotential;
 
    rajaReduceSumRealKernel kenergy(0.0);
 
@@ -175,13 +158,8 @@ void kineticEnergy(SimFlat* s)
    addRealParallel(eLocal, eSum, 2);
    stopTimer(commReduceTimer);
 
-#ifdef DO_CUDA
-   globalSim->ePotential = eSum[0];
-   globalSim->eKinetic = eSum[1];
-#else
-   s->ePotential = eSum[0];
-   s->eKinetic = eSum[1];
-#endif
+   ePotential = eSum[0];
+   eKinetic = eSum[1];
 }
 
 /// \details
@@ -315,19 +293,5 @@ void redistributeAtoms(SimFlat* sim)
      sortAtomsInCell(sim->atoms, sim->boxes, iBox);
    } );
    stopTimer(atomSortTimer);
-}
-
-void updateIndexSets(SimFlat *s)
-{
-//TO DO rewrite this
-/*
-#pragma omp parallel for
-   for (int i=0; i<s->boxes->nTotalBoxes; ++i) {
-      RAJA::RangeSegment *seg =
-         static_cast<RAJA::RangeSegment *>(s->isTotal->getSegment(i)) ;
-
-      seg->setEnd(i*MAXATOMS + s->boxes->nAtoms[i]) ;
-   }
-*/
 }
 
