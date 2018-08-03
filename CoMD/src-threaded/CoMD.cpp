@@ -71,7 +71,11 @@ static SimFlat* initSimulation(Command cmd);
 /* A global copy of the simulation structure to be accessed only on the CPU.  Only data needed
  * on the CPU side is copied in here and this should ONLY be accessed on the CPU.
  */
-SimFlat *globalSim = NULL;
+//SimFlat *globalSim = NULL;
+real_t ePotential = 0.0;
+real_t eKinetic   = 0.0;
+int    nLocal     = 0;
+int    nGlobal    = 0;
 #endif
 static void destroySimulation(SimFlat** ps);
 
@@ -191,10 +195,12 @@ SimFlat* initSimulation(Command cmd)
    sim->eKinetic = 0.0;
    sim->atomExchange = NULL;
 
+   ePotential = 0.0;
+   eKinetic   = 0.0;
+
 #ifdef DO_CUDA
-   globalSim = (SimFlat*)comdMalloc(sizeof(SimFlat));
-   globalSim->ePotential = 0.0;
-   globalSim->eKinetic   = 0.0;
+   //globalSim = (SimFlat*)comdMalloc(sizeof(SimFlat));
+
    /* This is a hint to the CUDA runtime that this structure is mostly read only.  This
     * creates read-only copies on the CPU and GPU to avoid unnecessary thrashing as this
     * structure is needed throughout the code.  Technically, this structure should only
@@ -204,8 +210,6 @@ SimFlat* initSimulation(Command cmd)
    int device;
    cudaGetDevice(&device);
    cudaMemAdvise(sim, sizeof(SimFlat), cudaMemAdviseSetReadMostly, device);
-
-   //globalSim->pot = initPotential(cmd.doeam, cmd.potDir, cmd.potName, cmd.potType);
 #endif
    sim->pot = initPotential(cmd.doeam, cmd.potDir, cmd.potName, cmd.potType);
    real_t latticeConstant = cmd.lat;
@@ -279,6 +283,7 @@ SimFlat* initSimulation(Command cmd)
 
    // Much of this can probably be removed.
 #ifdef DO_CUDA
+   /*
    globalSim->nSteps    = sim->nSteps;
    globalSim->printRate = sim->printRate;
    globalSim->dt        = sim->dt;
@@ -307,6 +312,7 @@ SimFlat* initSimulation(Command cmd)
 
    globalSim->atomExchange = NULL;
    globalSim->atomExchange = initAtomHaloExchange(sim->domain, sim->boxes);
+   */
 #endif
 
    // Forces must be computed before we call the time stepper.
@@ -391,13 +397,8 @@ Validate* initValidate(SimFlat* sim)
 {
    sumAtoms(sim);
    Validate* val = (Validate*)comdMalloc(sizeof(Validate));
-#ifdef DO_CUDA
-   val->eTot0 = (globalSim->ePotential + globalSim->eKinetic) / globalSim->atoms->nGlobal;
-   val->nAtoms0 = globalSim->atoms->nGlobal;
-#else
-   val->eTot0 = (sim->ePotential + sim->eKinetic) / sim->atoms->nGlobal;
+   val->eTot0 = (ePotential + eKinetic) / sim->atoms->nGlobal;
    val->nAtoms0 = sim->atoms->nGlobal;
-#endif
 
    if (printRank())
    {
@@ -414,13 +415,8 @@ void validateResult(const Validate* val, SimFlat* sim)
 {
    if (printRank())
    {
-#ifdef DO_CUDA
-      real_t eFinal = (globalSim->ePotential + globalSim->eKinetic) / globalSim->atoms->nGlobal;
-      int nAtomsDelta = (globalSim->atoms->nGlobal - val->nAtoms0);
-#else
-      real_t eFinal = (sim->ePotential + sim->eKinetic) / sim->atoms->nGlobal;
+      real_t eFinal = (ePotential + eKinetic) / sim->atoms->nGlobal;
       int nAtomsDelta = (sim->atoms->nGlobal - val->nAtoms0);
-#endif
 
       fprintf(screenOut, "\n");
       fprintf(screenOut, "\n");
@@ -432,11 +428,7 @@ void validateResult(const Validate* val, SimFlat* sim)
       if ( nAtomsDelta == 0)
       {
          fprintf(screenOut, "  Final atom count : %d, no atoms lost\n",
-#ifdef DO_CUDA
-               globalSim->atoms->nGlobal);
-#else
                sim->atoms->nGlobal);
-#endif
       }
       else
       {
@@ -452,7 +444,7 @@ void sumAtoms(SimFlat* s)
    // sum atoms across all processers
 #ifdef DO_CUDA
   rajaReduceSumInt nLocalReduce(0);
-  const int nLocalBoxes = globalSim->boxes->nLocalBoxes;
+  const int nLocalBoxes = s->boxes->nLocalBoxes;
 
   /* Make sure the simulation structure is only accessed on the GPU to avoid
    * unnecessary page faults.
@@ -465,22 +457,26 @@ void sumAtoms(SimFlat* s)
       nLocalReduce += s->boxes->nAtoms[i];
     } );
 
-  globalSim->atoms->nLocal = (int)nLocalReduce;
+  nLocal = (int)nLocalReduce;
 
   startTimer(commReduceTimer);
-  addIntParallel(&globalSim->atoms->nLocal, &globalSim->atoms->nGlobal, 1);
+  addIntParallel(&nLocal, &nGlobal, 1);
   stopTimer(commReduceTimer);
 
-  const int nLocal  = globalSim->atoms->nLocal;
-  const int nGlobal = globalSim->atoms->nGlobal;
+  const int nLocal_temp  = nLocal;
+  const int nGlobal_temp = nGlobal;
 
+  /* TODO: Possibly remove this or determine if it's necessary.
+   *       Are these variables ever used on the GPU?  If not,
+   *       this is unnecessary.
+   */
   RAJA::kernel<redistributeKernel>(
   RAJA::make_tuple(
     RAJA::RangeSegment(0, 1)),
     [=] RAJA_DEVICE (int notUsed)
     {
-      s->atoms->nLocal  = nLocal;
-      s->atoms->nGlobal = nGlobal;
+      s->atoms->nLocal  = nLocal_temp;
+      s->atoms->nGlobal = nGlobal_temp;
     } );
 
 #else
@@ -521,29 +517,16 @@ void printThings(SimFlat* s, int iStep, double elapsedTime)
       fflush(screenOut);
    }
 
-#ifdef DO_CUDA
-   real_t time = iStep*globalSim->dt;
-   real_t eTotal = (globalSim->ePotential+globalSim->eKinetic) / globalSim->atoms->nGlobal;
-   real_t eK = globalSim->eKinetic / globalSim->atoms->nGlobal;
-   real_t eU = globalSim->ePotential / globalSim->atoms->nGlobal;
-   real_t Temp = (globalSim->eKinetic / globalSim->atoms->nGlobal) / (kB_eV * 1.5);
-
-   double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*globalSim->atoms->nLocal);
-
-   fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
-           iStep, time, eTotal, eU, eK, Temp, timePerAtom, globalSim->atoms->nGlobal);
-#else
    real_t time = iStep*s->dt;
-   real_t eTotal = (s->ePotential+s->eKinetic) / s->atoms->nGlobal;
-   real_t eK = s->eKinetic / s->atoms->nGlobal;
-   real_t eU = s->ePotential / s->atoms->nGlobal;
-   real_t Temp = (s->eKinetic / s->atoms->nGlobal) / (kB_eV * 1.5);
+   real_t eTotal = (ePotential+eKinetic) / nGlobal;
+   real_t eK = eKinetic / nGlobal;
+   real_t eU = ePotential / nGlobal;
+   real_t Temp = (eKinetic / nGlobal) / (kB_eV * 1.5);
 
-   double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*s->atoms->nLocal);
+   double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*nLocal);
 
    fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
-           iStep, time, eTotal, eU, eK, Temp, timePerAtom, s->atoms->nGlobal);
-#endif
+           iStep, time, eTotal, eU, eK, Temp, timePerAtom, nGlobal);
 }
 
 /// Print information about the simulation in a format that is (mostly)

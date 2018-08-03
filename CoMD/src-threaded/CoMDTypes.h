@@ -89,15 +89,19 @@ typedef struct SimFlatSt
 } SimFlat;
 
 #ifdef DO_CUDA
-/* This will become essentially a copy of the SimFlat structure that is passed throughout many of
+/* This is essentially a copy of the SimFlat structure that is passed throughout many of
  * the CoMD functions.  Only the constant values and variables only needed on the CPU will be
  * copied into this structure, none of the atom data or large arrays.
  *
  * The purpose of this is to avoid accessing the simulation structure on the CPU side after it has
  * been transferred to GPU memory.  This creates unnecessary page faults and drastically reduces
- * the performance of this code.
+ * the performance of the code.
  */
-extern SimFlat *globalSim;
+//extern SimFlat *globalSim;
+extern real_t ePotential;     //!< the total potential energy of the system
+extern real_t eKinetic;       //!< the total kinetic energy of the system
+extern int nLocal;    //!< total number of atoms on this processor
+extern int nGlobal;   //!< total number of atoms in simulation
 // Allows for __device__ to be put before kernels only when CUDA is enabled
 #define COMD_DEVICE __device__
 #else
@@ -153,7 +157,7 @@ typedef RAJA::seq_segit task_graph_policy;
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
   RAJA::statement::CudaKernelAsync<
-//RAJA::statement::CudaKernelExt<typename cuda_explicit_launch<true, 56, 128>, // This doesn't compile
+//RAJA::statement::CudaKernelExt<typename RAJA::cuda_explicit_launch<true, 56, 128>,
 #else
   RAJA::statement::CudaKernel<
 #endif

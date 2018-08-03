@@ -219,6 +219,9 @@ int eamForce(SimFlat* s)
    EamPotential* pot = (EamPotential*) s->pot;
    assert(pot);
 
+   /* This should be fine on the CPU since it will only happen once during
+    * initialization and then it will be transferred to the GPU.
+    */
    // set up halo exchange and internal storage on first call to forces.
    if (pot->forceExchange == NULL)
    {
@@ -235,6 +238,13 @@ int eamForce(SimFlat* s)
 
    // zero forces / energy / rho /rhoprime
 
+   /* ######################################################
+    * ###############  TODO Put these on GPU ###############
+    * ######################################################
+    */
+   /* See the small kernel in ljForce before the main kernel for
+    * how to do this (the zeroing kernel).
+    */
    memset(s->atoms->f,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real3));
    memset(s->atoms->U,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
    memset(pot->dfEmbed, 0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
@@ -307,7 +317,10 @@ int eamForce(SimFlat* s)
 
 #else
    rajaReduceSumReal etot_raja(0.0);
-
+   /* ######################################################
+    * ###############  TODO Put this on GPU ################
+    * ######################################################
+    */
    RAJA::kernel<forcePolicy>(
      RAJA::make_tuple(
        *s->isLocalSegment,                // local boxes
@@ -381,6 +394,17 @@ int eamForce(SimFlat* s)
    real_t etot = etot_raja;
 #endif
 
+   /* ######################################################
+    * ###############  TODO Put this on GPU ################
+    * ######################################################
+    */
+   /* This should be atomWorkKernel with the first range being
+    * the loop indices of the first loop and the second loop
+    * indices being 0 to MAXATOMS.  You will have to adjust
+    * the second loop index once in the kernel to be offset
+    * into the proper link cell.  See the kernels in
+    * timestep.cpp for examples of what to do.
+    */
    // Compute Embedding Energy
    // loop over all local boxes
    for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
@@ -452,6 +476,10 @@ int eamForce(SimFlat* s)
    } // loop over local boxes
 #else
 
+   /* ######################################################
+    * ###############  TODO Put this on GPU ################
+    * ######################################################
+    */
    RAJA::kernel<forcePolicy>(
      RAJA::make_tuple(
        *s->isLocalSegment,                // local boxes
@@ -499,7 +527,9 @@ int eamForce(SimFlat* s)
      }); // loop over local boxes
 #endif
 
-   s->ePotential = (real_t) etot;
+   /* Use the CPU-side ePotential global variable here instead */
+   //s->ePotential = (real_t) etot;
+   ePotential = (real_t) etot;
 
    return 0;
 }

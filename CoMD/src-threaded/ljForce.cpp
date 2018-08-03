@@ -156,11 +156,7 @@ int ljForce(SimFlat* s)
    // zero forces and energy
    rajaReduceSumRealKernel ePot(0.0);
 
-#ifdef DO_CUDA
-   globalSim->ePotential = 0.0;
-#else
-   s->ePotential = 0.0;
-#endif
+   ePotential = 0.0;
 
    profileStart(forceZeroingTimer);
   RAJA::kernel<atomWorkKernel>(
@@ -248,11 +244,7 @@ int ljForce(SimFlat* s)
    profileStop(forceFunctionTimer);
    }
 
-#ifdef DO_CUDA
-   globalSim->ePotential = ePot*4.0*epsilon;
-#else
-   s->ePotential = ePot*4.0*epsilon;
-#endif
+   ePotential = ePot*4.0*epsilon;
 
    return 0;
 }
