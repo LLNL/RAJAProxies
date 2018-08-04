@@ -60,9 +60,19 @@ const char* timerName[numberOfTimers] = {
    "  position",
    "  velocity",
    "  redistribute",
+   "    updateLinkCells",
+   "      emptyHaloCells",
+   "      updateWork",
    "    atomHalo",
+   "      atomPack",
+   "      atomComm",
+   "      atomUnpack",
+   "    atomSort",
    "  force",
+   "    forceZeroing",
+   "    forceFunction",
    "    eamHalo",
+   "  kineticEnergy",
    "commHalo",
    "commReduce"
 };
@@ -98,7 +108,10 @@ static TimerGlobal perfGlobal;
 
 void profileStart(const enum TimerHandle handle)
 {
-   perfTimer[handle].start = getTime();
+  #ifdef USE_CALIPER
+  CALI_MARK_BEGIN(timerName[handle]);
+  #endif
+  perfTimer[handle].start = getTime();
 }
 
 void profileStop(const enum TimerHandle handle)
@@ -107,6 +120,9 @@ void profileStop(const enum TimerHandle handle)
    uint64_t delta = getTime() - perfTimer[handle].start;
    perfTimer[handle].total += delta;
    perfTimer[handle].elapsed += delta;
+  #ifdef USE_CALIPER
+  CALI_MARK_END(timerName[handle]);
+  #endif
 }
 
 /// \details

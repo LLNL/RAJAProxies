@@ -67,6 +67,16 @@
 #define   MIN(A,B) ((A) < (B) ? (A) : (B))
 
 static SimFlat* initSimulation(Command cmd);
+#ifdef DO_CUDA
+/* A global copy of the simulation structure to be accessed only on the CPU.  Only data needed
+ * on the CPU side is copied in here and this should ONLY be accessed on the CPU.
+ */
+//SimFlat *globalSim = NULL;
+real_t ePotential = 0.0;
+real_t eKinetic   = 0.0;
+int    nLocal     = 0;
+int    nGlobal    = 0;
+#endif
 static void destroySimulation(SimFlat** ps);
 
 static void initSubsystems(void);
@@ -82,7 +92,6 @@ static void sumAtoms(SimFlat* s);
 static void printThings(SimFlat* s, int iStep, double elapsedTime);
 static void printSimulationDataYaml(FILE* file, SimFlat* s);
 static void sanityChecks(Command cmd, double cutoff, double latticeConst, char latticeType[8]);
-
 
 int main(int argc, char** argv)
 {
@@ -109,8 +118,10 @@ int main(int argc, char** argv)
    timestampBarrier("Starting simulation\n");
 
    // This is the CoMD main loop
-   const int nSteps = sim->nSteps;
+   const int nSteps    = sim->nSteps;
    const int printRate = sim->printRate;
+   const real_t dt     = sim->dt;
+
    int iStep = 0;
    profileStart(loopTimer);
    for (; iStep<nSteps;)
@@ -122,11 +133,21 @@ int main(int argc, char** argv)
       printThings(sim, iStep, getElapsedTime(timestepTimer));
 
       startTimer(timestepTimer);
-      timestep(sim, printRate, sim->dt);
+      // Make sure the number of steps is what the user specified, without rounding
+      // up to the next print rate.
+      int steps = printRate;
+      if(nSteps - iStep < printRate)
+        steps = nSteps - iStep;
+      timestep(sim, steps, dt);
       stopTimer(timestepTimer);
 
       iStep += printRate;
    }
+   // This is to alleviate issues with having asynchronous kernels and then accessing
+   // data used on those kernels in CPU-side code.
+#ifdef DO_CUDA
+   cudaStreamSynchronize(0);
+#endif
    profileStop(loopTimer);
 
    sumAtoms(sim);
@@ -174,6 +195,22 @@ SimFlat* initSimulation(Command cmd)
    sim->eKinetic = 0.0;
    sim->atomExchange = NULL;
 
+   ePotential = 0.0;
+   eKinetic   = 0.0;
+
+#ifdef DO_CUDA
+   //globalSim = (SimFlat*)comdMalloc(sizeof(SimFlat));
+
+   /* This is a hint to the CUDA runtime that this structure is mostly read only.  This
+    * creates read-only copies on the CPU and GPU to avoid unnecessary thrashing as this
+    * structure is needed throughout the code.  Technically, this structure should only
+    * be accessed (dereferenced) on the GPU once GPU code starts but this is apparently
+    * insufficient to avoid this thrashing.
+    */
+   int device;
+   cudaGetDevice(&device);
+   cudaMemAdvise(sim, sizeof(SimFlat), cudaMemAdviseSetReadMostly, device);
+#endif
    sim->pot = initPotential(cmd.doeam, cmd.potDir, cmd.potName, cmd.potType);
    real_t latticeConstant = cmd.lat;
    if (cmd.lat < 0.0)
@@ -193,6 +230,7 @@ SimFlat* initSimulation(Command cmd)
       cmd.xproc, cmd.yproc, cmd.zproc, globalExtent);
 
    sim->boxes = initLinkCells(sim->domain, sim->pot->cutoff);
+
    sim->atoms = initAtoms(sim->boxes);
 
    // create lattice with desired temperature and displacement.
@@ -238,9 +276,44 @@ SimFlat* initSimulation(Command cmd)
    sim->isLocalSegment = new RAJA::RangeSegment(0, sim->boxes->nLocalBoxes);
 
    setTemperature(sim, cmd.temperature);
+
    randomDisplacements(sim, cmd.initialDelta);
 
    sim->atomExchange = initAtomHaloExchange(sim->domain, sim->boxes);
+
+   // Much of this can probably be removed.
+#ifdef DO_CUDA
+   /*
+   globalSim->nSteps    = sim->nSteps;
+   globalSim->printRate = sim->printRate;
+   globalSim->dt        = sim->dt;
+
+   globalSim->domain = (Domain*)comdMalloc(sizeof(Domain));
+   memcpy(globalSim->domain, sim->domain, sizeof(Domain));
+
+   globalSim->boxes = (LinkCell*)comdMalloc(sizeof(LinkCell));
+   memcpy(globalSim->boxes, sim->boxes, sizeof(LinkCell));
+   globalSim->boxes->nAtoms      = NULL;
+   globalSim->boxes->nbrBoxes    = NULL;
+   globalSim->boxes->neighbors   = NULL;
+   globalSim->boxes->nbrSegments = NULL;
+
+   globalSim->atoms = (Atoms*)comdMalloc(sizeof(Atoms));
+   memcpy(globalSim->atoms, sim->atoms, sizeof(Atoms));
+   globalSim->atoms->gid      = NULL;
+   globalSim->atoms->iSpecies = NULL;
+   globalSim->atoms->r        = NULL;
+   globalSim->atoms->p        = NULL;
+   globalSim->atoms->f        = NULL;
+   globalSim->atoms->U        = NULL;
+
+   globalSim->species = (SpeciesData*)comdMalloc(sizeof(SpeciesData));
+   memcpy(globalSim->species, sim->species, sizeof(SpeciesData));
+
+   globalSim->atomExchange = NULL;
+   globalSim->atomExchange = initAtomHaloExchange(sim->domain, sim->boxes);
+   */
+#endif
 
    // Forces must be computed before we call the time stepper.
    startTimer(redistributeTimer);
@@ -324,7 +397,7 @@ Validate* initValidate(SimFlat* sim)
 {
    sumAtoms(sim);
    Validate* val = (Validate*)comdMalloc(sizeof(Validate));
-   val->eTot0 = (sim->ePotential + sim->eKinetic) / sim->atoms->nGlobal;
+   val->eTot0 = (ePotential + eKinetic) / sim->atoms->nGlobal;
    val->nAtoms0 = sim->atoms->nGlobal;
 
    if (printRank())
@@ -342,8 +415,7 @@ void validateResult(const Validate* val, SimFlat* sim)
 {
    if (printRank())
    {
-      real_t eFinal = (sim->ePotential + sim->eKinetic) / sim->atoms->nGlobal;
-
+      real_t eFinal = (ePotential + eKinetic) / sim->atoms->nGlobal;
       int nAtomsDelta = (sim->atoms->nGlobal - val->nAtoms0);
 
       fprintf(screenOut, "\n");
@@ -370,6 +442,44 @@ void validateResult(const Validate* val, SimFlat* sim)
 void sumAtoms(SimFlat* s)
 {
    // sum atoms across all processers
+#ifdef DO_CUDA
+  rajaReduceSumInt nLocalReduce(0);
+  const int nLocalBoxes = s->boxes->nLocalBoxes;
+
+  /* Make sure the simulation structure is only accessed on the GPU to avoid
+   * unnecessary page faults.
+   */
+  RAJA::kernel<redistributeKernel>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(0, nLocalBoxes)),
+    [=] RAJA_DEVICE (int i)
+    {
+      nLocalReduce += s->boxes->nAtoms[i];
+    } );
+
+  nLocal = (int)nLocalReduce;
+
+  startTimer(commReduceTimer);
+  addIntParallel(&nLocal, &nGlobal, 1);
+  stopTimer(commReduceTimer);
+
+  const int nLocal_temp  = nLocal;
+  const int nGlobal_temp = nGlobal;
+
+  /* TODO: Possibly remove this or determine if it's necessary.
+   *       Are these variables ever used on the GPU?  If not,
+   *       this is unnecessary.
+   */
+  RAJA::kernel<redistributeKernel>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(0, 1)),
+    [=] RAJA_DEVICE (int notUsed)
+    {
+      s->atoms->nLocal  = nLocal_temp;
+      s->atoms->nGlobal = nGlobal_temp;
+    } );
+
+#else
    s->atoms->nLocal = 0;
    for (int i = 0; i < s->boxes->nLocalBoxes; i++)
    {
@@ -379,6 +489,7 @@ void sumAtoms(SimFlat* s)
    startTimer(commReduceTimer);
    addIntParallel(&s->atoms->nLocal, &s->atoms->nGlobal, 1);
    stopTimer(commReduceTimer);
+#endif
 }
 
 /// Prints current time, energy, performance etc to monitor the state of
@@ -407,15 +518,15 @@ void printThings(SimFlat* s, int iStep, double elapsedTime)
    }
 
    real_t time = iStep*s->dt;
-   real_t eTotal = (s->ePotential+s->eKinetic) / s->atoms->nGlobal;
-   real_t eK = s->eKinetic / s->atoms->nGlobal;
-   real_t eU = s->ePotential / s->atoms->nGlobal;
-   real_t Temp = (s->eKinetic / s->atoms->nGlobal) / (kB_eV * 1.5);
+   real_t eTotal = (ePotential+eKinetic) / nGlobal;
+   real_t eK = eKinetic / nGlobal;
+   real_t eU = ePotential / nGlobal;
+   real_t Temp = (eKinetic / nGlobal) / (kB_eV * 1.5);
 
-   double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*s->atoms->nLocal);
+   double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*nLocal);
 
    fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
-           iStep, time, eTotal, eU, eK, Temp, timePerAtom, s->atoms->nGlobal);
+           iStep, time, eTotal, eU, eK, Temp, timePerAtom, nGlobal);
 }
 
 /// Print information about the simulation in a format that is (mostly)
@@ -468,6 +579,7 @@ void sanityChecks(Command cmd, double cutoff, double latticeConst, char latticeT
    if (nProcs != getNRanks())
    {
       failCode |= 1;
+      printf("Running with %d MPI ranks\n", getNRanks());
       if (printRank() )
          fprintf(screenOut,
                  "\nNumber of MPI ranks must match xproc * yproc * zproc\n");

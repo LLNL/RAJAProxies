@@ -58,6 +58,10 @@ typedef struct AtomExchangeParmsSt
    int nCells[6];        //!< Number of cells in cellList for each face.
    int* cellList[6];     //!< List of link cells from which to load data for each face.
    real_t* pbcFactor[6]; //!< Whether this face is a periodic boundary.
+   char* sendBufM;
+   char* sendBufP;
+   char* recvBufM;
+   char* recvBufP;
 }
 AtomExchangeParms;
 
@@ -149,7 +153,8 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    int size1 = (boxes->gridSize[0]+2)*(boxes->gridSize[2]+2);
    int size2 = (boxes->gridSize[0]+2)*(boxes->gridSize[1]+2);
    int maxSize = MAX(size0, size1);
-   maxSize = MAX(size1, size2);
+   maxSize = MAX(size1, size2); // Shouldn't this be MAX(maxSize, size2)?
+
    hh->bufCapacity = maxSize*2*MAXATOMS*sizeof(AtomMsg);
 
    hh->loadBuffer = loadAtomsBuffer;
@@ -164,6 +169,22 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    parms->nCells[HALO_X_PLUS]  = parms->nCells[HALO_X_MINUS];
    parms->nCells[HALO_Y_PLUS]  = parms->nCells[HALO_Y_MINUS];
    parms->nCells[HALO_Z_PLUS]  = parms->nCells[HALO_Z_MINUS];
+
+   /* Make sure there is enough space in the buffer for the integer array of
+    * offsets to allow for parallel packing/unpacking.
+    */
+   maxSize = parms->nCells[HALO_X_MINUS];
+   if(parms->nCells[HALO_Y_MINUS] > maxSize) maxSize = parms->nCells[HALO_Y_MINUS];
+   if(parms->nCells[HALO_Z_MINUS] > maxSize) maxSize = parms->nCells[HALO_Z_MINUS];
+   if(parms->nCells[HALO_X_PLUS] > maxSize) maxSize = parms->nCells[HALO_X_PLUS];
+   if(parms->nCells[HALO_Y_PLUS] > maxSize) maxSize = parms->nCells[HALO_Y_PLUS];
+   if(parms->nCells[HALO_Z_PLUS] > maxSize) maxSize = parms->nCells[HALO_Z_PLUS];
+
+   int intsSize = (maxSize+1) * sizeof(int);
+   if( (intsSize % sizeof(AtomMsg)) != 0 )
+     intsSize += sizeof(AtomMsg) - (intsSize % sizeof(AtomMsg));
+
+   hh->bufCapacity += intsSize;
 
    for (int ii=0; ii<6; ++ii)
       parms->cellList[ii] = mkAtomCellList(boxes, HaloFaceOrder(ii), parms->nCells[ii]);
@@ -182,6 +203,11 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    if (procCoord[HALO_Y_AXIS] == procGrid[HALO_Y_AXIS]-1) parms->pbcFactor[HALO_Y_PLUS][HALO_Y_AXIS]  = -1.0;
    if (procCoord[HALO_Z_AXIS] == 0)                       parms->pbcFactor[HALO_Z_MINUS][HALO_Z_AXIS] = +1.0;
    if (procCoord[HALO_Z_AXIS] == procGrid[HALO_Z_AXIS]-1) parms->pbcFactor[HALO_Z_PLUS][HALO_Z_AXIS]  = -1.0;
+
+   parms->sendBufM = (char *) comdMalloc(hh->bufCapacity);
+   parms->sendBufP = (char *) comdMalloc(hh->bufCapacity);
+   parms->recvBufM = (char *) comdMalloc(hh->bufCapacity);
+   parms->recvBufP = (char *) comdMalloc(hh->bufCapacity);
 
    hh->parms = parms;
    return hh;
@@ -281,30 +307,31 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
    enum HaloFaceOrder faceM = HaloFaceOrder(2*iAxis);
    enum HaloFaceOrder faceP = HaloFaceOrder(faceM+1);
 
-   char* sendBufM = (char *) comdMalloc(haloExchange->bufCapacity);
-   char* sendBufP = (char *) comdMalloc(haloExchange->bufCapacity);
-   char* recvBufM = (char *) comdMalloc(haloExchange->bufCapacity);
-   char* recvBufP = (char *) comdMalloc(haloExchange->bufCapacity);
+   AtomExchangeParms* parms = (AtomExchangeParms*) haloExchange->parms;
+   char* sendBufM = parms->sendBufM;
+   char* sendBufP = parms->sendBufP;
+   char* recvBufM = parms->recvBufM;
+   char* recvBufP = parms->recvBufP;
 
+   startTimer(atomPackTimer);
    int nSendM = haloExchange->loadBuffer(haloExchange->parms, data, faceM, sendBufM);
    int nSendP = haloExchange->loadBuffer(haloExchange->parms, data, faceP, sendBufP);
+   stopTimer(atomPackTimer);
 
    int nbrRankM = haloExchange->nbrRank[faceM];
    int nbrRankP = haloExchange->nbrRank[faceP];
 
    int nRecvM, nRecvP;
 
-   startTimer(commHaloTimer);
+   startTimer(atomCommTimer);
    nRecvP = sendReceiveParallel(sendBufM, nSendM, nbrRankM, recvBufP, haloExchange->bufCapacity, nbrRankP);
    nRecvM = sendReceiveParallel(sendBufP, nSendP, nbrRankP, recvBufM, haloExchange->bufCapacity, nbrRankM);
-   stopTimer(commHaloTimer);
+   stopTimer(atomCommTimer);
 
+   startTimer(atomUnpackTimer);
    haloExchange->unloadBuffer(haloExchange->parms, data, faceM, nRecvM, recvBufM);
    haloExchange->unloadBuffer(haloExchange->parms, data, faceP, nRecvP, recvBufP);
-   comdFree(recvBufP);
-   comdFree(recvBufM);
-   comdFree(sendBufP);
-   comdFree(sendBufM);
+   stopTimer(atomUnpackTimer);
 }
 
 /// Make a list of link cells that need to be sent across the specified
@@ -352,6 +379,162 @@ int* mkAtomCellList(LinkCell* boxes, enum HaloFaceOrder iFace, const int nCells)
    return list;
 }
 
+/// Calculates the link cell index from the grid coords.  The valid
+/// coordinate range in direction ii is [-1, gridSize[ii]].  Any
+/// coordinate that involves a -1 or gridSize[ii] is a halo link cell.
+/// Because of the order in which the local and halo link cells are
+/// stored the indices of the halo cells are special cases.
+/// \see initLinkCells for an explanation of storage order.
+/* ###########################################################
+ * ###### This is a reimplementation from linkCels.cpp #######
+ * #######    Make all changes in BOTH locations     #########
+ * #######     This is due to CUDA build issues      #########
+ * ###########################################################
+ */
+COMD_HOST_DEVICE int getBoxFromTupleHalo(LinkCell* boxes, int ix, int iy, int iz)
+{
+   int iBox = 0;
+   const int* gridSize = boxes->gridSize; // alias
+
+   // Halo in Z+
+   if (iz == gridSize[2])
+   {
+      iBox = boxes->nLocalBoxes + 2*gridSize[2]*gridSize[1] + 2*gridSize[2]*(gridSize[0]+2) +
+         (gridSize[0]+2)*(gridSize[1]+2) + (gridSize[0]+2)*(iy+1) + (ix+1);
+   }
+   // Halo in Z-
+   else if (iz == -1)
+   {
+      iBox = boxes->nLocalBoxes + 2*gridSize[2]*gridSize[1] + 2*gridSize[2]*(gridSize[0]+2) +
+         (gridSize[0]+2)*(iy+1) + (ix+1);
+   }
+   // Halo in Y+
+   else if (iy == gridSize[1])
+   {
+      iBox = boxes->nLocalBoxes + 2*gridSize[2]*gridSize[1] + gridSize[2]*(gridSize[0]+2) +
+         (gridSize[0]+2)*iz + (ix+1);
+   }
+   // Halo in Y-
+   else if (iy == -1)
+   {
+      iBox = boxes->nLocalBoxes + 2*gridSize[2]*gridSize[1] + iz*(gridSize[0]+2) + (ix+1);
+   }
+   // Halo in X+
+   else if (ix == gridSize[0])
+   {
+      iBox = boxes->nLocalBoxes + gridSize[1]*gridSize[2] + iz*gridSize[1] + iy;
+   }
+   // Halo in X-
+   else if (ix == -1)
+   {
+      iBox = boxes->nLocalBoxes + iz*gridSize[1] + iy;
+   }
+   // local link celll.
+   else
+   {
+      iBox = ix + gridSize[0]*iy + gridSize[0]*gridSize[1]*iz;
+   }
+   assert(iBox >= 0);
+   assert(iBox < boxes->nTotalBoxes);
+
+   return iBox;
+}
+
+/// Get the index of the link cell that contains the specified
+/// coordinate.  This can be either a halo or a local link cell.
+///
+/// Because the rank ownership of an atom is strictly determined by the
+/// atom's position, we need to take care that all ranks will agree which
+/// rank owns an atom.  The conditionals at the end of this function are
+/// special care to ensure that all ranks make compatible link cell
+/// assignments for atoms that are near a link cell boundaries.  If no
+/// ranks claim an atom in a local cell it will be lost.  If multiple
+/// ranks claim an atom it will be duplicated.
+/* ###########################################################
+ * ###### This is a reimplementation from linkCels.cpp #######
+ * #######    Make all changes in BOTH locations     #########
+ * #######     This is due to CUDA build issues      #########
+ * ###########################################################
+ */
+COMD_HOST_DEVICE int getBoxFromCoordHalo(LinkCell* boxes, real_t rr[3])
+{
+   const real_t* localMin = boxes->localMin; // alias
+   const real_t* localMax = boxes->localMax; // alias
+   const int*    gridSize = boxes->gridSize; // alias
+   int ix = (int)(floor((rr[0] - localMin[0])*boxes->invBoxSize[0]));
+   int iy = (int)(floor((rr[1] - localMin[1])*boxes->invBoxSize[1]));
+   int iz = (int)(floor((rr[2] - localMin[2])*boxes->invBoxSize[2]));
+
+
+   // For each axis, if we are inside the local domain, make sure we get
+   // a local link cell.  Otherwise, make sure we get a halo link cell.
+   if (rr[0] < localMax[0])
+   {
+      if (ix == gridSize[0]) ix = gridSize[0] - 1;
+   }
+   else
+      ix = gridSize[0]; // assign to halo cell
+   if (rr[1] < localMax[1])
+   {
+      if (iy == gridSize[1]) iy = gridSize[1] - 1;
+   }
+   else
+      iy = gridSize[1];
+   if (rr[2] < localMax[2])
+   {
+      if (iz == gridSize[2]) iz = gridSize[2] - 1;
+   }
+   else
+      iz = gridSize[2];
+
+   return getBoxFromTupleHalo(boxes, ix, iy, iz);
+}
+
+/// \details
+/// Finds the appropriate link cell for an atom based on the spatial
+/// coordinates and stores data in that link cell.
+/// \param [in] gid   The global of the atom.
+/// \param [in] iType The species index of the atom.
+/// \param [in] x     The x-coordinate of the atom.
+/// \param [in] y     The y-coordinate of the atom.
+/// \param [in] z     The z-coordinate of the atom.
+/// \param [in] px    The x-component of the atom's momentum.
+/// \param [in] py    The y-component of the atom's momentum.
+/// \param [in] pz    The z-component of the atom's momentum.
+/* ###########################################################
+ * ###### This is a reimplementation from linkCels.cpp #######
+ * #######    Make all changes in BOTH locations     #########
+ * #######     This is due to CUDA build issues      #########
+ * ###########################################################
+ */
+COMD_HOST_DEVICE void putAtomInBoxHalo(LinkCell* boxes, Atoms* atoms,
+                                       const int gid, const int iType,
+                                       const real_t x,  const real_t y,  const real_t z,
+                                       const real_t px, const real_t py, const real_t pz)
+{
+   real_t xyz[3] = {x,y,z};
+
+   // Find correct box.
+   int iBox = getBoxFromCoordHalo(boxes, xyz);
+   int iOff = iBox*MAXATOMS;
+   iOff += boxes->nAtoms[iBox];
+
+   // assign values to array elements
+   if (iBox < boxes->nLocalBoxes)
+      atoms->nLocal++;
+   boxes->nAtoms[iBox]++;
+   atoms->gid[iOff] = gid;
+   atoms->iSpecies[iOff] = iType;
+
+   atoms->r[iOff][0] = x;
+   atoms->r[iOff][1] = y;
+   atoms->r[iOff][2] = z;
+
+   atoms->p[iOff][0] = px;
+   atoms->p[iOff][1] = py;
+   atoms->p[iOff][2] = pz;
+}
+
 /// The loadBuffer function for a halo exchange of atom data.  Iterates
 /// link cells in the cellList and load any atoms into the send buffer.
 /// This function also shifts coordinates of the atoms by an appropriate
@@ -361,37 +544,91 @@ int* mkAtomCellList(LinkCell* boxes, enum HaloFaceOrder iFace, const int nCells)
 /// parameters.
 int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 {
+   rajaReduceSumInt nBufReduce(0);
+
    AtomExchangeParms* parms = (AtomExchangeParms*) vparms;
-   SimFlat* s = (SimFlat*) data;
-   AtomMsg* buf = (AtomMsg*) charBuf;
-
-   real_t* pbcFactor = parms->pbcFactor[face];
-   real3 shift;
-   shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
-   shift[1] = pbcFactor[1] * s->domain->globalExtent[1];
-   shift[2] = pbcFactor[2] * s->domain->globalExtent[2];
-
-   int nCells = parms->nCells[face];
+   const int nCells = parms->nCells[face];
    int* cellList = parms->cellList[face];
-   int nBuf = 0;
-   for (int iCell=0; iCell<nCells; ++iCell)
-   {
-      int iBox = cellList[iCell];
-      int iOff = iBox*MAXATOMS;
-      for (int ii=iOff; ii<iOff+s->boxes->nAtoms[iBox]; ++ii)
-      {
-         buf[nBuf].gid  = s->atoms->gid[ii];
-         buf[nBuf].type = s->atoms->iSpecies[ii];
-         buf[nBuf].rx = s->atoms->r[ii][0] + shift[0];
-         buf[nBuf].ry = s->atoms->r[ii][1] + shift[1];
-         buf[nBuf].rz = s->atoms->r[ii][2] + shift[2];
-         buf[nBuf].px = s->atoms->p[ii][0];
-         buf[nBuf].py = s->atoms->p[ii][1];
-         buf[nBuf].pz = s->atoms->p[ii][2];
-         ++nBuf;
-      }
-   }
-   return nBuf*sizeof(AtomMsg);
+   real_t* pbcFactor = parms->pbcFactor[face];
+
+   int* bufferOffset = (int*)comdMalloc(nCells * sizeof(int));
+   int size = (nCells+1) * sizeof(int);
+   //Make sure the memory is alligned with AtomMsg size
+#ifdef DO_CUDA
+   if((size % sizeof(AtomMsg)) != 0)
+     size += sizeof(AtomMsg) - (size % sizeof(AtomMsg));
+#else
+    SimFlat* s = (SimFlat*) data;
+    int* offsetBuf = (int*)charBuf;
+    real3 shift;
+    shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
+    shift[1] = pbcFactor[1] * s->domain->globalExtent[1];
+    shift[2] = pbcFactor[2] * s->domain->globalExtent[2];
+
+    int sum = 0;
+    offsetBuf[0] = nCells;
+    for(int i = 0; i < nCells; i++) {
+      bufferOffset[i] = sum;
+      offsetBuf[i+1] = sum;
+      sum += s->boxes->nAtoms[cellList[i]];
+    }
+#endif
+
+   AtomMsg* buf = (AtomMsg*) (charBuf + size);
+   //TODO: Try to optimize this.
+  RAJA::kernel<redistributeKernel>(
+  RAJA::make_tuple(
+                   RAJA::RangeSegment(0, nCells)),
+  [=] RAJA_DEVICE (int iCell) {
+    SimFlat* s = (SimFlat*) data;
+    int* offsetBuf = (int*)charBuf;
+#ifdef DO_CUDA
+    real3 shift;
+    shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
+    shift[1] = pbcFactor[1] * s->domain->globalExtent[1];
+    shift[2] = pbcFactor[2] * s->domain->globalExtent[2];
+
+    int sum = 0;
+    offsetBuf[0] = nCells;
+    for(int i = 0; i < nCells; i++) {
+      bufferOffset[i] = sum;
+      offsetBuf[i+1] = sum;
+      sum += s->boxes->nAtoms[cellList[i]];
+    }
+#endif
+
+    int* gid = s->atoms->gid;
+    int* iSpecies = s->atoms->iSpecies;
+    real3_ptr r = s->atoms->r;
+    real3_ptr p = s->atoms->p;
+
+    int offset = bufferOffset[iCell];
+
+    int iBox = cellList[iCell];
+    int iOff = iBox*MAXATOMS;
+    //offset += ii;
+    //ii += iOff;
+    int ii = iOff;
+    while(ii < iOff+s->boxes->nAtoms[iBox]) {
+      buf[offset].gid  = gid[ii];
+      buf[offset].type = iSpecies[ii];
+      buf[offset].rx = r[ii][0] + shift[0];
+      buf[offset].ry = r[ii][1] + shift[1];
+      buf[offset].rz = r[ii][2] + shift[2];
+      buf[offset].px = p[ii][0];
+      buf[offset].py = p[ii][1];
+      buf[offset].pz = p[ii][2];
+      nBufReduce += 1;
+      ii++;
+      offset++;
+    }
+  } );
+
+   const int nBuf = (int)nBufReduce;
+
+  comdFree(bufferOffset);
+
+  return (nBuf*sizeof(AtomMsg)) + size;
 }
 
 /// The unloadBuffer function for a halo exchange of atom data.
@@ -406,14 +643,37 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 /// unloadBuffer parameters.
 void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* charBuf)
 {
-   AtomExchangeParms* parms = (AtomExchangeParms*) vparms;
    SimFlat* s = (SimFlat*) data;
-   AtomMsg* buf = (AtomMsg*) charBuf;
-   int nBuf = bufSize / sizeof(AtomMsg);
-   assert(bufSize % sizeof(AtomMsg) == 0);
 
-   for (int ii=0; ii<nBuf; ++ii)
-   {
+  //AtomMsg* buf = (AtomMsg*) charBuf;
+  //int nBuf = bufSize / sizeof(AtomMsg);
+   //assert(bufSize % sizeof(AtomMsg) == 0);
+
+  const int nCells = *((int*)charBuf);
+
+   int size = (nCells+1) * sizeof(int);
+   // Make sure the buffer is alligned with AtomMsg's size
+#ifdef DO_CUDA
+   if( (size % sizeof(AtomMsg)) != 0 )
+     size += sizeof(AtomMsg) - (size % sizeof(AtomMsg));
+#endif
+
+   int nBuf = (bufSize-size) / sizeof(AtomMsg);
+
+  RAJA::kernel<redistributeKernel>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(0, nCells)),
+  [=] RAJA_DEVICE (int iCell) {
+    AtomMsg* buf = (AtomMsg*)(charBuf + size);
+    int* offsets = (int*)(charBuf);
+
+    int start = offsets[iCell], end;
+    if(iCell == offsets[0]-1)
+      end = nBuf;
+    else
+      end = offsets[iCell+1];
+
+    for(int ii = start; ii < end; ii++) {
       int gid   = buf[ii].gid;
       int type  = buf[ii].type;
       real_t rx = buf[ii].rx;
@@ -422,8 +682,9 @@ void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* ch
       real_t px = buf[ii].px;
       real_t py = buf[ii].py;
       real_t pz = buf[ii].pz;
-      putAtomInBox(s->boxes, s->atoms, gid, type, rx, ry, rz, px, py, pz);
+      putAtomInBoxHalo(s->boxes, s->atoms, gid, type, rx, ry, rz, px, py, pz);
    }
+  });
 }
 
 void destroyAtomsExchange(void* vparms)
@@ -435,6 +696,10 @@ void destroyAtomsExchange(void* vparms)
       comdFree(parms->pbcFactor[ii]);
       comdFree(parms->cellList[ii]);
    }
+   comdFree(parms->sendBufM);
+   comdFree(parms->sendBufP);
+   comdFree(parms->recvBufM);
+   comdFree(parms->recvBufP);
 }
 
 /// Make a list of link cells that need to send data across the
@@ -601,48 +866,6 @@ void destroyForceExchange(void* vparms)
       comdFree(parms->sendCells[ii]);
       comdFree(parms->recvCells[ii]);
    }
-}
-
-/// \details
-/// The force exchange assumes that the atoms are in the same order in
-/// both a given local link cell and the corresponding remote cell(s).
-/// However, the atom exchange does not guarantee this property,
-/// especially when atoms cross a domain decomposition boundary and move
-/// from one task to another.  Trying to maintain the atom order during
-/// the atom exchange would immensely complicate that code.  Instead, we
-/// just sort the atoms after the atom exchange.
-void sortAtomsInCell(Atoms* atoms, LinkCell* boxes, int iBox)
-{
-   int nAtoms = boxes->nAtoms[iBox];
-
-   AtomMsg tmp[nAtoms];
-
-   int begin = iBox*MAXATOMS;
-   int end = begin + nAtoms;
-   for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
-   {
-      tmp[iTmp].gid  = atoms->gid[ii];
-      tmp[iTmp].type = atoms->iSpecies[ii];
-      tmp[iTmp].rx =   atoms->r[ii][0];
-      tmp[iTmp].ry =   atoms->r[ii][1];
-      tmp[iTmp].rz =   atoms->r[ii][2];
-      tmp[iTmp].px =   atoms->p[ii][0];
-      tmp[iTmp].py =   atoms->p[ii][1];
-      tmp[iTmp].pz =   atoms->p[ii][2];
-   }
-   qsort(&tmp, nAtoms, sizeof(AtomMsg), sortAtomsById);
-   for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
-   {
-      atoms->gid[ii]   = tmp[iTmp].gid;
-      atoms->iSpecies[ii] = tmp[iTmp].type;
-      atoms->r[ii][0]  = tmp[iTmp].rx;
-      atoms->r[ii][1]  = tmp[iTmp].ry;
-      atoms->r[ii][2]  = tmp[iTmp].rz;
-      atoms->p[ii][0]  = tmp[iTmp].px;
-      atoms->p[ii][1]  = tmp[iTmp].py;
-      atoms->p[ii][2]  = tmp[iTmp].pz;
-   }
-
 }
 
 ///  A function suitable for passing to qsort to sort atoms by gid.

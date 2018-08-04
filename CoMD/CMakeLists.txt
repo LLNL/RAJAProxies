@@ -12,7 +12,6 @@ set(ENABLE_TBB Off CACHE Bool "")
 set(ENABLE_EXAMPLES Off CACHE Bool "")
 set(ENABLE_DOCUMENTATION Off CACHE Bool "")
 
-
 #
 # Configure RAJA
 #
@@ -29,6 +28,29 @@ set(COMD_VERSION "1.0.0")
 #               ${PROJECT_BINARY_DIR}/include/CoMDConfig.h)
 
 
+#
+# Configure MPI
+#
+
+function(notify_package name)
+   if (${name}_FOUND)
+     message(STATUS "Found ${name} in ${${name}_DIR}.")
+   else()
+     message(STATUS "${name} package not found.")
+   endif()
+endfunction()
+# Find the MPI library and set some definitions
+# This line ensures that we skip C++ headers altogether, avoiding unnecessary symbols in the .o files.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOMPI_SKIP_MPICXX -DMPICH_SKIP_MPICXX")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+set(MPI_CXX_SKIP_FLAGS
+     -DMPI_NO_CPPBIND -DOMPI_SKIP_MPICXX -D_MPICC_H -DMPICH_SKIP_MPICXX -DMPIBULL_SKIP_MPICXX
+     CACHE STRING "Default skip-flags used (for SGI, OpenMPI, HP-MPI, MPICH, BULL-MPI)")
+find_package(MPI REQUIRED)
+if (MPI_FOUND)
+   set(COMD2_HAVE_MPI TRUE)
+   notify_package(MPI)
+endif()
 
 
 #

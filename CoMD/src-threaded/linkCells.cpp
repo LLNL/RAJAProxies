@@ -75,8 +75,8 @@
 #define   MIN(A,B) ((A) < (B) ? (A) : (B))
 #define   MAX(A,B) ((A) > (B) ? (A) : (B))
 
-static void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox);
-static int getBoxFromCoord(LinkCell* boxes, real_t rr[3]);
+COMD_HOST_DEVICE static void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox);
+COMD_HOST_DEVICE static int getBoxFromCoord(LinkCell* boxes, real_t rr[3]);
 static void emptyHaloCells(LinkCell* boxes);
 static void getTuple(LinkCell* boxes, int iBox, int* ixp, int* iyp, int* izp);
 
@@ -172,6 +172,12 @@ int getNeighborBoxes(LinkCell* boxes, int iBox, int* nbrBoxes)
 /// \param [in] px    The x-component of the atom's momentum.
 /// \param [in] py    The y-component of the atom's momentum.
 /// \param [in] pz    The z-component of the atom's momentum.
+/* ###########################################################
+ * ####### This is reimplemented in haloExchange.cpp #########
+ * #######    Make all changes in BOTH locations     #########
+ * #######     This is due to CUDA build issues      #########
+ * ###########################################################
+ */
 void putAtomInBox(LinkCell* boxes, Atoms* atoms,
                   const int gid, const int iType,
                   const real_t x,  const real_t y,  const real_t z,
@@ -292,21 +298,30 @@ void moveAtom(LinkCell* boxes, Atoms* atoms, int iId, int iBox, int jBox)
 /// \see redistributeAtoms
 void updateLinkCells(LinkCell* boxes, Atoms* atoms)
 {
+  //TODO: Implement this function on the GPU and remove this synchronization.
+  //Note: The synchronization is here to alleviate performance issues with using
+  //      asynchronous kernels and then suddenly needing that data on the CPU...
+#ifdef DO_CUDA
+  cudaStreamSynchronize(0);
+#endif
+  startTimer(emptyHaloCellsTimer);
    emptyHaloCells(boxes);
-
-   for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
-   {
-      int iOff = iBox*MAXATOMS;
-      int ii=0;
-      while (ii < boxes->nAtoms[iBox])
-      {
-         int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
-         if (jBox != iBox)
-            moveAtom(boxes, atoms, ii, iBox, jBox);
-         else
-            ++ii;
-      }
-   }
+  stopTimer(emptyHaloCellsTimer);
+  startTimer(updateLinkCellsWorkTimer);
+  for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
+  {
+    int iOff = iBox*MAXATOMS;
+    int ii=0;
+    while (ii < boxes->nAtoms[iBox])
+    {
+      int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
+      if (jBox != iBox)
+        moveAtom(boxes, atoms, ii, iBox, jBox);
+      else
+        ++ii;
+    }
+  }
+  stopTimer(updateLinkCellsWorkTimer);
 }
 
 /// \return The largest number of atoms in any link cell.
@@ -328,7 +343,7 @@ int maxOccupancy(LinkCell* boxes)
 /// Copy atom iAtom in link cell iBox to atom jAtom in link cell jBox.
 /// Any data at jAtom, jBox is overwritten.  This routine can be used to
 /// re-order atoms within a link cell.
-void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox)
+COMD_HOST_DEVICE void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int jBox)
 {
    const int iOff = MAXATOMS*iBox+iAtom;
    const int jOff = MAXATOMS*jBox+jAtom;
@@ -350,7 +365,7 @@ void copyAtom(LinkCell* boxes, Atoms* atoms, int iAtom, int iBox, int jAtom, int
 /// assignments for atoms that are near a link cell boundaries.  If no
 /// ranks claim an atom in a local cell it will be lost.  If multiple
 /// ranks claim an atom it will be duplicated.
-int getBoxFromCoord(LinkCell* boxes, real_t rr[3])
+COMD_HOST_DEVICE int getBoxFromCoord(LinkCell* boxes, real_t rr[3])
 {
    const real_t* localMin = boxes->localMin; // alias
    const real_t* localMax = boxes->localMax; // alias

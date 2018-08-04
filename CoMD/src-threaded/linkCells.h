@@ -12,6 +12,7 @@
 
 struct DomainSt;
 struct AtomsSt;
+struct SimFlatSt;
 
 /// Link cell data.  For convenience, we keep a copy of the localMin and
 /// localMax coordinates that are also found in the DomainsSt.
@@ -40,13 +41,13 @@ LinkCell* initLinkCells(const struct DomainSt* domain, real_t cutoff);
 void destroyLinkCells(LinkCell** boxes);
 
 int getNeighborBoxes(LinkCell* boxes, int iBox, int* nbrBoxes);
-void putAtomInBox(LinkCell* boxes, struct AtomsSt* atoms,
+COMD_HOST_DEVICE void putAtomInBox(LinkCell* boxes, struct AtomsSt* atoms,
                   const int gid, const int iType,
                   const real_t x,  const real_t y,  const real_t z,
                   const real_t px, const real_t py, const real_t pz);
-int getBoxFromTuple(LinkCell* boxes, int x, int y, int z);
+COMD_HOST_DEVICE int getBoxFromTuple(LinkCell* boxes, int x, int y, int z);
 
-void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, int iBox, int jBox);
+COMD_HOST_DEVICE void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, int iBox, int jBox);
 
 /// Update link cell data structures when the atoms have moved.
 void updateLinkCells(LinkCell* boxes, struct AtomsSt* atoms);

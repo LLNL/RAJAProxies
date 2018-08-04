@@ -149,33 +149,45 @@ int ljForce(SimFlat* s)
    const real_t epsilon = pot->epsilon;
    const real_t rCut = pot->cutoff;
    const real_t rCut2 = rCut*rCut;
-
-   // zero forces and energy
-   rajaReduceSumReal ePot(0.0);
-
-   s->ePotential = 0.0;
-
-   RAJA::forall<atomWork>(*s->isTotal, [=] (int ii) {
-      zeroReal3(s->atoms->f[ii]);
-      s->atoms->U[ii] = 0.;
-   } ) ;
-
    const real_t s6 = sigma*sigma*sigma*sigma*sigma*sigma;
-
    const real_t rCut6 = s6 / (rCut2*rCut2*rCut2);
    const real_t eShift = POT_SHIFT * rCut6 * (rCut6 - 1.0);
 
+   // zero forces and energy
+   rajaReduceSumRealKernel ePot(0.0);
+
+   ePotential = 0.0;
+
+   profileStart(forceZeroingTimer);
+  RAJA::kernel<atomWorkKernel>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
+    RAJA::RangeSegment(0, MAXATOMS) ),
+    [=] COMD_DEVICE (int iBox, int iOffLocal) {
+      const int nIBox = s->boxes->nAtoms[iBox];
+      if(iOffLocal < nIBox) {
+        const int iOff = iOffLocal + (iBox * MAXATOMS);
+        real3_ptr f = s->atoms->f;
+        real_ptr U = s->atoms->U;
+        f[iOff][0] = 0.0;
+        f[iOff][1] = 0.0;
+        f[iOff][2] = 0.0;
+        U[iOff] = 0.0;
+      }
+    } ) ;
+
+   profileStop(forceZeroingTimer);
+
    {
-     RAJA::kernel<ljForcePolicy>(
+   profileStart(forceFunctionTimer);
+     RAJA::kernel<forcePolicyKernel>(
        RAJA::make_tuple(
          *s->isLocalSegment,                // local boxes
          RAJA::RangeSegment(0,27),          // 27 neighbor boxes
          RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
          RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
-
-       [=] (int iBoxID, int nghb, int iOff, int jOff) {
+       [=] COMD_DEVICE (int iBoxID, int nghb, int iOff, int jOff) {
          const int nLocalBoxes = s->boxes->nLocalBoxes;
-         const int nTotalBoxes = s->boxes->nTotalBoxes;
          const int nIBox = s->boxes->nAtoms[iBoxID];
          const int jBoxID = s->boxes->nbrBoxes[iBoxID][nghb];
          const int nJBox = s->boxes->nAtoms[jBoxID];
@@ -218,16 +230,21 @@ int ljForce(SimFlat* s)
              for (int m=0; m<3; m++)
              {
                dr[m] *= fr;
+#ifdef DO_CUDA
+               atomicAdd(&f[iOff][m], -dr[m]);
+               atomicAdd(&f[jOff][m], dr[m]);
+#else
                f[iOff][m] -= dr[m];
                f[jOff][m] += dr[m];
+#endif
              }
            }  //end if within cutoff
          }//end if atoms exist
        });
-
+   profileStop(forceFunctionTimer);
    }
 
-   s->ePotential = ePot*4.0*epsilon;
+   ePotential = ePot*4.0*epsilon;
 
    return 0;
 }
