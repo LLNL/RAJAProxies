@@ -67,13 +67,13 @@
 #define   MIN(A,B) ((A) < (B) ? (A) : (B))
 
 static SimFlat* initSimulation(Command cmd);
-#ifdef DO_CUDA
 /* A global copy of the simulation structure to be accessed only on the CPU.  Only data needed
  * on the CPU side is copied in here and this should ONLY be accessed on the CPU.
  */
 //SimFlat *globalSim = NULL;
 real_t ePotential = 0.0;
 real_t eKinetic   = 0.0;
+#ifdef DO_CUDA
 int    nLocal     = 0;
 int    nGlobal    = 0;
 #endif
@@ -518,15 +518,26 @@ void printThings(SimFlat* s, int iStep, double elapsedTime)
    }
 
    real_t time = iStep*s->dt;
+#ifdef DO_CUDA
    real_t eTotal = (ePotential+eKinetic) / nGlobal;
    real_t eK = eKinetic / nGlobal;
    real_t eU = ePotential / nGlobal;
    real_t Temp = (eKinetic / nGlobal) / (kB_eV * 1.5);
-
    double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*nLocal);
-
+    printf("value check: %.2f\n", ePotential);
    fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
            iStep, time, eTotal, eU, eK, Temp, timePerAtom, nGlobal);
+#else 
+   int    tnG = s->atoms->nGlobal;  
+   real_t eTotal = (ePotential+eKinetic) / tnG;
+   real_t eK = eKinetic / tnG;
+   real_t eU = ePotential / tnG;
+   real_t Temp = (eKinetic / tnG) / (kB_eV * 1.5); 
+   double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*s->atoms->nLocal);
+    printf("value check: %.2f\n", ePotential);
+   fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
+           iStep, time, eTotal, eU, eK, Temp, timePerAtom, tnG);
+#endif
 }
 
 /// Print information about the simulation in a format that is (mostly)
