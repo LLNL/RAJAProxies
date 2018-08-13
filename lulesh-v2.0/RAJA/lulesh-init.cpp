@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include "lulesh.hpp"
 
-#include "RAJA/util/defines.hpp"
+#include "RAJA/util/macros.hpp"
 
 /////////////////////////////////////////////////////////////////////
 Domain::Domain(Int_t numRanks, Index_t colLoc,
