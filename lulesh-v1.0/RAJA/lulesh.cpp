@@ -71,7 +71,7 @@ Additional BSD Notice
 
 #include "RAJA/RAJA.hpp"
 
-#include "RAJA/util/defines.hpp"
+#include "RAJA/util/macros.hpp"
 
 #include "RAJA/index/IndexSetBuilders.hpp"
 

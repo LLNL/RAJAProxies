@@ -4,7 +4,7 @@
 #include <math.h>
 #include "lulesh.hpp"
 
-#include "RAJA/util/defines.hpp"
+#include "RAJA/util/macros.hpp"
 
 #if defined(VIZ_MESH)
 

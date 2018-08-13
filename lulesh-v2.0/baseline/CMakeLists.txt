@@ -10,6 +10,17 @@
 #
 ###############################################################################
 
+set (lulesh_depends
+  RAJA)
+
+# We need to include RAJA with the same features it was built with, even if
+# they are not used.
+if (ENABLE_OPENMP)
+  set (lulesh_depends
+    ${lulesh_depends}
+    openmp)
+endif ()
+
 set (lulesh_sources
   lulesh.cpp
   lulesh-comm.cpp
@@ -20,7 +31,7 @@ set (lulesh_sources
 blt_add_executable(
   NAME lulesh-v2.0-baseline-seq.exe
   SOURCES ${lulesh_sources}
-  DEPENDS_ON RAJA)
+  DEPENDS_ON ${lulesh_depends})
 
 target_compile_definitions(
   lulesh-v2.0-baseline-seq.exe
