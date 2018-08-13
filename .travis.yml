@@ -26,12 +26,10 @@ matrix:
     env:
     - COMPILER=clang++
     - IMG=clang6
-    - CMAKE_EXTRA_FLAGS="-DCMAKE_CXX_FLAGS=-fmodules"
   - compiler: clang5
     env:
     - COMPILER=clang++
     - IMG=clang5
-    - CMAKE_EXTRA_FLAGS="-DCMAKE_CXX_FLAGS=-fmodules"
   - compiler: clang4
     env:
     - COMPILER=clang++
