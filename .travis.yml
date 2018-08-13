@@ -1,0 +1,64 @@
+services: docker
+dist: trusty
+language: cpp
+env:
+  global:
+  - OMP_NUM_THREADS=3
+  - DO_BUILD=yes
+matrix:
+  include:
+  - compiler: gcc49
+    env:
+    - COMPILER=g++
+    - IMG=gcc49
+    - CMAKE_EXTRA_FLAGS="-DENABLE_WARNINGS=On"
+  - compiler: gcc6
+    env:
+    - COMPILER=g++
+    - IMG=gcc6
+    - CMAKE_EXTRA_FLAGS="-DENABLE_WARNINGS=On"
+  - compiler: gcc7
+    env:
+    - COMPILER=g++
+    - IMG=gcc7
+    - CMAKE_EXTRA_FLAGS="-DENABLE_WARNINGS=On"
+  - compiler: clang6
+    env:
+    - COMPILER=clang++
+    - IMG=clang6
+    - CMAKE_EXTRA_FLAGS="-DCMAKE_CXX_FLAGS=-fmodules"
+  - compiler: clang5
+    env:
+    - COMPILER=clang++
+    - IMG=clang5
+    - CMAKE_EXTRA_FLAGS="-DCMAKE_CXX_FLAGS=-fmodules"
+  - compiler: clang4
+    env:
+    - COMPILER=clang++
+    - IMG=clang4
+  - compiler: nvcc
+    env:
+    - COMPILER=g++
+    - IMG=nvcc9
+    - CMAKE_EXTRA_FLAGS="-DENABLE_CUDA=On -DENABLE_KRIPKE=Off"
+    - DO_TEST=no
+  - compiler: gcc-4.9-debug
+    env:
+    - COMPILER=g++
+    - IMG=gcc49
+    - CMAKE_EXTRA_FLAGS="-DCMAKE_BUILD_TYPE=Debug"
+  - compiler: clang-4-debug
+    env:
+    - COMPILER=clang++
+    - IMG=clang4
+    - CMAKE_EXTRA_FLAGS="-DCMAKE_BUILD_TYPE=Debug"
+  - compiler: nvcc-debug
+    env:
+    - COMPILER=g++
+    - IMG=nvcc9
+    - CMAKE_EXTRA_FLAGS="-DCMAKE_BUILD_TYPE=Debug -DENABLE_CUDA=On -DENABLE_KRIPKE=Off"
+    - DO_TEST=no
+
+script: 
+- docker run --rm --user='root' -v ${TRAVIS_BUILD_DIR}:/home/raja rajaorg/compiler:$IMG chown -R raja /home/raja
+- docker run --rm -v ${TRAVIS_BUILD_DIR}:/home/raja -e COMPILER -e DO_BUILD -e DO_TEST -e CMAKE_EXTRA_FLAGS rajaorg/compiler:$IMG ./scripts/travis/build_and_test.sh
