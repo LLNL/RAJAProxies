@@ -109,6 +109,7 @@ int main(int argc, char** argv)
    printCmdYaml(screenOut, &cmd);
 
    SimFlat* sim = initSimulation(cmd);
+printf("init complete");
    printSimulationDataYaml(yamlFile, sim);
    printSimulationDataYaml(screenOut, sim);
 
@@ -270,7 +271,6 @@ SimFlat* initSimulation(Command cmd)
      }
 
    }
-
    /* Create Local IndexSet View */
    sim->isLocal = sim->isTotal->createSlice(0, sim->boxes->nLocalBoxes);
    sim->isLocalSegment = new RAJA::RangeSegment(0, sim->boxes->nLocalBoxes);
@@ -319,7 +319,8 @@ SimFlat* initSimulation(Command cmd)
    startTimer(redistributeTimer);
    redistributeAtoms(sim);
    stopTimer(redistributeTimer);
-
+printf("redistribute check");
+//FIX HERE
    startTimer(computeForceTimer);
    computeForce(sim);
    stopTimer(computeForceTimer);
