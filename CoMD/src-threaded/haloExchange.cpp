@@ -204,10 +204,12 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    if (procCoord[HALO_Z_AXIS] == 0)                       parms->pbcFactor[HALO_Z_MINUS][HALO_Z_AXIS] = +1.0;
    if (procCoord[HALO_Z_AXIS] == procGrid[HALO_Z_AXIS]-1) parms->pbcFactor[HALO_Z_PLUS][HALO_Z_AXIS]  = -1.0;
 
+   /*
    parms->sendBufM = (char *) comdMalloc(hh->bufCapacity);
    parms->sendBufP = (char *) comdMalloc(hh->bufCapacity);
    parms->recvBufM = (char *) comdMalloc(hh->bufCapacity);
    parms->recvBufP = (char *) comdMalloc(hh->bufCapacity);
+   */
 
    hh->parms = parms;
    return hh;
@@ -258,6 +260,7 @@ HaloExchange* initForceHaloExchange(Domain* domain, LinkCell* boxes)
       parms->recvCells[ii] = mkForceRecvCellList(boxes, ii, parms->nCells[ii]);
    }
 
+
    hh->parms = parms;
    return hh;
 }
@@ -273,8 +276,11 @@ void destroyHaloExchange(HaloExchange** haloExchange)
 void haloExchange(HaloExchange* haloExchange, void* data)
 {
    for (int iAxis=0; iAxis<3; ++iAxis) {
-      exchangeData(haloExchange, data, iAxis);
+      //exchangeData(haloExchange, data, iAxis);
    }
+      exchangeData(haloExchange, data, 0);
+      exchangeData(haloExchange, data, 1);
+      exchangeData(haloExchange, data, 2);
 }
 
 /// Base class constructor.
@@ -307,12 +313,30 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
    enum HaloFaceOrder faceM = HaloFaceOrder(2*iAxis);
    enum HaloFaceOrder faceP = HaloFaceOrder(faceM+1);
 
+   /*
    AtomExchangeParms* parms = (AtomExchangeParms*) haloExchange->parms;
    char* sendBufM = parms->sendBufM;
    char* sendBufP = parms->sendBufP;
    char* recvBufM = parms->recvBufM;
    char* recvBufP = parms->recvBufP;
+   */
 
+size_t free_mem = -1;
+size_t tot_mem = 0;
+cudaMemGetInfo(&free_mem, &tot_mem);
+printf("mem left pre: %zu bytes\n", free_mem);
+   char* sendBufM = (char*)comdMalloc(haloExchange->bufCapacity);
+   char* sendBufP = (char*)comdMalloc(haloExchange->bufCapacity);
+   char* recvBufM = (char*)comdMalloc(haloExchange->bufCapacity);
+   char* recvBufP = (char*)comdMalloc(haloExchange->bufCapacity);
+cudaMemGetInfo(&free_mem, &tot_mem);
+printf("mem left: %zu bytes\n", free_mem);
+printf("Test buf cap: %d\n",haloExchange->bufCapacity);
+printf("Test halo: %p\n", (void*)haloExchange);
+printf("Test pointer: %p\n",(void*)sendBufM);
+printf("Test pointer: %p\n",(void*)sendBufP);
+printf("Test pointer: %p\n",(void*)recvBufM);
+printf("Test pointer: %p\n",(void*)recvBuf);
    startTimer(atomPackTimer);
    int nSendM = haloExchange->loadBuffer(haloExchange->parms, data, faceM, sendBufM);
    int nSendP = haloExchange->loadBuffer(haloExchange->parms, data, faceP, sendBufP);
@@ -332,6 +356,19 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
    haloExchange->unloadBuffer(haloExchange->parms, data, faceM, nRecvM, recvBufM);
    haloExchange->unloadBuffer(haloExchange->parms, data, faceP, nRecvP, recvBufP);
    stopTimer(atomUnpackTimer);
+
+cudaMemGetInfo(&free_mem, &tot_mem);
+printf("mem left before free: %zu bytes\n", free_mem);
+   comdFree(sendBufP);
+   comdFree(sendBufM);
+   comdFree(recvBufP);
+   comdFree(recvBufM);
+   recvBufP = NULL;
+   recvBufM = NULL;
+   sendBufP = NULL;
+   sendBufM = NULL;
+cudaMemGetInfo(&free_mem, &tot_mem);
+printf("mem left after free: %zu bytes\n", free_mem);
 }
 
 /// Make a list of link cells that need to be sent across the specified
@@ -696,10 +733,12 @@ void destroyAtomsExchange(void* vparms)
       comdFree(parms->pbcFactor[ii]);
       comdFree(parms->cellList[ii]);
    }
+   /*
    comdFree(parms->sendBufM);
    comdFree(parms->sendBufP);
    comdFree(parms->recvBufM);
    comdFree(parms->recvBufP);
+   */
 }
 
 /// Make a list of link cells that need to send data across the
