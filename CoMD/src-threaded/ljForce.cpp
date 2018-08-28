@@ -231,9 +231,8 @@ int ljForce(SimFlat* s)
              {
                dr[m] *= fr;
 #ifdef DO_CUDA
-              using ATOMIC_POL = RAJA::atomic::auto_atomic;
-              RAJA::atomic::atomicAdd<ATOMIC_POL>(&f[iOff][m], -dr[m]);
-              RAJA::atomic::atomicAdd<ATOMIC_POL>(&f[jOff][m], dr[m]);
+               atomicAdd(&f[iOff][m], -dr[m]);
+               atomicAdd(&f[jOff][m], dr[m]);
 #else
                f[iOff][m] -= dr[m];
                f[jOff][m] += dr[m];

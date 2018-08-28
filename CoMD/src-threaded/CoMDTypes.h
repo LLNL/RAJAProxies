@@ -88,6 +88,7 @@ typedef struct SimFlatSt
 
 } SimFlat;
 
+#ifdef DO_CUDA
 /* This is essentially a copy of the SimFlat structure that is passed throughout many of
  * the CoMD functions.  Only the constant values and variables only needed on the CPU will be
  * copied into this structure, none of the atom data or large arrays.
@@ -99,7 +100,6 @@ typedef struct SimFlatSt
 //extern SimFlat *globalSim;
 extern real_t ePotential;     //!< the total potential energy of the system
 extern real_t eKinetic;       //!< the total kinetic energy of the system
-#ifdef DO_CUDA
 extern int nLocal;    //!< total number of atoms on this processor
 extern int nGlobal;   //!< total number of atoms in simulation
 // Allows for __device__ to be put before kernels only when CUDA is enabled
@@ -129,7 +129,7 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<1, RAJA::seq_exec,
   RAJA::statement::For<2, RAJA::seq_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > eamforcePolicyKernel;
+  RAJA::statement::Lambda<0> > > > > > forcePolicy;
 
 // Used for ljForce
 typedef RAJA::KernelPolicy<
@@ -179,16 +179,11 @@ typedef RAJA::KernelPolicy<
 
 // Used for eam (No GPU version yet)
 typedef RAJA::KernelPolicy<
-#ifdef CUDA_ASYNC
-  RAJA::statement::CudaKernelAsync<
-#else
-  RAJA::statement::CudaKernel<
-#endif
-  RAJA::statement::For<0, RAJA::cuda_block_exec,
-  RAJA::statement::For<1, RAJA::cuda_block_exec,
-  RAJA::statement::For<2, RAJA::cuda_thread_exec,
-  RAJA::statement::For<3, RAJA::cuda_thread_exec,
-  RAJA::statement::Lambda<0> > > > > > > eamforcePolicyKernel;
+  RAJA::statement::For<0, RAJA::seq_exec,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
+  RAJA::statement::For<3, RAJA::simd_exec,
+  RAJA::statement::Lambda<0> > > > > > forcePolicy;
 
 // Used for ljForce
 typedef RAJA::KernelPolicy<
@@ -230,7 +225,7 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<1, RAJA::seq_exec,
   RAJA::statement::For<2, RAJA::seq_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > eamforcePolicyKernel;
+  RAJA::statement::Lambda<0> > > > > > forcePolicy;
 
 // Used for ljForce
 typedef RAJA::KernelPolicy<
