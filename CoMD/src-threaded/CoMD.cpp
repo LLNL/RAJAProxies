@@ -524,7 +524,6 @@ void printThings(SimFlat* s, int iStep, double elapsedTime)
    real_t eU = ePotential / nGlobal;
    real_t Temp = (eKinetic / nGlobal) / (kB_eV * 1.5);
    double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*nLocal);
-    printf("value check: %.2f\n", ePotential);
    fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
            iStep, time, eTotal, eU, eK, Temp, timePerAtom, nGlobal);
 #else 
