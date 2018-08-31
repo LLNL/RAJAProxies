@@ -73,6 +73,10 @@ typedef struct ForceExchangeParmsSt
    int nCells[6];     //!< Number of cells to send/recv for each face.
    int* sendCells[6]; //!< List of link cells to send for each face.
    int* recvCells[6]; //!< List of link cells to recv for each face.
+   char* sendBufM;
+   char* sendBufP;
+   char* recvBufM;
+   char* recvBufP;
 }
 ForceExchangeParms;
 
@@ -95,7 +99,7 @@ typedef struct ForceMsgSt
 ForceMsg;
 
 static HaloExchange* initHaloExchange(Domain* domain);
-static void exchangeData(HaloExchange* haloExchange, void* data, int iAxis);
+static void exchangeData(HaloExchange* haloExchange, void* data, int iAxis, int source);
 
 static int* mkAtomCellList(LinkCell* boxes, enum HaloFaceOrder iFace, const int nCells);
 static int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf);
@@ -258,7 +262,12 @@ HaloExchange* initForceHaloExchange(Domain* domain, LinkCell* boxes)
       parms->recvCells[ii] = mkForceRecvCellList(boxes, ii, parms->nCells[ii]);
    }
 
+   parms->sendBufM = (char *) comdMalloc(hh->bufCapacity);
+   parms->sendBufP = (char *) comdMalloc(hh->bufCapacity);
+   parms->recvBufM = (char *) comdMalloc(hh->bufCapacity);
+   parms->recvBufP = (char *) comdMalloc(hh->bufCapacity);
    hh->parms = parms;
+
    return hh;
 }
 
@@ -270,10 +279,14 @@ void destroyHaloExchange(HaloExchange** haloExchange)
    *haloExchange = NULL;
 }
 
-void haloExchange(HaloExchange* haloExchange, void* data)
+// haloExchange is used by both atom and force
+// the extra argument source is to indicate which one 
+// invokes this function so that we can cast the parms to 
+// according types
+void haloExchange(HaloExchange* haloExchange, void* data, int source)
 {
    for (int iAxis=0; iAxis<3; ++iAxis) {
-      exchangeData(haloExchange, data, iAxis);
+      exchangeData(haloExchange, data, iAxis, source);
    }
 }
 
@@ -302,16 +315,31 @@ HaloExchange* initHaloExchange(Domain* domain)
 /// \param [in] iAxis     Axis index.
 /// \param [in, out] data Pointer to data that will be passed to the load and
 ///                       unload functions
-void exchangeData(HaloExchange* haloExchange, void* data, int iAxis)
+
+// source - 0: exchange atom data
+//        - 1: exchange force data
+void exchangeData(HaloExchange* haloExchange, void* data, int iAxis, int source)
 {
    enum HaloFaceOrder faceM = HaloFaceOrder(2*iAxis);
    enum HaloFaceOrder faceP = HaloFaceOrder(faceM+1);
 
-   AtomExchangeParms* parms = (AtomExchangeParms*) haloExchange->parms;
-   char* sendBufM = parms->sendBufM;
-   char* sendBufP = parms->sendBufP;
-   char* recvBufM = parms->recvBufM;
-   char* recvBufP = parms->recvBufP;
+   char* sendBufM;
+   char* sendBufP;
+   char* recvBufM;
+   char* recvBufP;
+   if (source == 0) {
+      AtomExchangeParms* parms = (AtomExchangeParms*) haloExchange->parms;
+      sendBufM = parms->sendBufM;
+      sendBufP = parms->sendBufP;
+      recvBufM = parms->recvBufM;
+      recvBufP = parms->recvBufP; 
+   } else {
+      ForceExchangeParms* parms = (ForceExchangeParms*) haloExchange->parms;
+      sendBufM = parms->sendBufM;
+      sendBufP = parms->sendBufP;
+      recvBufM = parms->recvBufM;
+      recvBufP = parms->recvBufP; 
+   }
 
    startTimer(atomPackTimer);
    int nSendM = haloExchange->loadBuffer(haloExchange->parms, data, faceM, sendBufM);
@@ -866,6 +894,10 @@ void destroyForceExchange(void* vparms)
       comdFree(parms->sendCells[ii]);
       comdFree(parms->recvCells[ii]);
    }
+   comdFree(parms->sendBufM);
+   comdFree(parms->sendBufP);
+   comdFree(parms->recvBufM);
+   comdFree(parms->recvBufP);
 }
 
 ///  A function suitable for passing to qsort to sort atoms by gid.
