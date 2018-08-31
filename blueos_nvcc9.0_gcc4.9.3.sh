@@ -28,7 +28,7 @@ cmake \
   -DENABLE_KRIPKE=Off \
   -DENABLE_LULESH_ONE=Off \
   -DENABLE_LULESH_TWO=Off \
-  -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-9.2.88 \
+  -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-9.2.148 \
   -DENABLE_ALL_WARNINGS=Off \
   -DCMAKE_INSTALL_PREFIX=../install_blueos_nvcc9.0_gcc4.9.3 \
   -DENABLE_MPI=On \
