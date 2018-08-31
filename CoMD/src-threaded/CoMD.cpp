@@ -323,9 +323,14 @@ SimFlat* initSimulation(Command cmd)
    startTimer(computeForceTimer);
    computeForce(sim);
    stopTimer(computeForceTimer);
+printf("init Force complete\n");
 
+#ifdef DO_CUDA
+   cudaStreamSynchronize(0);
+#endif
    kineticEnergy(sim);
 
+printf("init Energy complete\n");
 
    return sim;
 }
@@ -533,7 +538,6 @@ void printThings(SimFlat* s, int iStep, double elapsedTime)
    real_t eU = ePotential / tnG;
    real_t Temp = (eKinetic / tnG) / (kB_eV * 1.5); 
    double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*s->atoms->nLocal);
-    printf("value check: %.2f\n", ePotential);
    fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
            iStep, time, eTotal, eU, eK, Temp, timePerAtom, tnG);
 #endif

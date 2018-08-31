@@ -152,7 +152,7 @@ static void eamBcastPotential(EamPotential* pot);
 static InterpolationObject* initInterpolationObject(
    int n, real_t x0, real_t dx, real_t* data);
 static void destroyInterpolationObject(InterpolationObject** table);
-static void interpolate(InterpolationObject* table, real_t r, real_t* f, real_t* df);
+COMD_DEVICE static void interpolate(InterpolationObject* table, real_t r, real_t* f, real_t* df);
 static void bcastInterpolationObject(InterpolationObject** table);
 static void printTableData(InterpolationObject* table, const char* fileName);
 
@@ -232,6 +232,7 @@ int eamForce(SimFlat* s)
       pot->forceExchangeData = (ForceExchangeData*)comdMalloc(sizeof(ForceExchangeData));
       pot->forceExchangeData->dfEmbed = pot->dfEmbed;
       pot->forceExchangeData->boxes = s->boxes;
+printf("eamForce init end\n");
    }
    
    real_t rCut2 = pot->cutoff*pot->cutoff;
@@ -245,16 +246,43 @@ int eamForce(SimFlat* s)
    /* See the small kernel in ljForce before the main kernel for
     * how to do this (the zeroing kernel).
     */
+   /*
    memset(s->atoms->f,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real3));
    memset(s->atoms->U,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
    memset(pot->dfEmbed, 0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
    memset(pot->rhobar,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
+   */
+
+   profileStart(forceZeroingTimer);
+   RAJA::kernel<atomWorkKernel>(
+           RAJA::make_tuple(
+           RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
+           RAJA::RangeSegment(0, MAXATOMS) ),
+           [=] COMD_DEVICE (int iBox, int iOffLocal) {
+              const int nIBox = s->boxes->nAtoms[iBox];
+              if(iOffLocal < nIBox) {
+                 const int iOff = iOffLocal + (iBox * MAXATOMS);
+                 real3_ptr f  = s->atoms->f;
+                 real_ptr U   = s->atoms->U;
+                 real_ptr dfE = pot->dfEmbed;
+                 real_ptr rho = pot->rhobar;
+                 f[iOff][0] = 0.0;
+                 f[iOff][1] = 0.0;
+                 f[iOff][2] = 0.0;
+                 U[iOff] = 0.0;
+                 dfE[iOff] = 0.0;
+                 rho[iOff] = 0.0;
+
+              }
+           } ) ;
+
+   profileStop(forceZeroingTimer);
+
 
    int nbrBoxes[27];
+   real_t etot = 0.0;
 //#define DO_SERIAL
 #ifdef DO_SERIAL
-   real_t etot = 0.0;
-
    for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
    {
       int nIBox = s->boxes->nAtoms[iBox];
@@ -321,14 +349,13 @@ int eamForce(SimFlat* s)
     * ###############  TODO Put this on GPU ################
     * ######################################################
     */
-   RAJA::kernel<forcePolicy>(
+   RAJA::kernel<eamforcePolicyKernel>(
      RAJA::make_tuple(
        *s->isLocalSegment,                // local boxes
        RAJA::RangeSegment(0,27),          // 27 neighbor boxes
        RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
        RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
-
-     [=] RAJA_HOST_DEVICE(int iBox, int nghb, int iOff, int jOff) {
+     [=] COMD_DEVICE (int iBox, int nghb, int iOff, int jOff) {
        const int jBox = s->boxes->nbrBoxes[iBox][nghb];
        const int nIBox = s->boxes->nAtoms[iBox];
        const int nJBox = s->boxes->nAtoms[jBox];
@@ -391,7 +418,7 @@ int eamForce(SimFlat* s)
       //} // loop over neighbor boxes
      }); // loop over local boxes
 
-   real_t etot = etot_raja;
+   etot = etot_raja;
 #endif
 
    /* ######################################################
@@ -407,6 +434,8 @@ int eamForce(SimFlat* s)
     */
    // Compute Embedding Energy
    // loop over all local boxes
+   
+   /*
    for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
    {
       int iOff;
@@ -422,10 +451,30 @@ int eamForce(SimFlat* s)
          s->atoms->U[iOff] += fEmbed;
       }
    }
+   */
+    
+   rajaReduceSumReal etot_raja_embed(0.0);
 
+   RAJA::kernel<atomWorkKernel>(
+   RAJA::make_tuple(
+     RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
+     RAJA::RangeSegment(0, MAXATOMS) ),
+     [=] COMD_DEVICE (int iBox, int iOffLocal) {
+        const int nIBox = s->boxes->nAtoms[iBox];
+        if(iOffLocal < nIBox) {
+          const int iOff = iOffLocal + (iBox * MAXATOMS);
+          real_t fEmbed, dfEmbed;
+          interpolate(pot->f, pot->rhobar[iOff], &fEmbed, &dfEmbed);
+          pot->dfEmbed[iOff] = dfEmbed; // save derivative for halo exchange
+          etot_raja_embed += fEmbed; 
+          s->atoms->U[iOff] += fEmbed;   
+        }
+    } ) ;
+
+    etot += etot_raja_embed;
    // exchange derivative of the embedding energy with repsect to rhobar
    startTimer(eamHaloTimer);
-   haloExchange(pot->forceExchange, pot->forceExchangeData);
+   haloExchange(pot->forceExchange, pot->forceExchangeData, 1);
    stopTimer(eamHaloTimer);
 
    // third pass
@@ -480,20 +529,16 @@ int eamForce(SimFlat* s)
     * ###############  TODO Put this on GPU ################
     * ######################################################
     */
-   RAJA::kernel<forcePolicy>(
+   RAJA::kernel<eamforcePolicyKernel>(
      RAJA::make_tuple(
        *s->isLocalSegment,                // local boxes
        RAJA::RangeSegment(0,27),          // 27 neighbor boxes
        RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
        RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
-
-     [=] (int iBox, int nghb, int iOff, int jOff) {
+     [=] COMD_DEVICE (int iBox, int nghb, int iOff, int jOff) {
        const int jBox = s->boxes->nbrBoxes[iBox][nghb];
        const int nIBox = s->boxes->nAtoms[iBox];
        const int nJBox = s->boxes->nAtoms[jBox];
-       const int nLocalBoxes = s->boxes->nLocalBoxes;
-       real_ptr U = s->atoms->U;
-       real_ptr rhobar = pot->rhobar;
        InterpolationObject *rhoLocal = pot->rho;
        real3_ptr f = s->atoms->f;
        real_ptr dfEmbed = pot->dfEmbed;
@@ -669,7 +714,7 @@ void destroyInterpolationObject(InterpolationObject** a)
 /// \param [in] r Point where function value is needed.
 /// \param [out] f The interpolated value of f(r).
 /// \param [out] df The interpolated value of df(r)/dr.
-inline void interpolate(InterpolationObject* table, real_t r, real_t* f, real_t* df)
+COMD_DEVICE inline void interpolate(InterpolationObject* table, real_t r, real_t* f, real_t* df)
 {
    const real_t* tt = table->values; // alias
 

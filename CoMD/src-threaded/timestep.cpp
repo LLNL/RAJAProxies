@@ -152,6 +152,7 @@ void kineticEnergy(SimFlat* s)
     } ) ;
 
    eLocal[1] = kenergy;
+// printf("kenergy: %f\n", eLocal[1]);
 
    real_t eSum[2];
    startTimer(commReduceTimer);
@@ -282,7 +283,7 @@ void redistributeAtoms(SimFlat* sim)
    stopTimer(updateLinkCellsTimer);
 
    startTimer(atomHaloTimer);
-   haloExchange(sim->atomExchange, sim);
+   haloExchange(sim->atomExchange, sim, 0);
    stopTimer(atomHaloTimer);
 
    startTimer(atomSortTimer);

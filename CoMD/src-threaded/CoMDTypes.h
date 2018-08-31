@@ -84,7 +84,7 @@ typedef struct SimFlatSt
 
    RAJA::TypedIndexSet<RAJA::RangeSegment> *isTotal ;
    RAJA::TypedIndexSet<RAJA::RangeSegment> *isLocal ;
-  RAJA::RangeSegment *isLocalSegment ;
+   RAJA::RangeSegment *isLocalSegment ;
 
 } SimFlat;
 
@@ -129,7 +129,7 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<1, RAJA::seq_exec,
   RAJA::statement::For<2, RAJA::seq_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > forcePolicy;
+  RAJA::statement::Lambda<0> > > > > > eamforcePolicyKernel;
 
 // Used for ljForce
 typedef RAJA::KernelPolicy<
@@ -177,13 +177,18 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
     RAJA::statement::Lambda<0> > > > redistributeKernel;
 
-// Used for eam (No GPU version yet)
+// Used for eam
 typedef RAJA::KernelPolicy<
-  RAJA::statement::For<0, RAJA::seq_exec,
-  RAJA::statement::For<1, RAJA::seq_exec,
-  RAJA::statement::For<2, RAJA::seq_exec,
-  RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > forcePolicy;
+#ifdef CUDA_ASYNC
+  RAJA::statement::CudaKernelAsync<
+#else
+  RAJA::statement::CudaKernel<
+#endif
+  RAJA::statement::For<0, RAJA::cuda_block_exec,
+  RAJA::statement::For<1, RAJA::cuda_block_exec,
+  RAJA::statement::For<2, RAJA::cuda_thread_exec,
+  RAJA::statement::For<3, RAJA::cuda_thread_exec,
+  RAJA::statement::Lambda<0> > > > > > > eamforcePolicyKernel;
 
 // Used for ljForce
 typedef RAJA::KernelPolicy<
@@ -225,7 +230,7 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<1, RAJA::seq_exec,
   RAJA::statement::For<2, RAJA::seq_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > forcePolicy;
+  RAJA::statement::Lambda<0> > > > > > eamforcePolicyKernel;
 
 // Used for ljForce
 typedef RAJA::KernelPolicy<

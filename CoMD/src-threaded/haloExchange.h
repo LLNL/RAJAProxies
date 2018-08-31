@@ -78,7 +78,7 @@ HaloExchange* initForceHaloExchange(struct DomainSt* domain, struct LinkCellSt* 
 void destroyHaloExchange(HaloExchange** haloExchange);
 
 /// Execute a halo exchange.
-void haloExchange(HaloExchange* haloExchange, void* data);
+void haloExchange(HaloExchange* haloExchange, void* data, int source);
 
 /// Sort the atoms by gid in the specified link cell.
 //COMD_HOST_DEVICE void sortAtomsInCell(struct AtomsSt* atoms, struct LinkCellSt* boxes, int iBox);
