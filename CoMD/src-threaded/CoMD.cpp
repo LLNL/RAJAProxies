@@ -62,6 +62,7 @@
 #include "mycommand.h"
 #include "timestep.h"
 #include "constants.h"
+#include <caliper/cali.h>
 
 #define REDIRECT_OUTPUT 0
 #define   MIN(A,B) ((A) < (B) ? (A) : (B))
@@ -95,6 +96,7 @@ static void sanityChecks(Command cmd, double cutoff, double latticeConst, char l
 
 int main(int argc, char** argv)
 {
+   //CALI_CXX_MARK_FUNCTION;
    // Prolog
    initParallel(&argc, &argv);
    profileStart(totalTimer);
@@ -105,6 +107,10 @@ int main(int argc, char** argv)
    yamlAppInfo(screenOut);
 
    Command cmd = parseCommandLine(argc, argv);
+   // if cmd.seed is not supplied as argument, make sure it is the same on all nodes
+   bcastParallel(&cmd.seed, 1, 0);
+   srand(cmd.seed);
+
    printCmdYaml(yamlFile, &cmd);
    printCmdYaml(screenOut, &cmd);
 
@@ -270,7 +276,6 @@ SimFlat* initSimulation(Command cmd)
      }
 
    }
-
    /* Create Local IndexSet View */
    sim->isLocal = sim->isTotal->createSlice(0, sim->boxes->nLocalBoxes);
    sim->isLocalSegment = new RAJA::RangeSegment(0, sim->boxes->nLocalBoxes);
@@ -315,22 +320,19 @@ SimFlat* initSimulation(Command cmd)
    */
 #endif
 
+   // remove some atoms to create load-imbalance
+   performCutout(sim, cmd.holeCount, cmd.holeRadius);
+   
    // Forces must be computed before we call the time stepper.
    startTimer(redistributeTimer);
    redistributeAtoms(sim);
    stopTimer(redistributeTimer);
-
    startTimer(computeForceTimer);
    computeForce(sim);
    stopTimer(computeForceTimer);
-printf("init Force complete\n");
 
-#ifdef DO_CUDA
-   cudaStreamSynchronize(0);
-#endif
    kineticEnergy(sim);
 
-printf("init Energy complete\n");
 
    return sim;
 }

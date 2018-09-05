@@ -53,6 +53,6 @@ COMD_HOST_DEVICE void moveAtom(LinkCell* boxes, struct AtomsSt* atoms, int iId, 
 void updateLinkCells(LinkCell* boxes, struct AtomsSt* atoms);
 
 int maxOccupancy(LinkCell* boxes);
-
+void deleteAtom(struct SimFlatSt* s, int iId, int iBox);
 
 #endif

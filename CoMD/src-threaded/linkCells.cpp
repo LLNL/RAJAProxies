@@ -488,4 +488,18 @@ void getTuple(LinkCell* boxes, int iBox, int* ixp, int* iyp, int* izp)
    *izp = iz;
 }
 
-
+/// delete one atom from its box
+//  \param iId atom index
+//  \param iBox linkCell index
+void deleteAtom(struct SimFlatSt* s, int iId, int iBox)
+{
+   int n = --s->boxes->nAtoms[iBox];
+//printf("atoms: %d, aID: %d, box id: %d\n",tt, iId, iBox);
+   s->atoms->nLocal--;
+   
+   // use the last atom to fill the hole caused by removing atom
+   if (n > 0 && n != iId)
+   {
+      copyAtom(s->boxes, s->atoms, n, iBox, iId, iBox); 
+   }  
+} 

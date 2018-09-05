@@ -28,6 +28,8 @@ void timestampBarrier(const char* msg);
 /// Wrapper for MPI_Init.
 void initParallel(int *argc, char ***argv);
 
+int rankOfPrintRank();
+
 /// Wrapper for MPI_Finalize.
 void destroyParallel(void);
 
@@ -40,6 +42,8 @@ int sendReceiveParallel(void* sendBuf, int sendLen, int dest,
 
 /// Wrapper for MPI_Allreduce integer sum.
 void addIntParallel(int* sendBuf, int* recvBuf, int count);
+
+void addIntParallelRoot(int* sendBuf, int* recvBuf, int count, int root);
 
 /// Wrapper for MPI_Allreduce real sum.
 void addRealParallel(real_t* sendBuf, real_t* recvBuf, int count);

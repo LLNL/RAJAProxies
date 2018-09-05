@@ -5,6 +5,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "cmdLineParser.h"
 #include "parallel.h"
@@ -43,6 +44,9 @@
 /// | \--lat        | -l          | -1            | lattice parameter (Angstroms)
 /// | \--temp       | -T          | 600           | initial temperature (K)
 /// | \--delta      | -r          | 0             | initial delta (Angstroms)
+/// | \--seed       | -S          | N/A           | seed for random generator
+/// | \--holeRadius | -R          | 10.0          | radius for cutout holes (Angstroms)
+/// | \--holeCount  | -C          | 0             | number of cutout holes
 ///
 /// Notes: 
 /// 
@@ -206,6 +210,9 @@ Command parseCommandLine(int argc, char** argv)
    cmd.lat = -1.0;
    cmd.temperature = 600.0;
    cmd.initialDelta = 0.0;
+   cmd.seed = (int) time(NULL);
+   cmd.holeRadius = 10.0;
+   cmd.holeCount = 0;   
 
    int help=0;
    // add arguments for processing.  Please update the html documentation too!
@@ -226,6 +233,9 @@ Command parseCommandLine(int argc, char** argv)
    addArg("lat",        'l', 1, 'd',  &(cmd.lat),          0,             "lattice parameter (Angstroms)");
    addArg("temp",       'T', 1, 'd',  &(cmd.temperature),  0,             "initial temperature (K)");
    addArg("delta",      'r', 1, 'd',  &(cmd.initialDelta), 0,             "initial delta (Angstroms)");
+   addArg("seed",       'S', 1, 'i',  &(cmd.seed),         0,             "seed for random generator");
+   addArg("holeRadius", 'R', 1, 'd',  &(cmd.holeRadius),   0,             "radius for cutout holes (Angstroms)");
+   addArg("holeCount",  'C', 1, 'i',  &(cmd.holeCount),    0,             "nuber of cutout holes");
 
    processArgs(argc,argv);
 
@@ -271,6 +281,9 @@ void printCmdYaml(FILE* file, Command* cmd)
            "  Time step: %g fs\n"
            "  Initial Temperature: %g K\n"
            "  Initial Delta: %g Angstroms\n"
+           "  seed: %d\n"
+           "  holeRadius: %g # Angstroms\n"
+           "  holeCount: %d\n"
            "\n",
            cmd->doeam,
            cmd->potDir,
@@ -283,7 +296,10 @@ void printCmdYaml(FILE* file, Command* cmd)
            cmd->printRate,
            cmd->dt,
            cmd->temperature,
-           cmd->initialDelta
+           cmd->initialDelta,
+           cmd->seed,
+           cmd->holeRadius,
+           cmd->holeCount
    );
    fflush(file);
 }

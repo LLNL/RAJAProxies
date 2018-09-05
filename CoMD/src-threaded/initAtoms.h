@@ -29,10 +29,11 @@ typedef struct AtomsSt
 /// Allocates memory to store atom data.
 Atoms* initAtoms(struct LinkCellSt* boxes);
 void destroyAtoms(struct AtomsSt* atoms);
-
 void createFccLattice(int nx, int ny, int nz, real_t lat, struct SimFlatSt* s);
 
 void setVcm(struct SimFlatSt* s, real_t vcm[3]);
 void setTemperature(struct SimFlatSt* s, real_t temperature);
 void randomDisplacements(struct SimFlatSt* s, real_t delta);
+void performCutout(struct SimFlatSt* s, const int count, const double radius);
+int is_within_spheres(struct SimFlatSt* s, real3 *sphere_pos, const int count, const double radius, const real_t *pos);
 #endif

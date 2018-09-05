@@ -28,6 +28,8 @@ static int nRanks = 1;
 
 #endif
 
+#define PRINTRANK 0
+
 int getNRanks()
 {
    return nRanks;
@@ -46,6 +48,11 @@ int printRank()
 {
    if (myRank == 0) return 1;
    return 0;
+}
+
+int rankOfPrintRank()
+{
+     return PRINTRANK;
 }
 
 void timestampBarrier(const char* msg)
@@ -117,6 +124,16 @@ void addIntParallel(int* sendBuf, int* recvBuf, int count)
 #else
    for (int ii=0; ii<count; ++ii)
       recvBuf[ii] = sendBuf[ii];
+#endif
+}
+
+void addIntParallelRoot(int* sendBuf, int* recvBuf, int count, int root)
+{
+#ifdef DO_MPI
+     MPI_Reduce(sendBuf, recvBuf, count, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
+#else
+     for (int ii=0; ii<count; ++ii)
+          recvBuf[ii] += sendBuf[ii];
 #endif
 }
 
