@@ -14,6 +14,9 @@
 #include "timestep.h"
 #include "memUtils.h"
 #include "performanceTimers.h"
+#include "yamlOutput.h"
+
+#define   MIN(A,B) ((A) < (B) ? (A) : (B))
 
 static void computeVcm(SimFlat* s, real_t vcm[3]);
 
@@ -220,3 +223,102 @@ void computeVcm(SimFlat* s, real_t vcm[3])
    vcm[2] = vcmSum[2]/totalMass;
 }
 
+int is_within_spheres(struct SimFlatSt* s, real3 *sphere_pos, const int count, const double radius, const real_t *pos)
+{
+     for (int i = 0; i < count; i++){
+          real3 d2;
+          for (int dim=0; dim<3; dim++) {
+               real_t d = pos[dim] - sphere_pos[i][dim];
+               d2[dim] = d*d;
+
+               if (pos[dim] <= radius + s->domain->globalMin[dim]) {
+                    d = pos[dim] - (sphere_pos[i][dim] - s->domain->globalExtent[dim]);
+                    d2[dim] = MIN(d2[dim], d*d);
+               }
+               if (s->domain->globalMax[dim] - radius <= pos[dim]) {
+                    d = (sphere_pos[i][dim] + s->domain->globalMax[dim]) - pos[dim];
+                    d2[dim] = MIN(d2[dim], d*d);
+               }
+          }
+
+          if ( d2[0] + d2[1] + d2[2] <= radius * radius )
+               return 1;
+     }
+     return 0;
+}
+
+
+void performCutout(struct SimFlatSt* s, int count, const double radius)
+{
+   int total = s->atoms->nLocal * getNRanks();
+
+   real3 sphere_pos[count];
+
+   for(int i = 0; i<count; i++)
+   {
+       sphere_pos[i][0] = s->domain->globalExtent[0] * rand()/RAND_MAX + s->domain->globalMin[0];
+       sphere_pos[i][1] = s->domain->globalExtent[1] * rand()/RAND_MAX + s->domain->globalMin[1];
+       sphere_pos[i][2] = s->domain->globalExtent[2] * rand()/RAND_MAX + s->domain->globalMin[2];
+// printf("Center Coordinates: %f, %f %f\n", sphere_pos[i][0], sphere_pos[i][1], sphere_pos[i][2]);
+   }
+
+   int removed = 0;
+   
+   for (int iBox = 0; iBox < s->boxes->nLocalBoxes; iBox++)
+   {
+      int nIBox =  s->boxes->nAtoms[iBox]; 
+      int iOff=MAXATOMS*iBox;
+      int ii = 0;
+      // loop over atoms in iBox
+      while (ii < s->boxes->nAtoms[iBox])
+      {
+         if (is_within_spheres(s, sphere_pos, count, radius, s->atoms->r[iOff+ii]))
+         {
+             removed++;
+             deleteAtom(s, ii, iBox);
+         } 
+         else
+         {
+             ii++;
+         }
+      }
+
+   }
+
+   // sum
+   int total_removed = 0;
+   addIntParallelRoot(&removed, &total_removed, 1, rankOfPrintRank());
+
+   if(printRank()) {
+       int total_notRemoved = total - total_removed;
+
+
+      fprintf(screenOut,
+              "Cutout holes:\n"
+              "  fraction removed:    %3.1f%\n"
+              "  atoms_removed: %9d\n"
+              "  atoms_before:  %9d\n"
+              "  atoms_left:    %9d\n"
+              "\n"
+              ,
+              ((real_t) total_removed * 100) / ((real_t) total),
+              total_removed,
+              total,
+              total_notRemoved
+             );
+
+       fprintf(yamlFile,
+               "Cutout holes:\n"
+               "  fraction removed:    %3.1f%\n"
+               "  atoms_removed: %9d\n"
+               "  atoms_before:  %9d\n"
+               "  atoms_left:    %9d\n"
+               "\n"
+               ,
+               ((real_t) total_removed * 100) / ((real_t) total),
+               total_removed,
+               total,
+               total_notRemoved
+            );
+  }
+}
