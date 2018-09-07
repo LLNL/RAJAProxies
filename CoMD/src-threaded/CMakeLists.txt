@@ -2,9 +2,13 @@ add_definitions(-DDOUBLE)
 
 set (CoMD_depends RAJA)
 
+#find_package(caliper)
+#set(CoMD_depends ${CoMD_depends} caliper)
+
 if (ENABLE_MPI)
   add_definitions(-DDO_MPI)
   set (CoMD_depends ${CoMD_depends} MPI)
+  #set(CoMD_depends ${CoMD_depends} caliper-mpi)
 endif()
 
 if (ENABLE_OPENMP)
