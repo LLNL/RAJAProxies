@@ -255,15 +255,15 @@ SimFlat* initSimulation(Command cmd)
            tmpBox[tmpCount++] = sim->boxes->nbrBoxes[i][j] ;
          }
        }
-         sim->boxes->neighbors[i] =
-           sim->isTotal->createSlice(tmpBox, tmpCount) ;
+       /*sim->boxes->neighbors[i] =
+         sim->isTotal->createSlice(tmpBox, tmpCount) ;*/
 
          sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(tmpBox, tmpCount);
 
      }
      else {
-       sim->boxes->neighbors[i] =
-         sim->isTotal->createSlice(sim->boxes->nbrBoxes[i], 27) ;
+       /*sim->boxes->neighbors[i] =
+         sim->isTotal->createSlice(sim->boxes->nbrBoxes[i], 27) ;*/
 
        sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(sim->boxes->nbrBoxes[i], 27);
 
@@ -272,7 +272,13 @@ SimFlat* initSimulation(Command cmd)
    }
 
    /* Create Local IndexSet View */
-   sim->isLocal = sim->isTotal->createSlice(0, sim->boxes->nLocalBoxes);
+   sim->isLocal = new RAJA::TypedIndexSet<RAJA::RangeSegment>() ;
+   for(int i = 0; i < sim->boxes->nLocalBoxes; ++i) {
+     RAJA::RangeSegment myseg(i*MAXATOMS, i*MAXATOMS + sim->boxes->nAtoms[i]);
+     sim->isLocal->push_back( myseg ) ;
+   }
+   //sim->isLocal = sim->isTotal->createSlice(0, sim->boxes->nLocalBoxes);
+
    sim->isLocalSegment = new RAJA::RangeSegment(0, sim->boxes->nLocalBoxes);
 
    setTemperature(sim, cmd.temperature);

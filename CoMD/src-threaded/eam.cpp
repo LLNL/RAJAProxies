@@ -91,7 +91,6 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
-#include <omp.h>
 
 #include "constants.h"
 #include "memUtils.h"
@@ -254,11 +253,13 @@ printf("eamForce init end\n");
    */
 
    profileStart(forceZeroingTimer);
+
    RAJA::kernel<atomWorkKernel>(
            RAJA::make_tuple(
            RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
            RAJA::RangeSegment(0, MAXATOMS) ),
            [=] COMD_DEVICE (int iBox, int iOffLocal) {
+
               const int nIBox = s->boxes->nAtoms[iBox];
               if(iOffLocal < nIBox) {
                  const int iOff = iOffLocal + (iBox * MAXATOMS);
@@ -281,81 +282,21 @@ printf("eamForce init end\n");
 
    int nbrBoxes[27];
    real_t etot = 0.0;
-//#define DO_SERIAL
-#ifdef DO_SERIAL
-   for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
-   {
-      int nIBox = s->boxes->nAtoms[iBox];
-      int nNbrBoxes = getNeighborBoxes(s->boxes, iBox, nbrBoxes);
-      // loop over neighbor boxes of iBox (some may be halo boxes)
-      for (int jTmp=0; jTmp<nNbrBoxes; jTmp++)
-      {
-         int jBox = nbrBoxes[jTmp];
-         if (jBox < iBox ) continue;
 
-         int nJBox = s->boxes->nAtoms[jBox];
-         // loop over atoms in iBox
-         for (int iOff=MAXATOMS*iBox,ii=0; ii<nIBox; ii++,iOff++)
-         {
-            // loop over atoms in jBox
-            for (int jOff=MAXATOMS*jBox,ij=0; ij<nJBox; ij++,jOff++)
-            {
-               if ( (iBox==jBox) &&(ij <= ii) ) continue;
-
-               double r2 = 0.0;
-               real3 dr;
-               for (int k=0; k<3; k++)
-               {
-                  dr[k]=s->atoms->r[iOff][k]-s->atoms->r[jOff][k];
-                  r2+=dr[k]*dr[k];
-               }
-               if(r2>rCut2) continue;
-
-               double r = sqrt(r2);
-
-               real_t phiTmp, dPhi, rhoTmp, dRho;
-               interpolate(pot->phi, r, &phiTmp, &dPhi);
-               interpolate(pot->rho, r, &rhoTmp, &dRho);
-
-               for (int k=0; k<3; k++)
-               {
-                  s->atoms->f[iOff][k] -= dPhi*dr[k]/r;
-                  s->atoms->f[jOff][k] += dPhi*dr[k]/r;
-               }
-
-               // update energy terms
-               // calculate energy contribution based on whether
-               // the neighbor box is local or remote
-               if (jBox < s->boxes->nLocalBoxes)
-                  etot += phiTmp;
-               else
-                  etot += 0.5*phiTmp;
-
-               s->atoms->U[iOff] += 0.5*phiTmp;
-               s->atoms->U[jOff] += 0.5*phiTmp;
-
-               // accumulate rhobar for each atom
-               pot->rhobar[iOff] += rhoTmp;
-               pot->rhobar[jOff] += rhoTmp;
-
-            } // loop over atoms in jBox
-         } // loop over atoms in iBox
-      } // loop over neighbor boxes
-   } // loop over local boxes
-
+#if DO_CUDA
+   rajaReduceSumRealKernel etot_raja(0.0);
 #else
    rajaReduceSumReal etot_raja(0.0);
-   /* ######################################################
-    * ###############  TODO Put this on GPU ################
-    * ######################################################
-    */
-   RAJA::kernel<eamforcePolicyKernel>(
+#endif
+
+   RAJA::kernel<forcePolicyKernel>(
      RAJA::make_tuple(
        *s->isLocalSegment,                // local boxes
        RAJA::RangeSegment(0,27),          // 27 neighbor boxes
        RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
        RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
      [=] COMD_DEVICE (int iBox, int nghb, int iOff, int jOff) {
+
        const int jBox = s->boxes->nbrBoxes[iBox][nghb];
        const int nIBox = s->boxes->nAtoms[iBox];
        const int nJBox = s->boxes->nAtoms[jBox];
@@ -367,7 +308,15 @@ printf("eamForce init end\n");
        InterpolationObject *rhoLocal = pot->rho;
        real3_ptr f = s->atoms->f;
 
-       if( (iOff < nIBox && jOff < nJBox) && !(jBox < iBox) && !((iBox == jBox) && (jOff <= iOff)) ) {
+       const int iOffLocal = iOff;
+       const int jOffLocal = jOff;
+       //iOff += iBox*MAXATOMS;
+       //jOff += jBox*MAXATOMS;
+       //const int iGid = s->atoms->gid[iOff];
+       //const int jGid = s->atoms->gid[jOff];
+
+       if( ((iOff < nIBox) && (jOff < nJBox)) && !(jBox < iBox) && !((iBox == jBox) && (jOff <= iOff)) ) {
+       //if( (iOffLocal < nIBox && jOffLocal < nJBox) && !(jBox < nLocalBoxes && jGid <= iGid)) {
          iOff += iBox*MAXATOMS;
          jOff += jBox*MAXATOMS;
 
@@ -389,8 +338,13 @@ printf("eamForce init end\n");
 
            for (int k=0; k<3; k++)
            {
+#if DO_CUDA
+             atomicAdd(&f[iOff][k], -(dPhi*dr[k]/r));
+             atomicAdd(&f[jOff][k], dPhi*dr[k]/r);
+#else
              f[iOff][k] -= dPhi*dr[k]/r;
              f[jOff][k] += dPhi*dr[k]/r;
+#endif
            }
 
            // update energy terms
@@ -402,15 +356,24 @@ printf("eamForce init end\n");
              etot_raja += 0.5*phiTmp;
 
            //real_ptr U = s->atoms->U;
-
+#if DO_CUDA
+           atomicAdd(&U[iOff], 0.5*phiTmp);
+           atomicAdd(&U[jOff], 0.5*phiTmp);
+#else
            U[iOff] += 0.5*phiTmp;
            U[jOff] += 0.5*phiTmp;
+#endif
 
            //real_ptr rhobar = pot->rhobar;
 
            // accumulate rhobar for each atom
+#if DO_CUDA
+           atomicAdd(&rhobar[iOff], rhoTmp);
+           atomicAdd(&rhobar[jOff], rhoTmp);
+#else
            rhobar[iOff] += rhoTmp;
            rhobar[jOff] += rhoTmp;
+#endif
          }
        }
             //} // loop over atoms in jBox
@@ -418,8 +381,7 @@ printf("eamForce init end\n");
       //} // loop over neighbor boxes
      }); // loop over local boxes
 
-   etot = etot_raja;
-#endif
+     etot = etot_raja;
 
    /* ######################################################
     * ###############  TODO Put this on GPU ################
@@ -453,89 +415,47 @@ printf("eamForce init end\n");
    }
    */
     
+#ifdef DO_CUDA
+   rajaReduceSumRealKernel etot_raja_embed(0.0);
+#else
    rajaReduceSumReal etot_raja_embed(0.0);
+#endif
 
    RAJA::kernel<atomWorkKernel>(
    RAJA::make_tuple(
      RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
      RAJA::RangeSegment(0, MAXATOMS) ),
-     [=] COMD_DEVICE (int iBox, int iOffLocal) {
+   [=] COMD_DEVICE (int iBox, int iOffLocal) {
+
         const int nIBox = s->boxes->nAtoms[iBox];
         if(iOffLocal < nIBox) {
           const int iOff = iOffLocal + (iBox * MAXATOMS);
           real_t fEmbed, dfEmbed;
+
           interpolate(pot->f, pot->rhobar[iOff], &fEmbed, &dfEmbed);
+
           pot->dfEmbed[iOff] = dfEmbed; // save derivative for halo exchange
           etot_raja_embed += fEmbed; 
           s->atoms->U[iOff] += fEmbed;   
         }
     } ) ;
 
-    etot += etot_raja_embed;
+   etot += etot_raja_embed;
+
    // exchange derivative of the embedding energy with repsect to rhobar
    startTimer(eamHaloTimer);
    haloExchange(pot->forceExchange, pot->forceExchangeData, 1);
    stopTimer(eamHaloTimer);
 
    // third pass
-#ifdef DO_SERIAL
-   // loop over local boxes
-   for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
-   {
-      int nIBox =  s->boxes->nAtoms[iBox];
-      int nNbrBoxes = getNeighborBoxes(s->boxes, iBox, nbrBoxes);
-      // loop over neighbor boxes of iBox (some may be halo boxes)
-      for (int jTmp=0; jTmp<nNbrBoxes; jTmp++)
-      {
-         int jBox = nbrBoxes[jTmp];
-         if(jBox < iBox) continue;
-
-         int nJBox = s->boxes->nAtoms[jBox];
-         // loop over atoms in iBox
-         for (int iOff=MAXATOMS*iBox,ii=0; ii<nIBox; ii++,iOff++)
-         {
-            // loop over atoms in jBox
-            for (int jOff=MAXATOMS*jBox,ij=0; ij<nJBox; ij++,jOff++)
-            { 
-               if ((iBox==jBox) && (ij <= ii))  continue;
-
-               double r2 = 0.0;
-               real3 dr;
-               for (int k=0; k<3; k++)
-               {
-                  dr[k]=s->atoms->r[iOff][k]-s->atoms->r[jOff][k];
-                  r2+=dr[k]*dr[k];
-               }
-               if(r2>=rCut2) continue;
-
-               real_t r = sqrt(r2);
-
-               real_t rhoTmp, dRho;
-               interpolate(pot->rho, r, &rhoTmp, &dRho);
-
-               for (int k=0; k<3; k++)
-               {
-                  s->atoms->f[iOff][k] -= (pot->dfEmbed[iOff]+pot->dfEmbed[jOff])*dRho*dr[k]/r;
-                  s->atoms->f[jOff][k] += (pot->dfEmbed[iOff]+pot->dfEmbed[jOff])*dRho*dr[k]/r;
-               }
-
-            } // loop over atoms in jBox
-         } // loop over atoms in iBox
-      } // loop over neighbor boxes
-   } // loop over local boxes
-#else
-
-   /* ######################################################
-    * ###############  TODO Put this on GPU ################
-    * ######################################################
-    */
-   RAJA::kernel<eamforcePolicyKernel>(
+   RAJA::kernel<forcePolicyKernel>(
      RAJA::make_tuple(
        *s->isLocalSegment,                // local boxes
        RAJA::RangeSegment(0,27),          // 27 neighbor boxes
        RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
        RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
      [=] COMD_DEVICE (int iBox, int nghb, int iOff, int jOff) {
+
        const int jBox = s->boxes->nbrBoxes[iBox][nghb];
        const int nIBox = s->boxes->nAtoms[iBox];
        const int nJBox = s->boxes->nAtoms[jBox];
@@ -565,15 +485,18 @@ printf("eamForce init end\n");
 
          for (int k=0; k<3; k++)
          {
+#if DO_CUDA
+           atomicAdd(&f[iOff][k], -((dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r));
+           atomicAdd(&f[jOff][k], (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r);
+#else
            f[iOff][k] -= (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r;
            f[jOff][k] += (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r;
+#endif
          }
        }
      }); // loop over local boxes
-#endif
 
    /* Use the CPU-side ePotential global variable here instead */
-   //s->ePotential = (real_t) etot;
    ePotential = (real_t) etot;
 
    return 0;
@@ -714,18 +637,24 @@ void destroyInterpolationObject(InterpolationObject** a)
 /// \param [in] r Point where function value is needed.
 /// \param [out] f The interpolated value of f(r).
 /// \param [out] df The interpolated value of df(r)/dr.
+/* NOTE: The floor function will need to be replaced with floorf if the
+ *       type of real_t is float instead of double.
+ */
 COMD_DEVICE inline void interpolate(InterpolationObject* table, real_t r, real_t* f, real_t* df)
 {
    const real_t* tt = table->values; // alias
+   const real_t invDx = table->invDx;
+   const real_t x0 = table->x0;
+   const int n = table->n;
 
-   if ( r < table->x0 ) r = table->x0;
+   if ( r < x0 ) r = x0;
 
-   r = (r-table->x0)*(table->invDx) ;
+   r = (r-x0)*(invDx) ;
    int ii = (int)floor(r);
-   if (ii > table->n)
+   if (ii > n)
    {
-      ii = table->n;
-      r = table->n / table->invDx;
+      ii = n;
+      r = n / invDx;
    }
    // reset r to fractional distance
    r = r - floor(r);
@@ -735,7 +664,7 @@ COMD_DEVICE inline void interpolate(InterpolationObject* table, real_t r, real_t
 
    *f = tt[ii] + 0.5*r*(g1 + r*(tt[ii+1] + tt[ii-1] - 2.0*tt[ii]) );
 
-   *df = 0.5*(g1 + r*(g2-g1))*table->invDx;
+   *df = 0.5*(g1 + r*(g2-g1))*invDx;
 }
 
 /// Broadcasts an InterpolationObject from rank 0 to all other ranks.
@@ -906,9 +835,12 @@ void eamReadSetfl(EamPotential* pot, const char* dir, const char* potName)
    comdFree(buf);
 
    // write to text file for comparison, currently commented out
-/*    printPot(pot->f, "SetflDataF.txt"); */
-/*    printPot(pot->rho, "SetflDataRho.txt"); */
-/*    printPot(pot->phi, "SetflDataPhi.txt");  */
+   /*printPot(pot->f, "SetflDataF.txt");
+    printPot(pot->rho, "SetflDataRho.txt");
+    printPot(pot->phi, "SetflDataPhi.txt");*/
+   /*printTableData(pot->f, "SetflDataF.txt"); 
+    printTableData(pot->rho, "SetflDataRho.txt"); 
+    printTableData(pot->phi, "SetflDataPhi.txt");*/
 }
 
 /// Reads potential data from a funcfl file and populates
@@ -1015,10 +947,10 @@ void eamReadFuncfl(EamPotential* pot, const char* dir, const char* potName)
    pot->rho = initInterpolationObject(nR, x0, dR, buf);
 
    comdFree(buf);
-
-/*    printPot(pot->f,   "funcflDataF.txt"); */
-/*    printPot(pot->rho, "funcflDataRho.txt"); */
-/*    printPot(pot->phi, "funcflDataPhi.txt"); */
+   //NOTE: Was printPot
+   /*printTableData(pot->f,   "funcflDataF.txt"); 
+    printTableData(pot->rho, "funcflDataRho.txt"); 
+    printTableData(pot->phi, "funcflDataPhi.txt");*/
 }
 
 void fileNotFound(const char* callSite, const char* filename)

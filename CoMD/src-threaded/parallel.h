@@ -6,6 +6,10 @@
 
 #include "mytype.h"
 
+#ifdef ENABLE_OPENMP
+#include <omp.h>
+#endif
+
 /// Structure for use with MPI_MINLOC and MPI_MAXLOC operations.
 typedef struct RankReduceDataSt
 {

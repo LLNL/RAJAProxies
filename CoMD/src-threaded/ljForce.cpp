@@ -64,7 +64,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <omp.h>
 
 #include "constants.h"
 #include "mytype.h"
@@ -177,7 +176,6 @@ int ljForce(SimFlat* s)
     } ) ;
 
    profileStop(forceZeroingTimer);
-
    {
    profileStart(forceFunctionTimer);
      RAJA::kernel<forcePolicyKernel>(
@@ -217,7 +215,7 @@ int ljForce(SimFlat* s)
              r2 = 1.0/r2;
              const real_t r6 = s6 * (r2*r2*r2);
              const real_t eLocal = r6 * (r6 - 1.0) - eShift;
-             U[iOff] += 0.5*eLocal;
+             U[iOff] += 0.5*eLocal; // Shouldn't this be atomic too?
 
              if (jBoxID < nLocalBoxes)
                ePot += eLocal;

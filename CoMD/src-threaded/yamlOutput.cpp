@@ -15,7 +15,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <omp.h>
 
 #include "CoMD_info.h"
 #include "mytype.h"

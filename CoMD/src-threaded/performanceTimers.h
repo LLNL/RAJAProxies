@@ -21,6 +21,7 @@ enum TimerHandle{
    updateLinkCellsTimer,
    emptyHaloCellsTimer,
    updateLinkCellsWorkTimer,
+   updateLinkCellsWorkSerialTimer,
    atomHaloTimer, 
    atomPackTimer,
    atomCommTimer,

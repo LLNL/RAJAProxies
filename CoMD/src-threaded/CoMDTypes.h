@@ -13,6 +13,14 @@
 #include "performanceTimers.h"
 #include "RAJA/RAJA.hpp"
 
+#ifdef ENABLE_OPENMP
+#include <omp.h>
+#endif
+
+#ifdef ENABLE_CALIPER
+#include <caliper/cali.h>
+#endif
+
 struct SimFlatSt;
 
 /// The base struct from which all potentials derive.  Think of this as an
@@ -108,6 +116,12 @@ extern int nGlobal;   //!< total number of atoms in simulation
 #define COMD_DEVICE
 #endif
 
+/*
+########################################################################
+########################## OpenMP Portion ##############################
+########################################################################
+*/
+
 #ifdef ENABLE_OPENMP
 typedef RAJA::omp_parallel_for_segit linkCellTraversal ;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
@@ -144,7 +158,15 @@ typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumRealKernel;
 typedef RAJA::ReduceSum<RAJA::seq_reduce, int> rajaReduceSumInt;
 #endif
 
+/*
+########################################################################
+########################### CUDA Portion ###############################
+########################################################################
+*/
+
 #ifdef DO_CUDA
+//#define CUDA_ASYNC
+
 #ifndef ENABLE_OPENMP
 typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
@@ -152,20 +174,14 @@ typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
 typedef RAJA::seq_segit task_graph_policy;
 #endif
 
-#define CUDA_ASYNC
-
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
   RAJA::statement::CudaKernelAsync<
-//RAJA::statement::CudaKernelExt<typename RAJA::cuda_explicit_launch<true, 56, 128>,
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::For<0, RAJA::cuda_block_exec,
-    RAJA::statement::For<1, RAJA::cuda_thread_exec,
-/* This is what was used for the poster submission */
-//    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
-//    RAJA::statement::For<1, RAJA::seq_exec,
+    RAJA::statement::For<0, RAJA::cuda_block_x_loop,
+    RAJA::statement::For<1, RAJA::cuda_thread_x_loop,
     RAJA::statement::Lambda<0> > > > > atomWorkKernel;
 
 typedef RAJA::KernelPolicy<
@@ -174,21 +190,9 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::For<0, RAJA::cuda_threadblock_exec<128>,
-    RAJA::statement::Lambda<0> > > > redistributeKernel;
-
-// Used for eam
-typedef RAJA::KernelPolicy<
-#ifdef CUDA_ASYNC
-  RAJA::statement::CudaKernelAsync<
-#else
-  RAJA::statement::CudaKernel<
-#endif
-  RAJA::statement::For<0, RAJA::cuda_block_exec,
-  RAJA::statement::For<1, RAJA::cuda_block_exec,
-  RAJA::statement::For<2, RAJA::cuda_thread_exec,
-  RAJA::statement::For<3, RAJA::cuda_thread_exec,
-  RAJA::statement::Lambda<0> > > > > > > eamforcePolicyKernel;
+    RAJA::statement::Tile<0, RAJA::statement::tile_fixed<128>, RAJA::cuda_block_x_loop,
+    RAJA::statement::For<0, RAJA::cuda_thread_x_loop,
+    RAJA::statement::Lambda<0> > > > > redistributeKernel;
 
 // Used for ljForce
 typedef RAJA::KernelPolicy<
@@ -197,16 +201,22 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::For<0, RAJA::cuda_block_exec,
-    RAJA::statement::For<1, RAJA::cuda_block_exec,
-    RAJA::statement::For<2, RAJA::cuda_thread_exec,
-    RAJA::statement::For<3, RAJA::cuda_thread_exec,
+    RAJA::statement::For<0, RAJA::cuda_block_x_loop,
+    RAJA::statement::For<1, RAJA::cuda_block_y_loop,
+    RAJA::statement::For<2, RAJA::cuda_thread_x_loop,
+    RAJA::statement::For<3, RAJA::cuda_thread_y_loop,
     RAJA::statement::Lambda<0> > > > > > > forcePolicyKernel;
 
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
-typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, real_t> rajaReduceSumRealKernel;
-typedef RAJA::ReduceSum<RAJA::cuda_reduce<27>, int> rajaReduceSumInt;
+typedef RAJA::ReduceSum<RAJA::cuda_reduce, real_t> rajaReduceSumRealKernel;
+typedef RAJA::ReduceSum<RAJA::cuda_reduce, int> rajaReduceSumInt;
 #endif
+
+/*
+########################################################################
+########################## Serial Portion ##############################
+########################################################################
+*/
 
 #ifndef ENABLE_OPENMP
 #ifndef DO_CUDA
@@ -239,6 +249,21 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::For<2, RAJA::seq_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
   RAJA::statement::Lambda<0> > > > > > forcePolicyKernel;
+
+// TODO Remove these...
+/* Temporary Sequential Versions */
+typedef RAJA::KernelPolicy<
+    RAJA::statement::For<0, RAJA::seq_segit,
+    RAJA::statement::For<1, RAJA::simd_exec,
+    RAJA::statement::Lambda<0> > > > atomWorkKernelSeq;
+
+// Used for eam
+typedef RAJA::KernelPolicy<
+  RAJA::statement::For<0, RAJA::seq_exec,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
+  RAJA::statement::For<3, RAJA::simd_exec,
+  RAJA::statement::Lambda<0> > > > > > eamforcePolicyKernelSeq;
 
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumRealKernel;

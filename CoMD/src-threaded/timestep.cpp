@@ -3,8 +3,6 @@
 
 #include "timestep.h"
 
-#include <omp.h>
-
 #include "CoMDTypes.h"
 #include "linkCells.h"
 #include "parallel.h"

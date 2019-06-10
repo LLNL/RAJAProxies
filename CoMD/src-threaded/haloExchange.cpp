@@ -836,10 +836,12 @@ int* mkForceRecvCellList(LinkCell* boxes, int face, int nCells)
 /// parameters.
 int loadForceBuffer(void* vparms, void* vdata, int face, char* charBuf)
 {
+   rajaReduceSumInt nBufReduce(0);
+
+#if 0
    ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
    ForceExchangeData* data = (ForceExchangeData*) vdata;
    ForceMsg* buf = (ForceMsg*) charBuf;
-
    int nCells = parms->nCells[face];
    int* cellList = parms->sendCells[face];
    int nBuf = 0;
@@ -854,6 +856,53 @@ int loadForceBuffer(void* vparms, void* vdata, int face, char* charBuf)
       }
    }
    return nBuf*sizeof(ForceMsg);
+#else
+   ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
+   int nCells = parms->nCells[face];
+   int* bufferOffset = (int*)comdMalloc(nCells * sizeof(int));
+   int size = (nCells+1) * sizeof(int);
+   //Make sure the memory is alligned with ForceMsg size
+#ifdef DO_CUDA
+   if((size % sizeof(ForceMsg)) != 0)
+     size += sizeof(ForceMsg) - (size % sizeof(ForceMsg));
+#endif
+
+   ForceMsg* buf = (ForceMsg*) (charBuf + size);
+   //TODO: Try to optimize this.
+  RAJA::kernel<redistributeKernel>(
+  RAJA::make_tuple(
+                   RAJA::RangeSegment(0, nCells)),
+  [=] RAJA_DEVICE (int iCell) {
+    ForceExchangeData* data = (ForceExchangeData*) vdata;
+    int* cellList = parms->sendCells[face];
+    int* offsetBuf = (int*)charBuf;
+
+#ifdef DO_CUDA
+    int sum = 0;
+    offsetBuf[0] = nCells;
+    for(int i = 0; i < nCells; i++) {
+      bufferOffset[i] = sum;
+      offsetBuf[i+1] = sum;
+      sum += data->boxes->nAtoms[cellList[i]];
+    }
+#endif
+    
+    int iBox = cellList[iCell];
+    int iOff = iBox*MAXATOMS;
+
+    int ii = iOff;
+    int offset = bufferOffset[iCell];
+    for(ii = iOff; ii < iOff+data->boxes->nAtoms[iBox]; ii++, offset++) {
+      buf[offset].dfEmbed = data->dfEmbed[ii];
+      nBufReduce += 1;
+    }
+    
+  });
+
+  comdFree(bufferOffset);
+  const int nBuf = nBufReduce;
+  return nBuf*sizeof(ForceMsg);
+#endif
 }
 
 /// The unloadBuffer function for a force exchange.
@@ -864,12 +913,23 @@ int loadForceBuffer(void* vparms, void* vdata, int face, char* charBuf)
 /// unloadBuffer parameters.
 void unloadForceBuffer(void* vparms, void* vdata, int face, int bufSize, char* charBuf)
 {
+#if 0
    ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
    ForceExchangeData* data = (ForceExchangeData*) vdata;
-   ForceMsg* buf = (ForceMsg*) charBuf;
+   int nCells = parms->nCells[face];
+   
+   //#ifdef DO_CUDA
+#if 1
+   int size = (nCells+1) * sizeof(int);
+   //Make sure the memory is alligned with ForceMsg size
+   if((size % sizeof(ForceMsg)) != 0)
+     size += sizeof(ForceMsg) - (size % sizeof(ForceMsg));
+   ForceMsg* buf = (ForceMsg*)(charBuf+size);
+#else
+   ForceMsg* buf = (ForceMsg*)charBuf;
+#endif
    assert(bufSize % sizeof(ForceMsg) == 0);
 
-   int nCells = parms->nCells[face];
    int* cellList = parms->recvCells[face];
    int iBuf = 0;
    for (int iCell=0; iCell<nCells; ++iCell)
@@ -883,6 +943,44 @@ void unloadForceBuffer(void* vparms, void* vdata, int face, int bufSize, char* c
       }
    }
    assert(iBuf == bufSize/ sizeof(ForceMsg));
+#else
+   rajaReduceSumInt nBufReduce(0);
+   ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
+   int nCells = parms->nCells[face];
+   int size = (nCells+1) * sizeof(int);
+   //Make sure the memory is alligned with ForceMsg size
+#ifdef DO_CUDA
+   if((size % sizeof(ForceMsg)) != 0)
+     size += sizeof(ForceMsg) - (size % sizeof(ForceMsg));
+#endif
+   assert(bufSize % sizeof(ForceMsg) == 0);
+
+   //TODO: Try to optimize this.
+  RAJA::kernel<redistributeKernel>(
+  RAJA::make_tuple(
+                   RAJA::RangeSegment(0, nCells)),
+  [=] RAJA_DEVICE (int iCell) {
+    ForceMsg* buf = (ForceMsg*)(charBuf+size);
+    ForceExchangeData* data = (ForceExchangeData*) vdata;
+    int* cellList = parms->sendCells[face];
+    int* bufferOffset = (int*)charBuf;
+
+    int iBox = cellList[iCell];
+    int iOff = iBox*MAXATOMS;
+
+    int ii = iOff;
+    int offset = bufferOffset[iCell+1];
+    for(ii = iOff; ii < iOff+data->boxes->nAtoms[iBox]; ii++, offset++) {
+      data->dfEmbed[ii] = buf[offset].dfEmbed;
+      nBufReduce += 1;
+    }
+    
+  });
+
+   const int nBuf = nBufReduce;
+   //printf("%d (nBuf)   %d (bufSize)   %d (sizeof(ForceMsg)   %d)\n", nBuf, bufSize, sizeof(ForceMsg), bufSize / sizeof(ForceMsg));
+   assert(nBuf == bufSize / sizeof(ForceMsg));
+#endif
 }
 
 void destroyForceExchange(void* vparms)

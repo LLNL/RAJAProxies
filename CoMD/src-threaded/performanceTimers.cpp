@@ -63,6 +63,7 @@ const char* timerName[numberOfTimers] = {
    "    updateLinkCells",
    "      emptyHaloCells",
    "      updateWork",
+   "      updateWorkSerial",
    "    atomHalo",
    "      atomPack",
    "      atomComm",
@@ -108,6 +109,7 @@ static TimerGlobal perfGlobal;
 
 void profileStart(const enum TimerHandle handle)
 {
+  //printf("Starting Timer for '%s'\n", timerName[handle]);
   #ifdef USE_CALIPER
   CALI_MARK_BEGIN(timerName[handle]);
   #endif
