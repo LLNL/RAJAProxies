@@ -268,31 +268,45 @@ class Domain {
    // Node-centered
 
    // Nodal coordinates
+   RAJA_HOST_DEVICE
    Real_t& x(Index_t idx)    { return m_x[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& y(Index_t idx)    { return m_y[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& z(Index_t idx)    { return m_z[idx] ; }
 
    // Nodal velocities
+   RAJA_HOST_DEVICE
    Real_t& xd(Index_t idx)   { return m_xd[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& yd(Index_t idx)   { return m_yd[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& zd(Index_t idx)   { return m_zd[idx] ; }
 
    // Nodal accelerations
+   RAJA_HOST_DEVICE
    Real_t& xdd(Index_t idx)  { return m_xdd[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& ydd(Index_t idx)  { return m_ydd[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& zdd(Index_t idx)  { return m_zdd[idx] ; }
 
    // Nodal forces
+   RAJA_HOST_DEVICE
    Real_t& fx(Index_t idx)   { return m_fx[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& fy(Index_t idx)   { return m_fy[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& fz(Index_t idx)   { return m_fz[idx] ; }
 
    // Nodal mass
+   RAJA_HOST_DEVICE
    Real_t& nodalMass(Index_t idx) { return m_nodalMass[idx] ; }
 
    //
    // Element-centered
    //
+   RAJA_HOST_DEVICE
    Index_p  nodelist(Index_t idx) { return &m_nodelist[Index_t(8)*idx] ; }
 
 #if !defined(LULESH_LIST_INDEXSET)
@@ -302,71 +316,102 @@ class Domain {
 #endif
 
    // elem connectivities through face
+   RAJA_HOST_DEVICE
    Index_t&  lxim(Index_t idx) { return m_lxim[idx] ; }
+   RAJA_HOST_DEVICE
    Index_t&  lxip(Index_t idx) { return m_lxip[idx] ; }
+   RAJA_HOST_DEVICE
    Index_t&  letam(Index_t idx) { return m_letam[idx] ; }
+   RAJA_HOST_DEVICE
    Index_t&  letap(Index_t idx) { return m_letap[idx] ; }
+   RAJA_HOST_DEVICE
    Index_t&  lzetam(Index_t idx) { return m_lzetam[idx] ; }
+   RAJA_HOST_DEVICE
    Index_t&  lzetap(Index_t idx) { return m_lzetap[idx] ; }
 
    // elem face symm/free-surface flag
+   RAJA_HOST_DEVICE
    Int_t&  elemBC(Index_t idx) { return m_elemBC[idx] ; }
 
    // Principal strains - temporary
+   RAJA_HOST_DEVICE
    Real_t& dxx(Index_t idx)  { return m_dxx[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& dyy(Index_t idx)  { return m_dyy[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& dzz(Index_t idx)  { return m_dzz[idx] ; }
 
    // New relative volume - temporary
+   RAJA_HOST_DEVICE
    Real_t& vnew(Index_t idx)  { return m_vnew[idx] ; }
 
    // Velocity gradient - temporary
+   RAJA_HOST_DEVICE
    Real_t& delv_xi(Index_t idx)    { return m_delv_xi[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& delv_eta(Index_t idx)   { return m_delv_eta[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& delv_zeta(Index_t idx)  { return m_delv_zeta[idx] ; }
 
    // Position gradient - temporary
+   RAJA_HOST_DEVICE
    Real_t& delx_xi(Index_t idx)    { return m_delx_xi[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& delx_eta(Index_t idx)   { return m_delx_eta[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& delx_zeta(Index_t idx)  { return m_delx_zeta[idx] ; }
 
    // Energy
+   RAJA_HOST_DEVICE
    Real_t& e(Index_t idx)          { return m_e[idx] ; }
 
    // Pressure
+   RAJA_HOST_DEVICE
    Real_t& p(Index_t idx)          { return m_p[idx] ; }
 
    // Artificial viscosity
+   RAJA_HOST_DEVICE
    Real_t& q(Index_t idx)          { return m_q[idx] ; }
 
    // Linear term for q
+   RAJA_HOST_DEVICE
    Real_t& ql(Index_t idx)         { return m_ql[idx] ; }
    // Quadratic term for q
+   RAJA_HOST_DEVICE
    Real_t& qq(Index_t idx)         { return m_qq[idx] ; }
 
    // Relative volume
+   RAJA_HOST_DEVICE
    Real_t& v(Index_t idx)          { return m_v[idx] ; }
+   RAJA_HOST_DEVICE
    Real_t& delv(Index_t idx)       { return m_delv[idx] ; }
 
    // Reference volume
+   RAJA_HOST_DEVICE
    Real_t& volo(Index_t idx)       { return m_volo[idx] ; }
 
    // volume derivative over volume
+   RAJA_HOST_DEVICE
    Real_t& vdov(Index_t idx)       { return m_vdov[idx] ; }
 
    // Element characteristic length
+   RAJA_HOST_DEVICE
    Real_t& arealg(Index_t idx)     { return m_arealg[idx] ; }
 
    // Sound speed
+   RAJA_HOST_DEVICE
    Real_t& ss(Index_t idx)         { return m_ss[idx] ; }
 
    // Element mass
+   RAJA_HOST_DEVICE
    Real_t& elemMass(Index_t idx)  { return m_elemMass[idx] ; }
 
 #if defined(OMP_FINE_SYNC)
+   RAJA_HOST_DEVICE
    Index_t nodeElemCount(Index_t idx)
    { return m_nodeElemStart[idx+1] - m_nodeElemStart[idx] ; }
 
+   RAJA_HOST_DEVICE
    Index_p nodeElemCornerList(Index_t idx)
    { return &m_nodeElemCornerList[m_nodeElemStart[idx]] ; }
 #endif

@@ -229,6 +229,7 @@ void TimeIncrement(Domain& domain)
 /******************************************/
 
 RAJA_STORAGE
+RAJA_HOST_DEVICE
 void CollectDomainNodesToElemNodes(Domain* domain,
                                    const Index_t* elemToNode,
                                    Real_t elemX[8],
