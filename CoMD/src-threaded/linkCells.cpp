@@ -178,6 +178,7 @@ int getNeighborBoxes(LinkCell* boxes, int iBox, int* nbrBoxes)
  * #######     This is due to CUDA build issues      #########
  * ###########################################################
  */
+// TODO: Don't reimplement this
 void putAtomInBox(LinkCell* boxes, Atoms* atoms,
                   const int gid, const int iType,
                   const real_t x,  const real_t y,  const real_t z,
@@ -309,7 +310,7 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
   stopTimer(emptyHaloCellsTimer);
 
   startTimer(updateLinkCellsWorkTimer);
-#if 1
+
   for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
   {
     int iOff = iBox*MAXATOMS;
@@ -323,115 +324,7 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
         ++ii;
     }
   }
-#else
-  printf("START!\n");
-  int bufferSize = 0;
-  rajaReduceSumInt numLeft(0);
-
-  /* Move atoms from even boxes to odd boxes */
-  RAJA::kernel<redistributeKernel>(
-  RAJA::make_tuple(
-                   RAJA::RangeSegment(0, boxes->nLocalBoxes)),
-  [=] RAJA_DEVICE (int iBox) {
-    // Make sure iBox is even
-    if(iBox % 2 == 0) {
-      int iOff = iBox*MAXATOMS;
-      int ii=0;
-      while(ii < boxes->nAtoms[iBox])
-      {
-        int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
-        if(jBox != iBox)
-        {
-          // Make sure jBox is odd
-          if(jBox % 2 == 1) {
-            moveAtom(boxes, atoms, ii, iBox, jBox);
-          }
-          else {
-            printf("%d -> %d (Atom #%d of %d)\n", iBox, jBox, ii, boxes->nAtoms[iBox]);
-            numLeft += 1;
-            ii++;
-          }
-        }
-        else
-          ++ii;
-      }
-    }
-  });
-  
-#ifdef DO_CUDA
-  cudaStreamSynchronize(0);
-  cudaDeviceSynchronize();
-#endif
-  bufferSize = numLeft;
-  printf("Num Left (even to odd): %d\n", bufferSize);
-  /* Move atoms from odd boxes to even boxes */
-  RAJA::kernel<redistributeKernel>(
-  RAJA::make_tuple(
-                   RAJA::RangeSegment(0, boxes->nLocalBoxes)),
-  [=] RAJA_DEVICE (int iBox) {
-    // Make sure iBox is odd
-    if(iBox % 2 == 1) {
-      int iOff = iBox*MAXATOMS;
-      int ii=0;
-      while(ii < boxes->nAtoms[iBox])
-      {
-        int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
-        if(jBox != iBox)
-        {
-          // Make sure jBox is even
-          if(jBox % 2 == 0) {
-            moveAtom(boxes, atoms, ii, iBox, jBox);
-          }
-          else {
-            printf("%d -> %d (Atom #%d of %d)\n", iBox, jBox, ii, boxes->nAtoms[iBox]);
-            numLeft += 1;
-            ii++;
-          }
-        }
-        else
-          ++ii;
-      }
-    }
-  });
-  bufferSize = numLeft;
-  printf("Num Left (odd to even): %d\n", bufferSize);
   stopTimer(updateLinkCellsWorkTimer);
-
-#ifdef DO_CUDA
-  cudaStreamSynchronize(0);
-  cudaDeviceSynchronize();
-#endif
-
-  startTimer(updateLinkCellsWorkSerialTimer);
-  /*
-  RAJA::kernel<redistributeKernel>(
-  RAJA::make_tuple(
-                   RAJA::RangeSegment(0, 1)),
-  [=] RAJA_DEVICE (int notUsed) {
-  */
-  //if(bufferSize > 0) {
-  if(1) {
-    for (int iBox=0; iBox<boxes->nLocalBoxes; ++iBox)
-    {
-      int iOff = iBox*MAXATOMS;
-      int ii=0;
-      while (ii < boxes->nAtoms[iBox])
-      {
-        int jBox = getBoxFromCoord(boxes, atoms->r[iOff+ii]);
-        if (jBox != iBox) {
-          moveAtom(boxes, atoms, ii, iBox, jBox);
-          printf("Moving an atom: %d -> %d (Atom #%d of %d)\n", iBox, jBox, ii, boxes->nAtoms[iBox]);
-        }
-        else
-          ++ii;
-      }
-    }
-  }
-    //});
-  printf("DONE!\n");
-  stopTimer(updateLinkCellsWorkSerialTimer);
-#endif
-  //stopTimer(updateLinkCellsWorkTimer);
 }
 
 /// \return The largest number of atoms in any link cell.
@@ -512,17 +405,12 @@ COMD_HOST_DEVICE int getBoxFromCoord(LinkCell* boxes, real_t rr[3])
 /// Set the number of atoms to zero in all halo link cells.
 void emptyHaloCells(LinkCell* boxes)
 {
-#if 0
-   for (int ii=boxes->nLocalBoxes; ii<boxes->nTotalBoxes; ++ii)
-      boxes->nAtoms[ii] = 0;
-#else
    RAJA::kernel<redistributeKernel>(
    RAJA::make_tuple(
                     RAJA::RangeSegment(boxes->nLocalBoxes, boxes->nTotalBoxes)),
    [=] RAJA_DEVICE (int ii) {
      boxes->nAtoms[ii] = 0;
    });
-#endif
 }
 
 /// Get the grid coordinates of the link cell with index iBox.  Local

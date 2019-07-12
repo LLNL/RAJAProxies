@@ -109,10 +109,6 @@ static TimerGlobal perfGlobal;
 
 void profileStart(const enum TimerHandle handle)
 {
-  //printf("Starting Timer for '%s'\n", timerName[handle]);
-  #ifdef USE_CALIPER
-  CALI_MARK_BEGIN(timerName[handle]);
-  #endif
   perfTimer[handle].start = getTime();
 }
 
@@ -122,9 +118,6 @@ void profileStop(const enum TimerHandle handle)
    uint64_t delta = getTime() - perfTimer[handle].start;
    perfTimer[handle].total += delta;
    perfTimer[handle].elapsed += delta;
-  #ifdef USE_CALIPER
-  CALI_MARK_END(timerName[handle]);
-  #endif
 }
 
 /// \details

@@ -69,9 +69,9 @@ static MyOption* myOptionFree(MyOption* o)
    MyOption* r;
    if(!o) return NULL;
    r = nextOption(o);
-   if(o->longArg)free(o->longArg);
-   if(o->help)free(o->help);
-   free(o);
+   if(o->longArg)comdFree(o->longArg);
+   if(o->help)comdFree(o->help);
+   comdFree(o);
    return r;
 }
 
@@ -221,8 +221,8 @@ void processArgs(int argc, char** argv)
       }
    }
 
-   free(opts);
-   free(sArgs);
+   comdFree(opts);
+   comdFree(sArgs);
 
    return;
 }

@@ -5,11 +5,6 @@
 
 #include <stdio.h>
 
-//#define USE_CALIPER
-#ifdef USE_CALIPER
-#include <caliper/cali.h>
-#endif
-
 /// Timer handles
 enum TimerHandle{
    totalTimer, 

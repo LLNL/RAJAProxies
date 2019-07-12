@@ -11,9 +11,6 @@
 
 static void* comdMalloc(size_t iSize)
 {
-#if 0
-   return malloc(iSize);
-#else
    void *localPtr ;
 #ifdef DO_CUDA
    cudaMallocManaged(&localPtr, iSize);
@@ -21,24 +18,19 @@ static void* comdMalloc(size_t iSize)
    posix_memalign(&localPtr, 64, iSize) ;
 #endif
    return localPtr ;
-#endif
 }
 
 static void* comdCalloc(size_t num, size_t iSize)
 {
-#if 0
-   return calloc(num, iSize);
-#else
    void *localPtr ;
+#ifdef DO_CUDA
+   cudaMallocManaged(&localPtr, iSize);
+   cudaMemset(localPtr, 0, num*iSize);
+#else
    posix_memalign(&localPtr, 64, num*iSize) ;
    memset(localPtr, 0, num*iSize) ;
-   return localPtr ;
 #endif
-}
-
-static void* comdRealloc(void* ptr, size_t iSize)
-{
-   return realloc(ptr, iSize);
+   return localPtr ;
 }
 
 static void comdFree(void *ptr)

@@ -67,16 +67,14 @@
 #define   MIN(A,B) ((A) < (B) ? (A) : (B))
 
 static SimFlat* initSimulation(Command cmd);
-/* A global copy of the simulation structure to be accessed only on the CPU.  Only data needed
- * on the CPU side is copied in here and this should ONLY be accessed on the CPU.
- */
-//SimFlat *globalSim = NULL;
+
 real_t ePotential = 0.0;
 real_t eKinetic   = 0.0;
-#ifdef DO_CUDA
+// Copies of the nLocal and nGlobal variables from the Simulation structure
+// for use on the CPU side when doing a CUDA run to avoid page faults
 int    nLocal     = 0;
 int    nGlobal    = 0;
-#endif
+
 static void destroySimulation(SimFlat** ps);
 
 static void initSubsystems(void);
@@ -101,8 +99,9 @@ int main(int argc, char** argv)
    initSubsystems();
    timestampBarrier("Starting Initialization\n");
 
-   yamlAppInfo(yamlFile);
-   yamlAppInfo(screenOut);
+   // TODO: These values are mostly hard-coded.  This should be removed.
+   //yamlAppInfo(yamlFile);
+   //yamlAppInfo(screenOut);
 
    Command cmd = parseCommandLine(argc, argv);
    printCmdYaml(yamlFile, &cmd);
@@ -199,8 +198,6 @@ SimFlat* initSimulation(Command cmd)
    eKinetic   = 0.0;
 
 #ifdef DO_CUDA
-   //globalSim = (SimFlat*)comdMalloc(sizeof(SimFlat));
-
    /* This is a hint to the CUDA runtime that this structure is mostly read only.  This
     * creates read-only copies on the CPU and GPU to avoid unnecessary thrashing as this
     * structure is needed throughout the code.  Technically, this structure should only
@@ -211,10 +208,12 @@ SimFlat* initSimulation(Command cmd)
    cudaGetDevice(&device);
    cudaMemAdvise(sim, sizeof(SimFlat), cudaMemAdviseSetReadMostly, device);
 #endif
+
    sim->pot = initPotential(cmd.doeam, cmd.potDir, cmd.potName, cmd.potType);
    real_t latticeConstant = cmd.lat;
    if (cmd.lat < 0.0)
       latticeConstant = sim->pot->lat;
+
 
    // ensure input parameters make sense.
    sanityChecks(cmd, sim->pot->cutoff, latticeConstant, sim->pot->latticeType);
@@ -255,20 +254,11 @@ SimFlat* initSimulation(Command cmd)
            tmpBox[tmpCount++] = sim->boxes->nbrBoxes[i][j] ;
          }
        }
-       /*sim->boxes->neighbors[i] =
-         sim->isTotal->createSlice(tmpBox, tmpCount) ;*/
-
          sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(tmpBox, tmpCount);
-
      }
      else {
-       /*sim->boxes->neighbors[i] =
-         sim->isTotal->createSlice(sim->boxes->nbrBoxes[i], 27) ;*/
-
        sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(sim->boxes->nbrBoxes[i], 27);
-
      }
-
    }
 
    /* Create Local IndexSet View */
@@ -277,7 +267,6 @@ SimFlat* initSimulation(Command cmd)
      RAJA::RangeSegment myseg(i*MAXATOMS, i*MAXATOMS + sim->boxes->nAtoms[i]);
      sim->isLocal->push_back( myseg ) ;
    }
-   //sim->isLocal = sim->isTotal->createSlice(0, sim->boxes->nLocalBoxes);
 
    sim->isLocalSegment = new RAJA::RangeSegment(0, sim->boxes->nLocalBoxes);
 
@@ -287,40 +276,6 @@ SimFlat* initSimulation(Command cmd)
 
    sim->atomExchange = initAtomHaloExchange(sim->domain, sim->boxes);
 
-   // Much of this can probably be removed.
-#ifdef DO_CUDA
-   /*
-   globalSim->nSteps    = sim->nSteps;
-   globalSim->printRate = sim->printRate;
-   globalSim->dt        = sim->dt;
-
-   globalSim->domain = (Domain*)comdMalloc(sizeof(Domain));
-   memcpy(globalSim->domain, sim->domain, sizeof(Domain));
-
-   globalSim->boxes = (LinkCell*)comdMalloc(sizeof(LinkCell));
-   memcpy(globalSim->boxes, sim->boxes, sizeof(LinkCell));
-   globalSim->boxes->nAtoms      = NULL;
-   globalSim->boxes->nbrBoxes    = NULL;
-   globalSim->boxes->neighbors   = NULL;
-   globalSim->boxes->nbrSegments = NULL;
-
-   globalSim->atoms = (Atoms*)comdMalloc(sizeof(Atoms));
-   memcpy(globalSim->atoms, sim->atoms, sizeof(Atoms));
-   globalSim->atoms->gid      = NULL;
-   globalSim->atoms->iSpecies = NULL;
-   globalSim->atoms->r        = NULL;
-   globalSim->atoms->p        = NULL;
-   globalSim->atoms->f        = NULL;
-   globalSim->atoms->U        = NULL;
-
-   globalSim->species = (SpeciesData*)comdMalloc(sizeof(SpeciesData));
-   memcpy(globalSim->species, sim->species, sizeof(SpeciesData));
-
-   globalSim->atomExchange = NULL;
-   globalSim->atomExchange = initAtomHaloExchange(sim->domain, sim->boxes);
-   */
-#endif
-
    // Forces must be computed before we call the time stepper.
    startTimer(redistributeTimer);
    redistributeAtoms(sim);
@@ -329,14 +284,8 @@ SimFlat* initSimulation(Command cmd)
    startTimer(computeForceTimer);
    computeForce(sim);
    stopTimer(computeForceTimer);
-printf("init Force complete\n");
 
-#ifdef DO_CUDA
-   cudaStreamSynchronize(0);
-#endif
    kineticEnergy(sim);
-
-printf("init Energy complete\n");
 
    return sim;
 }
@@ -453,7 +402,6 @@ void validateResult(const Validate* val, SimFlat* sim)
 void sumAtoms(SimFlat* s)
 {
    // sum atoms across all processers
-#ifdef DO_CUDA
   rajaReduceSumInt nLocalReduce(0);
   const int nLocalBoxes = s->boxes->nLocalBoxes;
 
@@ -477,10 +425,10 @@ void sumAtoms(SimFlat* s)
   const int nLocal_temp  = nLocal;
   const int nGlobal_temp = nGlobal;
 
-  /* TODO: Possibly remove this or determine if it's necessary.
-   *       Are these variables ever used on the GPU?  If not,
-   *       this is unnecessary.
-   */
+  // TODO: Possibly remove this
+  //       This is only necessary if nLocal and nGlobal are needed on
+  //       the GPU.  This would be necessary if we change to using
+  //       packed force kernels on the GPU.
   RAJA::kernel<redistributeKernel>(
   RAJA::make_tuple(
     RAJA::RangeSegment(0, 1)),
@@ -489,18 +437,6 @@ void sumAtoms(SimFlat* s)
       s->atoms->nLocal  = nLocal_temp;
       s->atoms->nGlobal = nGlobal_temp;
     } );
-
-#else
-   s->atoms->nLocal = 0;
-   for (int i = 0; i < s->boxes->nLocalBoxes; i++)
-   {
-      s->atoms->nLocal += s->boxes->nAtoms[i];
-   }
-
-   startTimer(commReduceTimer);
-   addIntParallel(&s->atoms->nLocal, &s->atoms->nGlobal, 1);
-   stopTimer(commReduceTimer);
-#endif
 }
 
 /// Prints current time, energy, performance etc to monitor the state of
@@ -529,7 +465,6 @@ void printThings(SimFlat* s, int iStep, double elapsedTime)
    }
 
    real_t time = iStep*s->dt;
-#ifdef DO_CUDA
    real_t eTotal = (ePotential+eKinetic) / nGlobal;
    real_t eK = eKinetic / nGlobal;
    real_t eU = ePotential / nGlobal;
@@ -537,16 +472,6 @@ void printThings(SimFlat* s, int iStep, double elapsedTime)
    double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*nLocal);
    fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
            iStep, time, eTotal, eU, eK, Temp, timePerAtom, nGlobal);
-#else 
-   int    tnG = s->atoms->nGlobal;  
-   real_t eTotal = (ePotential+eKinetic) / tnG;
-   real_t eK = eKinetic / tnG;
-   real_t eU = ePotential / tnG;
-   real_t Temp = (eKinetic / tnG) / (kB_eV * 1.5); 
-   double timePerAtom = 1.0e6*elapsedTime/(double)(nEval*s->atoms->nLocal);
-   fprintf(screenOut, " %6d %10.2f %18.12f %18.12f %18.12f %12.4f %10.4f %12d\n",
-           iStep, time, eTotal, eU, eK, Temp, timePerAtom, tnG);
-#endif
 }
 
 /// Print information about the simulation in a format that is (mostly)
@@ -942,7 +867,7 @@ void sanityChecks(Command cmd, double cutoff, double latticeConst, char latticeT
 /// line options \endlink documentation explains the switches used to
 /// select the potential used in the simulation.
 ///
-/// Note that the cohesive energy calculation is not sensitive to errors
+/// Note that the cohSM Efficiencies
 /// in forces.  It is also performed on a highly symmetric structure so
 /// there are many errors this will not catch.  Still, it is a good
 /// first check.

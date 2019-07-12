@@ -11,6 +11,9 @@
 static void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt);
 static void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt);
 
+extern "C" int sortAtomsById(const void* a, const void* b);
+
+// TODO: Avoid redefining this
 /* This structure is redefined here in order to inline some functions from
  * linkCells.cpp here.
  */
@@ -150,7 +153,6 @@ void kineticEnergy(SimFlat* s)
     } ) ;
 
    eLocal[1] = kenergy;
-// printf("kenergy: %f\n", eLocal[1]);
 
    real_t eSum[2];
    startTimer(commReduceTimer);
@@ -173,7 +175,6 @@ COMD_HOST_DEVICE void sortAtomsInCell(Atoms* atoms, LinkCell* boxes, int iBox)
 {
    int nAtoms = boxes->nAtoms[iBox];
 
-   //AtomMsg tmp[nAtoms];
    AtomMsg tmp[MAXATOMS];
 
    int begin = iBox*MAXATOMS;

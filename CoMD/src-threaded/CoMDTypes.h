@@ -96,15 +96,6 @@ typedef struct SimFlatSt
 
 } SimFlat;
 
-/* This is essentially a copy of the SimFlat structure that is passed throughout many of
- * the CoMD functions.  Only the constant values and variables only needed on the CPU will be
- * copied into this structure, none of the atom data or large arrays.
- *
- * The purpose of this is to avoid accessing the simulation structure on the CPU side after it has
- * been transferred to GPU memory.  This creates unnecessary page faults and drastically reduces
- * the performance of the code.
- */
-//extern SimFlat *globalSim;
 extern real_t ePotential;     //!< the total potential energy of the system
 extern real_t eKinetic;       //!< the total kinetic energy of the system
 #ifdef DO_CUDA
@@ -137,15 +128,6 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
     RAJA::statement::Lambda<0> > > redistributeKernel;
 
-// Used for eam
-typedef RAJA::KernelPolicy<
-  RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
-  RAJA::statement::For<1, RAJA::seq_exec,
-  RAJA::statement::For<2, RAJA::seq_exec,
-  RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > eamforcePolicyKernel;
-
-// Used for ljForce
 typedef RAJA::KernelPolicy<
   RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
   RAJA::statement::For<1, RAJA::seq_exec,
@@ -154,8 +136,8 @@ typedef RAJA::KernelPolicy<
   RAJA::statement::Lambda<0> > > > > > forcePolicyKernel;
 
 typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumReal;
-typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumRealKernel;
-typedef RAJA::ReduceSum<RAJA::seq_reduce, int> rajaReduceSumInt;
+typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumRealKernel;
+typedef RAJA::ReduceSum<RAJA::omp_reduce, int> rajaReduceSumInt;
 #endif
 
 /*
@@ -165,8 +147,9 @@ typedef RAJA::ReduceSum<RAJA::seq_reduce, int> rajaReduceSumInt;
 */
 
 #ifdef DO_CUDA
-//#define CUDA_ASYNC
+#define CUDA_ASYNC
 
+// TODO: Should we support OpenMP threading and CUDA at the same time?
 #ifndef ENABLE_OPENMP
 typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
@@ -194,7 +177,6 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::For<0, RAJA::cuda_thread_x_loop,
     RAJA::statement::Lambda<0> > > > > redistributeKernel;
 
-// Used for ljForce
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
   RAJA::statement::CudaKernelAsync<
@@ -234,36 +216,12 @@ typedef RAJA::KernelPolicy<
     RAJA::statement::For<0, RAJA::seq_exec,
     RAJA::statement::Lambda<0> > > redistributeKernel;
 
-// Used for eam
-typedef RAJA::KernelPolicy<
-  RAJA::statement::For<0, RAJA::seq_exec,
-  RAJA::statement::For<1, RAJA::seq_exec,
-  RAJA::statement::For<2, RAJA::seq_exec,
-  RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > eamforcePolicyKernel;
-
-// Used for ljForce
 typedef RAJA::KernelPolicy<
   RAJA::statement::For<0, RAJA::seq_exec,
   RAJA::statement::For<1, RAJA::seq_exec,
   RAJA::statement::For<2, RAJA::seq_exec,
   RAJA::statement::For<3, RAJA::simd_exec,
   RAJA::statement::Lambda<0> > > > > > forcePolicyKernel;
-
-// TODO Remove these...
-/* Temporary Sequential Versions */
-typedef RAJA::KernelPolicy<
-    RAJA::statement::For<0, RAJA::seq_segit,
-    RAJA::statement::For<1, RAJA::simd_exec,
-    RAJA::statement::Lambda<0> > > > atomWorkKernelSeq;
-
-// Used for eam
-typedef RAJA::KernelPolicy<
-  RAJA::statement::For<0, RAJA::seq_exec,
-  RAJA::statement::For<1, RAJA::seq_exec,
-  RAJA::statement::For<2, RAJA::seq_exec,
-  RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > eamforcePolicyKernelSeq;
 
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumRealKernel;

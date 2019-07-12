@@ -419,6 +419,7 @@ int* mkAtomCellList(LinkCell* boxes, enum HaloFaceOrder iFace, const int nCells)
  * #######     This is due to CUDA build issues      #########
  * ###########################################################
  */
+// TODO: Don't reimplement this
 COMD_HOST_DEVICE int getBoxFromTupleHalo(LinkCell* boxes, int ix, int iy, int iz)
 {
    int iBox = 0;
@@ -484,6 +485,7 @@ COMD_HOST_DEVICE int getBoxFromTupleHalo(LinkCell* boxes, int ix, int iy, int iz
  * #######     This is due to CUDA build issues      #########
  * ###########################################################
  */
+// TODO: Don't reimplement this
 COMD_HOST_DEVICE int getBoxFromCoordHalo(LinkCell* boxes, real_t rr[3])
 {
    const real_t* localMin = boxes->localMin; // alias
@@ -535,6 +537,7 @@ COMD_HOST_DEVICE int getBoxFromCoordHalo(LinkCell* boxes, real_t rr[3])
  * #######     This is due to CUDA build issues      #########
  * ###########################################################
  */
+// TODO: Don't reimplement this
 COMD_HOST_DEVICE void putAtomInBoxHalo(LinkCell* boxes, Atoms* atoms,
                                        const int gid, const int iType,
                                        const real_t x,  const real_t y,  const real_t z,
@@ -586,6 +589,9 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
    if((size % sizeof(AtomMsg)) != 0)
      size += sizeof(AtomMsg) - (size % sizeof(AtomMsg));
 #else
+   // This is more efficient for the CPU-side versions since this work
+   // only needs to be done once.  The CUDA version needs this to be on
+   // the GPU to avoid page faults.
     SimFlat* s = (SimFlat*) data;
     int* offsetBuf = (int*)charBuf;
     real3 shift;
@@ -610,6 +616,7 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
   [=] RAJA_DEVICE (int iCell) {
     SimFlat* s = (SimFlat*) data;
     int* offsetBuf = (int*)charBuf;
+    /* All accesses to the simulation data structure should be on the GPU to avoid page faults */
 #ifdef DO_CUDA
     real3 shift;
     shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
@@ -634,8 +641,7 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
 
     int iBox = cellList[iCell];
     int iOff = iBox*MAXATOMS;
-    //offset += ii;
-    //ii += iOff;
+
     int ii = iOff;
     while(ii < iOff+s->boxes->nAtoms[iBox]) {
       buf[offset].gid  = gid[ii];
@@ -673,11 +679,7 @@ void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* ch
 {
    SimFlat* s = (SimFlat*) data;
 
-  //AtomMsg* buf = (AtomMsg*) charBuf;
-  //int nBuf = bufSize / sizeof(AtomMsg);
-   //assert(bufSize % sizeof(AtomMsg) == 0);
-
-  const int nCells = *((int*)charBuf);
+   const int nCells = *((int*)charBuf);
 
    int size = (nCells+1) * sizeof(int);
    // Make sure the buffer is alligned with AtomMsg's size
@@ -836,9 +838,7 @@ int* mkForceRecvCellList(LinkCell* boxes, int face, int nCells)
 /// parameters.
 int loadForceBuffer(void* vparms, void* vdata, int face, char* charBuf)
 {
-   rajaReduceSumInt nBufReduce(0);
-
-#if 0
+  // TODO: Implement this in parallel with RAJA
    ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
    ForceExchangeData* data = (ForceExchangeData*) vdata;
    ForceMsg* buf = (ForceMsg*) charBuf;
@@ -856,53 +856,6 @@ int loadForceBuffer(void* vparms, void* vdata, int face, char* charBuf)
       }
    }
    return nBuf*sizeof(ForceMsg);
-#else
-   ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
-   int nCells = parms->nCells[face];
-   int* bufferOffset = (int*)comdMalloc(nCells * sizeof(int));
-   int size = (nCells+1) * sizeof(int);
-   //Make sure the memory is alligned with ForceMsg size
-#ifdef DO_CUDA
-   if((size % sizeof(ForceMsg)) != 0)
-     size += sizeof(ForceMsg) - (size % sizeof(ForceMsg));
-#endif
-
-   ForceMsg* buf = (ForceMsg*) (charBuf + size);
-   //TODO: Try to optimize this.
-  RAJA::kernel<redistributeKernel>(
-  RAJA::make_tuple(
-                   RAJA::RangeSegment(0, nCells)),
-  [=] RAJA_DEVICE (int iCell) {
-    ForceExchangeData* data = (ForceExchangeData*) vdata;
-    int* cellList = parms->sendCells[face];
-    int* offsetBuf = (int*)charBuf;
-
-#ifdef DO_CUDA
-    int sum = 0;
-    offsetBuf[0] = nCells;
-    for(int i = 0; i < nCells; i++) {
-      bufferOffset[i] = sum;
-      offsetBuf[i+1] = sum;
-      sum += data->boxes->nAtoms[cellList[i]];
-    }
-#endif
-    
-    int iBox = cellList[iCell];
-    int iOff = iBox*MAXATOMS;
-
-    int ii = iOff;
-    int offset = bufferOffset[iCell];
-    for(ii = iOff; ii < iOff+data->boxes->nAtoms[iBox]; ii++, offset++) {
-      buf[offset].dfEmbed = data->dfEmbed[ii];
-      nBufReduce += 1;
-    }
-    
-  });
-
-  comdFree(bufferOffset);
-  const int nBuf = nBufReduce;
-  return nBuf*sizeof(ForceMsg);
-#endif
 }
 
 /// The unloadBuffer function for a force exchange.
@@ -913,74 +866,26 @@ int loadForceBuffer(void* vparms, void* vdata, int face, char* charBuf)
 /// unloadBuffer parameters.
 void unloadForceBuffer(void* vparms, void* vdata, int face, int bufSize, char* charBuf)
 {
-#if 0
-   ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
-   ForceExchangeData* data = (ForceExchangeData*) vdata;
-   int nCells = parms->nCells[face];
-   
-   //#ifdef DO_CUDA
-#if 1
-   int size = (nCells+1) * sizeof(int);
-   //Make sure the memory is alligned with ForceMsg size
-   if((size % sizeof(ForceMsg)) != 0)
-     size += sizeof(ForceMsg) - (size % sizeof(ForceMsg));
-   ForceMsg* buf = (ForceMsg*)(charBuf+size);
-#else
-   ForceMsg* buf = (ForceMsg*)charBuf;
-#endif
-   assert(bufSize % sizeof(ForceMsg) == 0);
+  // TODO: Implement this in parallel with RAJA
+  ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
+  ForceExchangeData* data = (ForceExchangeData*) vdata;
+  ForceMsg* buf = (ForceMsg*) charBuf;
+  assert(bufSize % sizeof(ForceMsg) == 0);
 
-   int* cellList = parms->recvCells[face];
-   int iBuf = 0;
-   for (int iCell=0; iCell<nCells; ++iCell)
-   {
+  int nCells = parms->nCells[face];
+  int* cellList = parms->recvCells[face];
+  int iBuf = 0;
+  for (int iCell=0; iCell<nCells; ++iCell)
+    {
       int iBox = cellList[iCell];
       int iOff = iBox*MAXATOMS;
       for (int ii=iOff; ii<iOff+data->boxes->nAtoms[iBox]; ++ii)
-      {
-         data->dfEmbed[ii] = buf[iBuf].dfEmbed;
-         ++iBuf;
-      }
-   }
-   assert(iBuf == bufSize/ sizeof(ForceMsg));
-#else
-   rajaReduceSumInt nBufReduce(0);
-   ForceExchangeParms* parms = (ForceExchangeParms*) vparms;
-   int nCells = parms->nCells[face];
-   int size = (nCells+1) * sizeof(int);
-   //Make sure the memory is alligned with ForceMsg size
-#ifdef DO_CUDA
-   if((size % sizeof(ForceMsg)) != 0)
-     size += sizeof(ForceMsg) - (size % sizeof(ForceMsg));
-#endif
-   assert(bufSize % sizeof(ForceMsg) == 0);
-
-   //TODO: Try to optimize this.
-  RAJA::kernel<redistributeKernel>(
-  RAJA::make_tuple(
-                   RAJA::RangeSegment(0, nCells)),
-  [=] RAJA_DEVICE (int iCell) {
-    ForceMsg* buf = (ForceMsg*)(charBuf+size);
-    ForceExchangeData* data = (ForceExchangeData*) vdata;
-    int* cellList = parms->sendCells[face];
-    int* bufferOffset = (int*)charBuf;
-
-    int iBox = cellList[iCell];
-    int iOff = iBox*MAXATOMS;
-
-    int ii = iOff;
-    int offset = bufferOffset[iCell+1];
-    for(ii = iOff; ii < iOff+data->boxes->nAtoms[iBox]; ii++, offset++) {
-      data->dfEmbed[ii] = buf[offset].dfEmbed;
-      nBufReduce += 1;
+        {
+          data->dfEmbed[ii] = buf[iBuf].dfEmbed;
+          ++iBuf;
+        }
     }
-    
-  });
-
-   const int nBuf = nBufReduce;
-   //printf("%d (nBuf)   %d (bufSize)   %d (sizeof(ForceMsg)   %d)\n", nBuf, bufSize, sizeof(ForceMsg), bufSize / sizeof(ForceMsg));
-   assert(nBuf == bufSize / sizeof(ForceMsg));
-#endif
+  assert(iBuf == bufSize/ sizeof(ForceMsg));
 }
 
 void destroyForceExchange(void* vparms)
@@ -1013,4 +918,3 @@ int sortAtomsById(const void* a, const void* b)
       return -1;
    return 1;
 }
-

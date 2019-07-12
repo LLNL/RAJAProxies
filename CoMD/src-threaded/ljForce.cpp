@@ -215,7 +215,12 @@ int ljForce(SimFlat* s)
              r2 = 1.0/r2;
              const real_t r6 = s6 * (r2*r2*r2);
              const real_t eLocal = r6 * (r6 - 1.0) - eShift;
-             U[iOff] += 0.5*eLocal; // Shouldn't this be atomic too?
+             /* These updates should also be made atomic in other threading methods as well */
+#ifdef DO_CUDA
+             atomicAdd(&U[iOff], 0.5*eLocal);
+#else
+             U[iOff] += 0.5*eLocal;
+#endif
 
              if (jBoxID < nLocalBoxes)
                ePot += eLocal;
@@ -228,6 +233,7 @@ int ljForce(SimFlat* s)
              for (int m=0; m<3; m++)
              {
                dr[m] *= fr;
+             /* These updates should also be made atomic in other threading methods as well */
 #ifdef DO_CUDA
                atomicAdd(&f[iOff][m], -dr[m]);
                atomicAdd(&f[jOff][m], dr[m]);

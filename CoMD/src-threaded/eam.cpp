@@ -231,26 +231,11 @@ int eamForce(SimFlat* s)
       pot->forceExchangeData = (ForceExchangeData*)comdMalloc(sizeof(ForceExchangeData));
       pot->forceExchangeData->dfEmbed = pot->dfEmbed;
       pot->forceExchangeData->boxes = s->boxes;
-printf("eamForce init end\n");
    }
    
    real_t rCut2 = pot->cutoff*pot->cutoff;
 
    // zero forces / energy / rho /rhoprime
-
-   /* ######################################################
-    * ###############  TODO Put these on GPU ###############
-    * ######################################################
-    */
-   /* See the small kernel in ljForce before the main kernel for
-    * how to do this (the zeroing kernel).
-    */
-   /*
-   memset(s->atoms->f,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real3));
-   memset(s->atoms->U,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
-   memset(pot->dfEmbed, 0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
-   memset(pot->rhobar,  0, s->boxes->nTotalBoxes*MAXATOMS*sizeof(real_t));
-   */
 
    profileStart(forceZeroingTimer);
 
@@ -279,15 +264,9 @@ printf("eamForce init end\n");
 
    profileStop(forceZeroingTimer);
 
-
-   int nbrBoxes[27];
    real_t etot = 0.0;
 
-#if DO_CUDA
    rajaReduceSumRealKernel etot_raja(0.0);
-#else
-   rajaReduceSumReal etot_raja(0.0);
-#endif
 
    RAJA::kernel<forcePolicyKernel>(
      RAJA::make_tuple(
@@ -308,15 +287,7 @@ printf("eamForce init end\n");
        InterpolationObject *rhoLocal = pot->rho;
        real3_ptr f = s->atoms->f;
 
-       const int iOffLocal = iOff;
-       const int jOffLocal = jOff;
-       //iOff += iBox*MAXATOMS;
-       //jOff += jBox*MAXATOMS;
-       //const int iGid = s->atoms->gid[iOff];
-       //const int jGid = s->atoms->gid[jOff];
-
        if( ((iOff < nIBox) && (jOff < nJBox)) && !(jBox < iBox) && !((iBox == jBox) && (jOff <= iOff)) ) {
-       //if( (iOffLocal < nIBox && jOffLocal < nJBox) && !(jBox < nLocalBoxes && jGid <= iGid)) {
          iOff += iBox*MAXATOMS;
          jOff += jBox*MAXATOMS;
 
@@ -338,6 +309,7 @@ printf("eamForce init end\n");
 
            for (int k=0; k<3; k++)
            {
+             // These operations should technically be atomic in OpenMP as well
 #if DO_CUDA
              atomicAdd(&f[iOff][k], -(dPhi*dr[k]/r));
              atomicAdd(&f[jOff][k], dPhi*dr[k]/r);
@@ -354,8 +326,7 @@ printf("eamForce init end\n");
              etot_raja += phiTmp;
            else
              etot_raja += 0.5*phiTmp;
-
-           //real_ptr U = s->atoms->U;
+           // These operations should technically be atomic in OpenMP as well
 #if DO_CUDA
            atomicAdd(&U[iOff], 0.5*phiTmp);
            atomicAdd(&U[jOff], 0.5*phiTmp);
@@ -364,9 +335,8 @@ printf("eamForce init end\n");
            U[jOff] += 0.5*phiTmp;
 #endif
 
-           //real_ptr rhobar = pot->rhobar;
-
            // accumulate rhobar for each atom
+           // These operations should technically be atomic in OpenMP as well
 #if DO_CUDA
            atomicAdd(&rhobar[iOff], rhoTmp);
            atomicAdd(&rhobar[jOff], rhoTmp);
@@ -376,50 +346,11 @@ printf("eamForce init end\n");
 #endif
          }
        }
-            //} // loop over atoms in jBox
-         //} // loop over atoms in iBox
-      //} // loop over neighbor boxes
-     }); // loop over local boxes
+     });
 
      etot = etot_raja;
 
-   /* ######################################################
-    * ###############  TODO Put this on GPU ################
-    * ######################################################
-    */
-   /* This should be atomWorkKernel with the first range being
-    * the loop indices of the first loop and the second loop
-    * indices being 0 to MAXATOMS.  You will have to adjust
-    * the second loop index once in the kernel to be offset
-    * into the proper link cell.  See the kernels in
-    * timestep.cpp for examples of what to do.
-    */
-   // Compute Embedding Energy
-   // loop over all local boxes
-   
-   /*
-   for (int iBox=0; iBox<s->boxes->nLocalBoxes; iBox++)
-   {
-      int iOff;
-      int nIBox =  s->boxes->nAtoms[iBox];
-
-      // loop over atoms in iBox
-      for (int iOff=MAXATOMS*iBox,ii=0; ii<nIBox; ii++,iOff++)
-      {
-         real_t fEmbed, dfEmbed;
-         interpolate(pot->f, pot->rhobar[iOff], &fEmbed, &dfEmbed);
-         pot->dfEmbed[iOff] = dfEmbed; // save derivative for halo exchange
-         etot += fEmbed; 
-         s->atoms->U[iOff] += fEmbed;
-      }
-   }
-   */
-    
-#ifdef DO_CUDA
    rajaReduceSumRealKernel etot_raja_embed(0.0);
-#else
-   rajaReduceSumReal etot_raja_embed(0.0);
-#endif
 
    RAJA::kernel<atomWorkKernel>(
    RAJA::make_tuple(
@@ -485,6 +416,7 @@ printf("eamForce init end\n");
 
          for (int k=0; k<3; k++)
          {
+           // These atomic operations should be atomic for the OpenMP implementation as well
 #if DO_CUDA
            atomicAdd(&f[iOff][k], -((dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r));
            atomicAdd(&f[jOff][k], (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r);
@@ -494,7 +426,7 @@ printf("eamForce init end\n");
 #endif
          }
        }
-     }); // loop over local boxes
+     });
 
    /* Use the CPU-side ePotential global variable here instead */
    ePotential = (real_t) etot;
@@ -637,9 +569,6 @@ void destroyInterpolationObject(InterpolationObject** a)
 /// \param [in] r Point where function value is needed.
 /// \param [out] f The interpolated value of f(r).
 /// \param [out] df The interpolated value of df(r)/dr.
-/* NOTE: The floor function will need to be replaced with floorf if the
- *       type of real_t is float instead of double.
- */
 COMD_DEVICE inline void interpolate(InterpolationObject* table, real_t r, real_t* f, real_t* df)
 {
    const real_t* tt = table->values; // alias
@@ -650,6 +579,9 @@ COMD_DEVICE inline void interpolate(InterpolationObject* table, real_t r, real_t
    if ( r < x0 ) r = x0;
 
    r = (r-x0)*(invDx) ;
+   /* NOTE: The floor function will need to be replaced with floorf if the
+    *       type of real_t is float instead of double and this is a CUDA run.
+    */
    int ii = (int)floor(r);
    if (ii > n)
    {
