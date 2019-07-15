@@ -5,6 +5,9 @@
 #define __MYTYPE_H_
 
 /// \def SINGLE determines whether single or double precision is built
+// NOTE: Switching to SINGLE will require some code changes at this time.
+//       Usage of floor() in CUDA kernels will need to become the float
+//       version, and the MPI functionality will need to use MPI_FLOAT.
 #ifdef SINGLE
 typedef float real_t;  //!< define native type for CoMD as single precision
   #define FMT1 "%g"    //!< /def format argument for floats 
@@ -19,7 +22,7 @@ typedef real_t * __restrict__ /* __attribute__((align_value(64))) */ real_ptr ;
 typedef real_t real3[3]; //!< a convenience vector with three real_t 
 typedef real3 * __restrict__ /* __attribute__((align_value(64))) */ real3_ptr ;
 
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
 #define COMD_HOST_DEVICE __host__ __device__
 #else
 #define COMD_HOST_DEVICE

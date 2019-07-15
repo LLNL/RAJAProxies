@@ -144,7 +144,7 @@ int main(int argc, char** argv)
    }
    // This is to alleviate issues with having asynchronous kernels and then accessing
    // data used on those kernels in CPU-side code.
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
    cudaStreamSynchronize(0);
 #endif
    profileStop(loopTimer);
@@ -197,7 +197,7 @@ SimFlat* initSimulation(Command cmd)
    ePotential = 0.0;
    eKinetic   = 0.0;
 
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
    /* This is a hint to the CUDA runtime that this structure is mostly read only.  This
     * creates read-only copies on the CPU and GPU to avoid unnecessary thrashing as this
     * structure is needed throughout the code.  Technically, this structure should only
@@ -580,7 +580,7 @@ void sanityChecks(Command cmd, double cutoff, double latticeConst, char latticeT
 ///
 /// The main options available in the Makefile are toggling single/double
 /// precision and enabling/disabling MPI. In the event MPI is not
-/// available, setting the DO_MPI flag to OFF will create a purely
+/// available, setting the ENABLE_MPI flag to OFF will create a purely
 /// serial build (you will likely also need to change the setting of
 /// CC).
 ///

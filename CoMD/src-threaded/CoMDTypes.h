@@ -98,7 +98,7 @@ typedef struct SimFlatSt
 
 extern real_t ePotential;     //!< the total potential energy of the system
 extern real_t eKinetic;       //!< the total kinetic energy of the system
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
 extern int nLocal;    //!< total number of atoms on this processor
 extern int nGlobal;   //!< total number of atoms in simulation
 // Allows for __device__ to be put before kernels only when CUDA is enabled
@@ -146,7 +146,7 @@ typedef RAJA::ReduceSum<RAJA::omp_reduce, int> rajaReduceSumInt;
 ########################################################################
 */
 
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
 // This changes all of the CUDA kernels to asynchronous kernels
 // This should be a build option.
 //#define CUDA_ASYNC
@@ -201,7 +201,7 @@ typedef RAJA::ReduceSum<RAJA::cuda_reduce, int> rajaReduceSumInt;
 */
 
 #ifndef ENABLE_OPENMP
-#ifndef DO_CUDA
+#ifndef ENABLE_CUDA
 typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;

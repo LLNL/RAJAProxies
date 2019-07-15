@@ -1,13 +1,13 @@
 /// \file
 /// Wrappers for MPI functions.  This should be the only compilation 
 /// unit in the code that directly calls MPI functions.  To build a pure
-/// serial version of the code with no MPI, do not define DO_MPI.  If
-/// DO_MPI is not defined then all MPI functionality is replaced with
+/// serial version of the code with no MPI, do not define ENABLE_MPI.  If
+/// ENABLE_MPI is not defined then all MPI functionality is replaced with
 /// equivalent single task behavior.
 
 #include "parallel.h"
 
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
 #include <mpi.h>
 #endif
 
@@ -19,7 +19,7 @@
 static int myRank = 0;
 static int nRanks = 1;
 
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
 #ifdef SINGLE
 #define REAL_MPI_TYPE MPI_FLOAT
 #else
@@ -62,7 +62,7 @@ void timestampBarrier(const char* msg)
 
 void initParallel(int* argc, char*** argv)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Init(argc, argv);
    MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
@@ -71,14 +71,14 @@ void initParallel(int* argc, char*** argv)
 
 void destroyParallel()
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Finalize();
 #endif
 }
 
 void barrierParallel()
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Barrier(MPI_COMM_WORLD);
 #endif
 }
@@ -93,7 +93,7 @@ void barrierParallel()
 int sendReceiveParallel(void* sendBuf, int sendLen, int dest,
                         void* recvBuf, int recvLen, int source)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    int bytesReceived;
    MPI_Status status;
    MPI_Sendrecv(sendBuf, sendLen, MPI_BYTE, dest,   0,
@@ -112,7 +112,7 @@ int sendReceiveParallel(void* sendBuf, int sendLen, int dest,
 
 void addIntParallel(int* sendBuf, int* recvBuf, int count)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Allreduce(sendBuf, recvBuf, count, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 #else
    for (int ii=0; ii<count; ++ii)
@@ -122,7 +122,7 @@ void addIntParallel(int* sendBuf, int* recvBuf, int count)
 
 void addRealParallel(real_t* sendBuf, real_t* recvBuf, int count)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Allreduce(sendBuf, recvBuf, count, REAL_MPI_TYPE, MPI_SUM, MPI_COMM_WORLD);
 #else
    for (int ii=0; ii<count; ++ii)
@@ -132,7 +132,7 @@ void addRealParallel(real_t* sendBuf, real_t* recvBuf, int count)
 
 void addDoubleParallel(double* sendBuf, double* recvBuf, int count)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Allreduce(sendBuf, recvBuf, count, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #else
    for (int ii=0; ii<count; ++ii)
@@ -142,7 +142,7 @@ void addDoubleParallel(double* sendBuf, double* recvBuf, int count)
 
 void maxIntParallel(int* sendBuf, int* recvBuf, int count)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Allreduce(sendBuf, recvBuf, count, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
    for (int ii=0; ii<count; ++ii)
@@ -153,7 +153,7 @@ void maxIntParallel(int* sendBuf, int* recvBuf, int count)
 
 void minRankDoubleParallel(RankReduceData* sendBuf, RankReduceData* recvBuf, int count)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Allreduce(sendBuf, recvBuf, count, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
 #else
    for (int ii=0; ii<count; ++ii)
@@ -166,7 +166,7 @@ void minRankDoubleParallel(RankReduceData* sendBuf, RankReduceData* recvBuf, int
 
 void maxRankDoubleParallel(RankReduceData* sendBuf, RankReduceData* recvBuf, int count)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Allreduce(sendBuf, recvBuf, count, MPI_DOUBLE_INT, MPI_MAXLOC, MPI_COMM_WORLD);
 #else
    for (int ii=0; ii<count; ++ii)
@@ -180,14 +180,14 @@ void maxRankDoubleParallel(RankReduceData* sendBuf, RankReduceData* recvBuf, int
 /// \param [in] count Length of buf in bytes.
 void bcastParallel(void* buf, int count, int root)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    MPI_Bcast(buf, count, MPI_BYTE, root, MPI_COMM_WORLD);
 #endif
 }
 
 int builtWithMpi(void)
 {
-#ifdef DO_MPI
+#ifdef ENABLE_MPI
    return 1;
 #else
    return 0;

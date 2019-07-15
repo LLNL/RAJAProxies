@@ -302,7 +302,7 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
   // TODO: Implement this function on the GPU and remove this synchronization.
   // NOTE: The synchronization is here to alleviate performance issues with using
   //      asynchronous kernels and then suddenly needing that data on the CPU...
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
   cudaStreamSynchronize(0);
 #endif
   startTimer(emptyHaloCellsTimer);
@@ -515,7 +515,7 @@ void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* ch
 
    int size = (nCells+1) * sizeof(int);
    // Make sure the buffer is alligned with AtomMsg's size
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
    if( (size % sizeof(AtomMsg)) != 0 )
      size += sizeof(AtomMsg) - (size % sizeof(AtomMsg));
 #endif

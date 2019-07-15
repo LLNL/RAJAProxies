@@ -12,7 +12,7 @@
 static void* comdMalloc(size_t iSize)
 {
    void *localPtr ;
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
    cudaMallocManaged(&localPtr, iSize);
 #else
    posix_memalign(&localPtr, 64, iSize) ;
@@ -23,7 +23,7 @@ static void* comdMalloc(size_t iSize)
 static void* comdCalloc(size_t num, size_t iSize)
 {
    void *localPtr ;
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
    cudaMallocManaged(&localPtr, iSize);
    cudaMemset(localPtr, 0, num*iSize);
 #else
@@ -35,7 +35,7 @@ static void* comdCalloc(size_t num, size_t iSize)
 
 static void comdFree(void *ptr)
 {
-#ifdef DO_CUDA
+#ifdef ENABLE_CUDA
   cudaFree(ptr);
 #else
   free(ptr);

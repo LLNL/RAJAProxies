@@ -310,7 +310,7 @@ int eamForce(SimFlat* s)
            for (int k=0; k<3; k++)
            {
              // These operations should technically be atomic in OpenMP as well
-#if DO_CUDA
+#if ENABLE_CUDA
              atomicAdd(&f[iOff][k], -(dPhi*dr[k]/r));
              atomicAdd(&f[jOff][k], dPhi*dr[k]/r);
 #else
@@ -327,7 +327,7 @@ int eamForce(SimFlat* s)
            else
              etot_raja += 0.5*phiTmp;
            // These operations should technically be atomic in OpenMP as well
-#if DO_CUDA
+#if ENABLE_CUDA
            atomicAdd(&U[iOff], 0.5*phiTmp);
            atomicAdd(&U[jOff], 0.5*phiTmp);
 #else
@@ -337,7 +337,7 @@ int eamForce(SimFlat* s)
 
            // accumulate rhobar for each atom
            // These operations should technically be atomic in OpenMP as well
-#if DO_CUDA
+#if ENABLE_CUDA
            atomicAdd(&rhobar[iOff], rhoTmp);
            atomicAdd(&rhobar[jOff], rhoTmp);
 #else
@@ -420,7 +420,7 @@ int eamForce(SimFlat* s)
          for (int k=0; k<3; k++)
          {
            // These atomic operations should be atomic for the OpenMP implementation as well
-#if DO_CUDA
+#if ENABLE_CUDA
            atomicAdd(&f[iOff][k], -((dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r));
            atomicAdd(&f[jOff][k], (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r);
 #else

@@ -3,7 +3,7 @@ add_definitions(-DDOUBLE)
 set (CoMD_depends RAJA)
 
 if (ENABLE_MPI)
-  add_definitions(-DDO_MPI)
+  add_definitions(-DENABLE_MPI)
   set (CoMD_depends ${CoMD_depends} MPI)
 endif()
 
@@ -13,7 +13,7 @@ if (ENABLE_OPENMP)
 endif ()
 
 if (ENABLE_CUDA)
-  add_definitions(-DDO_CUDA)
+  add_definitions(-DENABLE_CUDA)
   set (CoMD_depends ${CoMD_depends} cuda)
 endif ()
 
