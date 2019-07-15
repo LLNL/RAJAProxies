@@ -13,19 +13,6 @@ static void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> 
 
 extern "C" int sortAtomsById(const void* a, const void* b);
 
-// TODO: Avoid redefining this
-/* This structure is redefined here in order to inline some functions from
- * linkCells.cpp here.
- */
-typedef struct AtomMsgSt
-{
-   int gid;
-   int type;
-   real_t rx, ry, rz;
-   real_t px, py, pz;
-}
-AtomMsg;
-
 /// Advance the simulation time to t+dt using a leap frog method
 /// (equivalent to velocity verlet).
 ///
@@ -199,54 +186,51 @@ COMD_HOST_DEVICE void sortAtomsInCell(Atoms* atoms, LinkCell* boxes, int iBox)
    if(!sorted) {
      return;
    }
-   //qsort(&tmp, nAtoms, sizeof(AtomMsg), sortAtomsById);
-   /* TODO: Make this into a function like qsort to clean things up.
-    * Note: Switching from qsort to insertion sort roughly doubles sorting performance
+
+   // NOTE: Switching from qsort to insertion sort roughly doubles sorting performance
+   /* Begin Insertion Sort */
+   /* This has been changed to an insertion sort instead of a quick sort because the
+    * elements of this array are already mostly sorted and insertion sort works well
+    * on mostly sorted data.
     */
-     /* Begin Insertion Sort */
-     /* This has been changed to an insertion sort instead of a quick sort because the
-      * elements of this array are already mostly sorted and insertion sort works well
-      * on mostly sorted data.
-      */
-     int i, j;
-     AtomMsg key;
-     for (i = 1; i < nAtoms; i++) {
-       key.gid  = tmp[i].gid;
-       key.type = tmp[i].type;
-       key.rx   = tmp[i].rx;
-       key.ry   = tmp[i].ry;
-       key.rz   = tmp[i].rz;
-       key.px   = tmp[i].px;
-       key.py   = tmp[i].py;
-       key.pz   = tmp[i].pz;
-       
-       j = i-1;
+   int i, j;
+   AtomMsg key;
+   for (i = 1; i < nAtoms; i++) {
+     key.gid  = tmp[i].gid;
+     key.type = tmp[i].type;
+     key.rx   = tmp[i].rx;
+     key.ry   = tmp[i].ry;
+     key.rz   = tmp[i].rz;
+     key.px   = tmp[i].px;
+     key.py   = tmp[i].py;
+     key.pz   = tmp[i].pz;
+
+     j = i-1;
  
-       /* Move elements of tmp[0..i-1], that are
-          greater than key, to one position ahead
-          of their current position */
-       while (j >= 0 && tmp[j].gid > key.gid)
-       {
-         tmp[j+1].gid  = tmp[j].gid;
-         tmp[j+1].type = tmp[j].type;
-         tmp[j+1].rx   = tmp[j].rx;
-         tmp[j+1].ry   = tmp[j].ry;
-         tmp[j+1].rz   = tmp[j].rz;
-         tmp[j+1].px   = tmp[j].px;
-         tmp[j+1].py   = tmp[j].py;
-         tmp[j+1].pz   = tmp[j].pz;
-         j = j-1;
-       }
-       tmp[j+1].gid  = key.gid;
-       tmp[j+1].type = key.type;
-       tmp[j+1].rx   = key.rx;
-       tmp[j+1].ry   = key.ry;
-       tmp[j+1].rz   = key.rz;
-       tmp[j+1].px   = key.px;
-       tmp[j+1].py   = key.py;
-       tmp[j+1].pz   = key.pz;
+     /* Move elements of tmp[0..i-1], that are
+        greater than key, to one position ahead
+        of their current position */
+     while (j >= 0 && tmp[j].gid > key.gid) {
+       tmp[j+1].gid  = tmp[j].gid;
+       tmp[j+1].type = tmp[j].type;
+       tmp[j+1].rx   = tmp[j].rx;
+       tmp[j+1].ry   = tmp[j].ry;
+       tmp[j+1].rz   = tmp[j].rz;
+       tmp[j+1].px   = tmp[j].px;
+       tmp[j+1].py   = tmp[j].py;
+       tmp[j+1].pz   = tmp[j].pz;
+       j = j-1;
      }
-     /* End Insertion Sort */
+     tmp[j+1].gid  = key.gid;
+     tmp[j+1].type = key.type;
+     tmp[j+1].rx   = key.rx;
+     tmp[j+1].ry   = key.ry;
+     tmp[j+1].rz   = key.rz;
+     tmp[j+1].px   = key.px;
+     tmp[j+1].py   = key.py;
+     tmp[j+1].pz   = key.pz;
+   }
+   /* End Insertion Sort */
 
    for (int ii=begin, iTmp=0; ii<end; ++ii, ++iTmp)
    {

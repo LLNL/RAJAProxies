@@ -68,6 +68,17 @@ typedef struct HaloExchangeSt
 } 
 HaloExchange;
 
+/// A structure to package data for a single atom to pack into a
+/// send/recv buffer.  Also used for sorting atoms within link cells.
+typedef struct AtomMsgSt
+{
+   int gid;
+   int type;
+   real_t rx, ry, rz;
+   real_t px, py, pz;
+}
+AtomMsg;
+
 /// Create a HaloExchange for atom data.
 HaloExchange* initAtomHaloExchange(struct DomainSt* domain, struct LinkCellSt* boxes);
 

@@ -147,15 +147,15 @@ typedef RAJA::ReduceSum<RAJA::omp_reduce, int> rajaReduceSumInt;
 */
 
 #ifdef DO_CUDA
-#define CUDA_ASYNC
+// This changes all of the CUDA kernels to asynchronous kernels
+// This should be a build option.
+//#define CUDA_ASYNC
 
-// TODO: Should we support OpenMP threading and CUDA at the same time?
-#ifndef ENABLE_OPENMP
+// This assumes that OpenMP is not turned on as well
 typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
 typedef RAJA::seq_segit task_graph_policy;
-#endif
 
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC

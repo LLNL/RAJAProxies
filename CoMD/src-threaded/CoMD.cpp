@@ -99,7 +99,7 @@ int main(int argc, char** argv)
    initSubsystems();
    timestampBarrier("Starting Initialization\n");
 
-   // TODO: These values are mostly hard-coded.  This should be removed.
+   // TODO: These values are mostly hard-coded.  This should be updated to reflect the actual build.
    //yamlAppInfo(yamlFile);
    //yamlAppInfo(screenOut);
 
@@ -422,21 +422,11 @@ void sumAtoms(SimFlat* s)
   addIntParallel(&nLocal, &nGlobal, 1);
   stopTimer(commReduceTimer);
 
-  const int nLocal_temp  = nLocal;
-  const int nGlobal_temp = nGlobal;
-
-  // TODO: Possibly remove this
-  //       This is only necessary if nLocal and nGlobal are needed on
-  //       the GPU.  This would be necessary if we change to using
-  //       packed force kernels on the GPU.
-  RAJA::kernel<redistributeKernel>(
-  RAJA::make_tuple(
-    RAJA::RangeSegment(0, 1)),
-    [=] RAJA_DEVICE (int notUsed)
-    {
-      s->atoms->nLocal  = nLocal_temp;
-      s->atoms->nGlobal = nGlobal_temp;
-    } );
+  // NOTE: It should be ok to update these on the CPU side since we now have the
+  //       READ_MOSTLY hint given to the CUDA runtime.  It is possible that these
+  //       could cause page faults in which case they should be updated on the GPU.
+  s->atoms->nLocal = nLocal;
+  s->atoms->nGlobal = nGlobal;
 }
 
 /// Prints current time, energy, performance etc to monitor the state of

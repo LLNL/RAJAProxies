@@ -267,7 +267,7 @@ int eamForce(SimFlat* s)
    real_t etot = 0.0;
 
    rajaReduceSumRealKernel etot_raja(0.0);
-
+   profileStart(forceFunctionTimer);
    RAJA::kernel<forcePolicyKernel>(
      RAJA::make_tuple(
        *s->isLocalSegment,                // local boxes
@@ -347,11 +347,12 @@ int eamForce(SimFlat* s)
          }
        }
      });
+   profileStop(forceFunctionTimer);
 
      etot = etot_raja;
 
    rajaReduceSumRealKernel etot_raja_embed(0.0);
-
+   profileStart(forceFunctionTimer);
    RAJA::kernel<atomWorkKernel>(
    RAJA::make_tuple(
      RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
@@ -370,6 +371,7 @@ int eamForce(SimFlat* s)
           s->atoms->U[iOff] += fEmbed;   
         }
     } ) ;
+   profileStop(forceFunctionTimer);
 
    etot += etot_raja_embed;
 
@@ -378,6 +380,7 @@ int eamForce(SimFlat* s)
    haloExchange(pot->forceExchange, pot->forceExchangeData, 1);
    stopTimer(eamHaloTimer);
 
+   profileStart(forceFunctionTimer);
    // third pass
    RAJA::kernel<forcePolicyKernel>(
      RAJA::make_tuple(
@@ -427,6 +430,7 @@ int eamForce(SimFlat* s)
          }
        }
      });
+   profileStop(forceFunctionTimer);
 
    /* Use the CPU-side ePotential global variable here instead */
    ePotential = (real_t) etot;

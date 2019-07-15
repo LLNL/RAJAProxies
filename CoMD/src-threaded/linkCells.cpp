@@ -60,6 +60,7 @@
 /// \param [in] cutoff The cutoff distance of the potential.
 
 #include "linkCells.h"
+#include "haloExchange.h" // Required for unloadAtomsBuffer
 
 #include <stdio.h>
 #include <string.h>
@@ -178,7 +179,6 @@ int getNeighborBoxes(LinkCell* boxes, int iBox, int* nbrBoxes)
  * #######     This is due to CUDA build issues      #########
  * ###########################################################
  */
-// TODO: Don't reimplement this
 void putAtomInBox(LinkCell* boxes, Atoms* atoms,
                   const int gid, const int iType,
                   const real_t x,  const real_t y,  const real_t z,
@@ -299,8 +299,8 @@ COMD_DEVICE void moveAtom(LinkCell* boxes, Atoms* atoms, int iId, int iBox, int 
 /// \see redistributeAtoms
 void updateLinkCells(LinkCell* boxes, Atoms* atoms)
 {
-  //TODO: Implement this function on the GPU and remove this synchronization.
-  //Note: The synchronization is here to alleviate performance issues with using
+  // TODO: Implement this function on the GPU and remove this synchronization.
+  // NOTE: The synchronization is here to alleviate performance issues with using
   //      asynchronous kernels and then suddenly needing that data on the CPU...
 #ifdef DO_CUDA
   cudaStreamSynchronize(0);
@@ -495,4 +495,57 @@ void getTuple(LinkCell* boxes, int iBox, int* ixp, int* iyp, int* izp)
    *izp = iz;
 }
 
+/// The unloadBuffer function for a halo exchange of atom data.
+/// Iterates the receive buffer and places each atom that was received
+/// into the link cell that corresponds to the atom coordinate.  Note
+/// that this naturally accomplishes transfer of ownership of atoms that
+/// have moved from one spatial domain to another.  Atoms with
+/// coordinates in local link cells automatically become local
+/// particles.  Atoms that are owned by other ranks are automatically
+/// placed in halo kink cells.
+/// \see HaloExchangeSt::unloadBuffer for an explanation of the
+/// unloadBuffer parameters.
+// NOTE: This has been moved from haloExchange.cpp due to CUDA separate
+//       compilations issues.
+void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* charBuf)
+{
+   SimFlat* s = (SimFlat*) data;
+
+   const int nCells = *((int*)charBuf);
+
+   int size = (nCells+1) * sizeof(int);
+   // Make sure the buffer is alligned with AtomMsg's size
+#ifdef DO_CUDA
+   if( (size % sizeof(AtomMsg)) != 0 )
+     size += sizeof(AtomMsg) - (size % sizeof(AtomMsg));
+#endif
+
+   int nBuf = (bufSize-size) / sizeof(AtomMsg);
+
+  RAJA::kernel<redistributeKernel>(
+  RAJA::make_tuple(
+    RAJA::RangeSegment(0, nCells)),
+  [=] RAJA_DEVICE (int iCell) {
+    AtomMsg* buf = (AtomMsg*)(charBuf + size);
+    int* offsets = (int*)(charBuf);
+
+    int start = offsets[iCell], end;
+    if(iCell == offsets[0]-1)
+      end = nBuf;
+    else
+      end = offsets[iCell+1];
+
+    for(int ii = start; ii < end; ii++) {
+      int gid   = buf[ii].gid;
+      int type  = buf[ii].type;
+      real_t rx = buf[ii].rx;
+      real_t ry = buf[ii].ry;
+      real_t rz = buf[ii].rz;
+      real_t px = buf[ii].px;
+      real_t py = buf[ii].py;
+      real_t pz = buf[ii].pz;
+      putAtomInBox(s->boxes, s->atoms, gid, type, rx, ry, rz, px, py, pz);
+   }
+  });
+}
 
