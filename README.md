@@ -31,10 +31,7 @@ More details about RAJA configuration options are located in the
 [**RAJA User Guide and Tutorial**](http://raja.readthedocs.io/en/master/).
 
 The executable for Each application will be located in the `bin` directory
-of your build space.  The CoMD executables are the only exception to this
-rule in that they will be located in bin/CoMD/src-[version]/bin where
-[version] is the src you built CoMD from.  This version has to do with the
-programming model used. The executable names will include the name of the proxy
+of your build space. The executable names will include the name of the proxy
 app, its version and parallel programming model it is using. To run an
 application, simply run the desired executable. For example, to run 
 run the RAJA version of LULESH v1.0 with the OpenMP backend, execute the
