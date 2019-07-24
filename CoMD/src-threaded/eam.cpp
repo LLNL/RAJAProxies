@@ -309,14 +309,8 @@ int eamForce(SimFlat* s)
 
            for (int k=0; k<3; k++)
            {
-             // These operations should technically be atomic in OpenMP as well
-#if ENABLE_CUDA
-             atomicAdd(&f[iOff][k], -(dPhi*dr[k]/r));
-             atomicAdd(&f[jOff][k], dPhi*dr[k]/r);
-#else
-             f[iOff][k] -= dPhi*dr[k]/r;
-             f[jOff][k] += dPhi*dr[k]/r;
-#endif
+             RAJA::atomicAdd<rajaAtomicPolicy>(&f[iOff][k], -(dPhi*dr[k]/r));
+             RAJA::atomicAdd<rajaAtomicPolicy>(&f[jOff][k], dPhi*dr[k]/r);
            }
 
            // update energy terms
@@ -326,24 +320,13 @@ int eamForce(SimFlat* s)
              etot_raja += phiTmp;
            else
              etot_raja += 0.5*phiTmp;
-           // These operations should technically be atomic in OpenMP as well
-#if ENABLE_CUDA
-           atomicAdd(&U[iOff], 0.5*phiTmp);
-           atomicAdd(&U[jOff], 0.5*phiTmp);
-#else
-           U[iOff] += 0.5*phiTmp;
-           U[jOff] += 0.5*phiTmp;
-#endif
+
+           RAJA::atomicAdd<rajaAtomicPolicy>(&U[iOff], 0.5*phiTmp);
+           RAJA::atomicAdd<rajaAtomicPolicy>(&U[jOff], 0.5*phiTmp);
 
            // accumulate rhobar for each atom
-           // These operations should technically be atomic in OpenMP as well
-#if ENABLE_CUDA
-           atomicAdd(&rhobar[iOff], rhoTmp);
-           atomicAdd(&rhobar[jOff], rhoTmp);
-#else
-           rhobar[iOff] += rhoTmp;
-           rhobar[jOff] += rhoTmp;
-#endif
+           RAJA::atomicAdd<rajaAtomicPolicy>(&rhobar[iOff], rhoTmp);
+           RAJA::atomicAdd<rajaAtomicPolicy>(&rhobar[jOff], rhoTmp);
          }
        }
      });
@@ -419,14 +402,8 @@ int eamForce(SimFlat* s)
 
          for (int k=0; k<3; k++)
          {
-           // These atomic operations should be atomic for the OpenMP implementation as well
-#if ENABLE_CUDA
-           atomicAdd(&f[iOff][k], -((dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r));
-           atomicAdd(&f[jOff][k], (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r);
-#else
-           f[iOff][k] -= (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r;
-           f[jOff][k] += (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r;
-#endif
+           RAJA::atomicAdd<rajaAtomicPolicy>(&f[iOff][k], -((dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r));
+           RAJA::atomicAdd<rajaAtomicPolicy>(&f[jOff][k], (dfEmbed[iOff] + dfEmbed[jOff])*dRho*dr[k]/r);
          }
        }
      });

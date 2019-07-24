@@ -138,6 +138,8 @@ typedef RAJA::KernelPolicy<
 typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumReal;
 typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumRealKernel;
 typedef RAJA::ReduceSum<RAJA::omp_reduce, int> rajaReduceSumInt;
+
+typedef RAJA::builtin_atomic rajaAtomicPolicy;
 #endif
 
 /*
@@ -192,6 +194,8 @@ typedef RAJA::KernelPolicy<
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 typedef RAJA::ReduceSum<RAJA::cuda_reduce, real_t> rajaReduceSumRealKernel;
 typedef RAJA::ReduceSum<RAJA::cuda_reduce, int> rajaReduceSumInt;
+
+typedef RAJA::cuda_atomic rajaAtomicPolicy;
 #endif
 
 /*
@@ -226,6 +230,8 @@ typedef RAJA::KernelPolicy<
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
 typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumRealKernel;
 typedef RAJA::ReduceSum<RAJA::seq_reduce, int> rajaReduceSumInt;
+
+typedef RAJA::builtin_atomic rajaAtomicPolicy;
 #endif
 #endif
 
