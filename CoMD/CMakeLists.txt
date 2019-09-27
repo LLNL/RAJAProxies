@@ -41,17 +41,18 @@ function(notify_package name)
 endfunction()
 # Find the MPI library and set some definitions
 # This line ensures that we skip C++ headers altogether, avoiding unnecessary symbols in the .o files.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOMPI_SKIP_MPICXX -DMPICH_SKIP_MPICXX")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-set(MPI_CXX_SKIP_FLAGS
+if(ENABLE_MPI)
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOMPI_SKIP_MPICXX -DMPICH_SKIP_MPICXX")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+   set(MPI_CXX_SKIP_FLAGS
      -DMPI_NO_CPPBIND -DOMPI_SKIP_MPICXX -D_MPICC_H -DMPICH_SKIP_MPICXX -DMPIBULL_SKIP_MPICXX
      CACHE STRING "Default skip-flags used (for SGI, OpenMPI, HP-MPI, MPICH, BULL-MPI)")
-find_package(MPI REQUIRED)
-if (MPI_FOUND)
-   set(COMD2_HAVE_MPI TRUE)
-   notify_package(MPI)
+   find_package(MPI REQUIRED)
+   if (MPI_FOUND)
+      set(COMD2_HAVE_MPI TRUE)
+      notify_package(MPI)
+   endif()
 endif()
-
 
 #
 # Define build targets for CoMD
