@@ -3017,11 +3017,11 @@ int main(int argc, char *argv[])
 
       case Tiled_LockFree:
       {
-         buildLockFreeBlockIndexset( *domain->domElemList,
+        RAJA::buildLockFreeBlockIndexset( *domain->domElemList,
                                      edgeElems, edgeElems, edgeElems) ;
 
          /* Create a material indexset (entire domain same material for now) */
-         buildLockFreeBlockIndexset ( *domain->matElemList,
+        RAJA::buildLockFreeBlockIndexset ( *domain->matElemList,
                                       edgeElems, edgeElems, edgeElems) ;
       }
       break;
