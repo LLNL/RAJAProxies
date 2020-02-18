@@ -15,6 +15,7 @@ endif()
 ################################
 # BLT
 ################################
+set(BLT_CXX_STD "c++11" CACHE STRING "Version of C++ Standard")
 if (NOT EXISTS ${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
   message(FATAL_ERROR "\
   The BLT submodule is not present. \
