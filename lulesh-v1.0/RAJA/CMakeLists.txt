@@ -23,6 +23,9 @@ if (ENABLE_CUDA)
   set (lulesh_depends
     ${lulesh_depends}
     cuda)
+else()
+  set (lulesh_compile_options
+    -Wno-unkown-pragmas)
 endif ()
 
 blt_add_executable(
@@ -45,7 +48,7 @@ target_compile_definitions(
 target_compile_options(
   lulesh-v1.0-RAJA-seq.exe
   PUBLIC
-  -Wno-unknown-pragmas)
+  ${lulesh_compile_options})
 
 target_include_directories(
   lulesh-v1.0-RAJA-seq.exe

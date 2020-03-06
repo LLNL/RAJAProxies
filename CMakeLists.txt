@@ -12,10 +12,14 @@ if (PROXIES_ENABLE_WARNINGS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
 endif()
 
+if (ENABLE_CUDA)
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}--expt-extended-lambda")
+endif()
+
 ################################
 # BLT
 ################################
-set(BLT_CXX_STD "c++11" CACHE STRING "Version of C++ Standard")
+set(BLT_CXX_STD "c++14" CACHE STRING "Version of C++ Standard")
 if (NOT EXISTS ${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
   message(FATAL_ERROR "\
   The BLT submodule is not present. \
@@ -45,9 +49,8 @@ endif ()
 
 if (ENABLE_KRIPKE)
   if (ENABLE_CUDA)
-    message(FATAL_ERROR "Cannot build Kripke with CUDA")
-  endif()
-  if (ENABLE_OPENMP)
+    set(KRIPKE_ARCH "Cuda")
+  elseif (ENABLE_OPENMP)
     set(KRIPKE_ARCH "OpenMP")
   else()
     set(KRIPKE_ARCH "Sequential")
