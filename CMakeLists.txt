@@ -13,7 +13,7 @@ if (PROXIES_ENABLE_WARNINGS)
 endif()
 
 if (ENABLE_CUDA)
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS}--expt-extended-lambda")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 endif()
 
 ################################
