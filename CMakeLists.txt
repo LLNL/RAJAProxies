@@ -6,14 +6,12 @@ option(ENABLE_LULESH_ONE "Build LULESH v1.0" On)
 option(ENABLE_LULESH_TWO "Build LULESH v2.0" On)
 option(ENABLE_KRIPKE "Build Kripke" On)
 
+set (ENABLE_TESTS Off CACHE Bool "Don't build tests")
 set (ENABLE_EXAMPLES Off CACHE Bool "Don't build examples")
+set (ENABLE_EXERCISES Off CACHE Bool "Don't build exercises")
 
 if (PROXIES_ENABLE_WARNINGS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
-endif()
-
-if (ENABLE_CUDA)
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 endif()
 
 ################################
@@ -30,8 +28,6 @@ endif()
 include(${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
 
 add_subdirectory(tpl/RAJA)
-
-set(CUDA_NVCC_FLAGS ${RAJA_NVCC_FLAGS})
 
 if (ENABLE_DOCUMENTATION)
   add_subdirectory(docs)

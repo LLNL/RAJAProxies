@@ -23,6 +23,8 @@ if (ENABLE_CUDA)
   set (lulesh_depends
     ${lulesh_depends}
     cuda)
+  set (lulesh_compile_options
+    --expt-extended-lambda -arch=${CUDA_ARCH})
 else()
   set (lulesh_compile_options
     -Wno-unkown-pragmas)
@@ -87,6 +89,11 @@ if (ENABLE_CUDA)
     NAME lulesh-v1.0-RAJA-cuda.exe
     SOURCES ${CMAKE_CURRENT_BINARY_DIR}/lulesh_cuda.cpp
     DEPENDS_ON ${lulesh_depends})
+
+  target_compile_options(
+    lulesh-v1.0-RAJA-cuda.exe
+    PRIVATE
+    ${lulesh_compile_options})
 
   target_compile_definitions(
     lulesh-v1.0-RAJA-cuda.exe
