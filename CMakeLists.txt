@@ -29,7 +29,9 @@ endif()
 ################################
 # BLT
 ################################
-set(BLT_CXX_STD "c++14" CACHE STRING "Version of C++ Standard")
+if (ENABLE_KRIPKE)
+  set(BLT_CXX_STD "c++14" CACHE STRING "Version of C++ Standard")
+endif()
 if (NOT EXISTS ${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
   message(FATAL_ERROR "\
   The BLT submodule is not present. \
