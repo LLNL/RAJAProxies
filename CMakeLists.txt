@@ -58,6 +58,7 @@ endif ()
 if (ENABLE_KRIPKE)
   if (ENABLE_CUDA)
     set(KRIPKE_ARCH "Cuda")
+    set(kripke_compile_options --expt-extended-lambda -arch=${CUDA_ARCH})
   elseif (ENABLE_OPENMP)
     set(KRIPKE_ARCH "OpenMP")
   else()
@@ -65,4 +66,8 @@ if (ENABLE_KRIPKE)
   endif()
   message(STATUS "Building Kripke")
   add_subdirectory(kripke)
+
+  target_compile_options(kripke
+    PUBLIC
+    ${kripke_compile_options})
 endif ()
