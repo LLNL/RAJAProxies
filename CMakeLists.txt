@@ -1,3 +1,15 @@
+###############################################################################
+#
+# Copyright (c) 2020, Lawrence Livermore National Security, LLC.
+#
+# Produced at the Lawrence Livermore National Laboratory
+#
+# All rights reserved.
+#
+# This file is part of the RAJA Proxy App Suite
+#
+###############################################################################
+
 cmake_minimum_required(VERSION 3.4)
 
 project(RajaProxies LANGUAGES CXX)
