@@ -201,7 +201,7 @@ typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> elem_exec_policy;
 typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> mat_exec_policy;
 typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> symnode_exec_policy;
 
-typedef RAJA::cuda_reduce<thread_block_size> reduce_policy; 
+typedef RAJA::cuda_reduce reduce_policy; 
 
 // ----------------------------------------------------
 #elif USE_CASE == LULESH_CUDA_COLOR_SIMD

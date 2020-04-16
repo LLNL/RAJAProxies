@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Copyright (c) 2017, Lawrence Livermore National Security, LLC.
+# Copyright (c) 2017-20, Lawrence Livermore National Security, LLC.
 #
 # Produced at the Lawrence Livermore National Laboratory
 #
@@ -30,6 +30,11 @@ if (ENABLE_CUDA)
   set (lulesh_depends
     ${lulesh_depends}
     cuda)
+  set (lulesh_compile_options
+    --expt-extended-lambda -arch=${CUDA_ARCH})
+else()
+  set (lulesh_compile_options
+    -Wno-unkown-pragmas)
 endif ()
 
 blt_add_executable(
@@ -40,7 +45,7 @@ blt_add_executable(
 target_compile_options(
   lulesh-v2.0-RAJA-seq.exe
   PRIVATE
-  -Wno-unknown-pragmas)
+  ${lulesh_compile_options})
 
 target_compile_definitions(
   lulesh-v2.0-RAJA-seq.exe
@@ -103,6 +108,11 @@ if (ENABLE_CUDA)
     ${CMAKE_CURRENT_BINARY_DIR}/lulesh-util-cuda.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/lulesh-viz-cuda.cpp
     DEPENDS_ON ${lulesh_depends})
+
+  target_compile_options(
+    lulesh-v2.0-RAJA-cuda.exe
+    PRIVATE
+    ${lulesh_compile_options})
 
   target_compile_definitions(
     lulesh-v2.0-RAJA-cuda.exe
