@@ -38,7 +38,7 @@ matrix:
     env:
     - COMPILER=g++
     - IMG=nvcc9
-    - CMAKE_EXTRA_FLAGS="-DENABLE_CUDA=On -DENABLE_KRIPKE=Off"
+    - CMAKE_EXTRA_FLAGS="-DENABLE_CUDA=On -DENABLE_KRIPKE=On"
     - DO_TEST=no
   - compiler: gcc-4.9-debug
     env:
@@ -54,7 +54,7 @@ matrix:
     env:
     - COMPILER=g++
     - IMG=nvcc9
-    - CMAKE_EXTRA_FLAGS="-DCMAKE_BUILD_TYPE=Debug -DENABLE_CUDA=On -DENABLE_KRIPKE=Off"
+    - CMAKE_EXTRA_FLAGS="-DCMAKE_BUILD_TYPE=Debug -DENABLE_CUDA=On -DENABLE_KRIPKE=On"
     - DO_TEST=no
 
 script: 
