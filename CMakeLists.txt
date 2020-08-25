@@ -84,7 +84,7 @@ if (ENABLE_COMD)
   endif()
   add_subdirectory(CoMD)
 
-  target_compile_options(comd
+  target_compile_options(CoMD
     PUBLIC
     ${comd_compile_options})
 endif ()
