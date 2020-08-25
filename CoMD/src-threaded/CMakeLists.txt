@@ -60,6 +60,7 @@ raja_add_executable(
 
 if(ENABLE_CUDA)
   set(CUDA_CXXFLAGS "${CUDA_CXXFLAGS} --expt-extended-lambda")
+  set(RAJA_NVCCFLAGS "${RAJA_NVCCFLAGS} --expt-extended-lambda")
   include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${PROJECT_BINARY_DIR}
