@@ -59,6 +59,7 @@ raja_add_executable(
   DEPENDS_ON ${CoMD_depends})
 
 if(ENABLE_CUDA)
+  set(CUDA_CXXFLAGS "${CUDA_CXXFLAGS} --expt-extended-lambda")
   include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${PROJECT_BINARY_DIR}
