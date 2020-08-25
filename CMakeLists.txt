@@ -78,13 +78,5 @@ endif ()
 
 if (ENABLE_COMD)
   message(STATUS "Building CoMD v1.0")
-  if (ENABLE_CUDA)
-    set(COMD_ARCH "Cuda")
-    set(comd_compile_options --expt-extended-lambda -arch=${CUDA_ARCH})
-  endif()
   add_subdirectory(CoMD)
-
-  target_compile_options(CoMD
-    PUBLIC
-    ${comd_compile_options})
 endif ()
