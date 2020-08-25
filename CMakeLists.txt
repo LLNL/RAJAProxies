@@ -81,6 +81,7 @@ if (ENABLE_COMD)
   if (ENABLE_CUDA)
     set(COMD_ARCH "Cuda")
     set(comd_compile_options --expt-extended-lambda -arch=${CUDA_ARCH})
+  endif()
   add_subdirectory(CoMD)
 
   target_compile_options(comd
