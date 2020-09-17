@@ -17,6 +17,7 @@ project(RajaProxies LANGUAGES CXX)
 option(ENABLE_LULESH_ONE "Build LULESH v1.0" On)
 option(ENABLE_LULESH_TWO "Build LULESH v2.0" On)
 option(ENABLE_KRIPKE "Build Kripke" On)
+option(ENABLE_COMD "Build CoMD" On)
 
 set (ENABLE_TESTS Off CACHE Bool "Don't build tests")
 set (ENABLE_EXAMPLES Off CACHE Bool "Don't build examples")
@@ -72,4 +73,10 @@ if (ENABLE_KRIPKE)
   target_compile_options(kripke
     PUBLIC
     ${kripke_compile_options})
+endif ()
+
+
+if (ENABLE_COMD)
+  message(STATUS "Building CoMD v1.0")
+  add_subdirectory(CoMD)
 endif ()
