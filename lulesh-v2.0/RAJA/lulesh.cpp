@@ -505,6 +505,7 @@ void IntegrateStressForElems( Domain* domain,
                               Real_t *sigxx, Real_t *sigyy, Real_t *sigzz,
                               Real_t *determ, Index_t numElem)
 {
+  RAJA_UNUSED_VAR(numElem);
 #if defined(OMP_FINE_SYNC)
   Real_t *fx_elem = elemMemPool.allocate(numElem*8) ;
   Real_t *fy_elem = elemMemPool.allocate(numElem*8) ;
@@ -718,6 +719,7 @@ void CalcFBHourglassForceForElems( Domain* domain,
    *
    *************************************************/
   
+   RAJA_UNUSED_VAR(numElem);
 #if defined(OMP_FINE_SYNC)
    Real_t *fx_elem = elemMemPool.allocate(numElem*8) ;
    Real_t *fy_elem = elemMemPool.allocate(numElem*8) ;
