@@ -27,7 +27,7 @@ if (ENABLE_CUDA)
     --expt-extended-lambda -arch=${CUDA_ARCH})
 else()
   set (lulesh_compile_options
-    -Wno-unkown-pragmas)
+    -Wno-unknown-pragmas)
 endif ()
 
 blt_add_executable(
