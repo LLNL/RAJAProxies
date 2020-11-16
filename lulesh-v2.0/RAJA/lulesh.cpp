@@ -2531,7 +2531,7 @@ int main(int argc, char *argv[])
    if ((myRank == 0) && (opts.quiet == 0)) {
       printf("Running problem size %d^3 per domain until completion\n", opts.nx);
       printf("Num processors: %d\n", numRanks);
-#if defined(_OPENMP)
+#if ENABLE_OPENMP
       printf("Num threads: %d\n", omp_get_max_threads());
 #endif
       printf("Total number of elements: %lld\n\n", (long long int)(numRanks*opts.nx*opts.nx*opts.nx));

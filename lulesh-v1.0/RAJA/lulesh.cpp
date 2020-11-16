@@ -3211,7 +3211,7 @@ int main(int argc, char *argv[])
    /*  Print run parameters    */
    /****************************/
    printf("Running problem size %ld^3 per domain until completion\n", edgeElems);
-#if defined(_OPENMP)
+#if ENABLE_OPENMP
    printf("Num threads: %d\n", omp_get_max_threads());
 #endif
    printf("Total number of elements: %lld\n\n", (long long int)(edgeElems*edgeElems*edgeElems));
