@@ -134,10 +134,6 @@ typedef RAJA::Index_type* Index_p;
 //#define RAJA_STORAGE static inline
 #define RAJA_STORAGE
 
-using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
-                                        RAJA::ListSegment, 
-                                        RAJA::RangeStrideSegment>;
-
 
 /****************************************************/
 /*                                                  */
@@ -2934,6 +2930,8 @@ int main(int argc, char *argv[])
    const Index_t ytile = lulesh_ytile ;
    const Index_t ztile = lulesh_ztile ;
 
+   RAJA::resources::Resource defaultHostRes{RAJA::resources::Host::get_default()};
+
    switch (lulesh_tiling_mode) {
 
       case Canonical:
@@ -2969,8 +2967,8 @@ int main(int argc, char *argv[])
                         }
                      }
                   }
-                  domain->domElemList->push_back( RAJA::ListSegment(tileIdx, tileSize) );
-                  domain->matElemList->push_back( RAJA::ListSegment(tileIdx, tileSize) );
+                  domain->domElemList->push_back( RAJA::ListSegment(tileIdx, tileSize, defaultHostRes) );
+                  domain->matElemList->push_back( RAJA::ListSegment(tileIdx, tileSize, defaultHostRes) );
                }
             }
          }
@@ -3015,6 +3013,7 @@ int main(int argc, char *argv[])
       }
       break ;
 
+#if USE_CASE == LULESH_TILE_TASK
       case Tiled_LockFree:
       {
         RAJA::buildLockFreeBlockIndexset( *domain->domElemList,
@@ -3025,16 +3024,18 @@ int main(int argc, char *argv[])
                                            edgeElems, edgeElems, edgeElems) ;
       }
       break;
+#endif
 
+#if (USE_CASE == LULESH_TILE_COLOR) or (USE_CASE == LULESH_TILE_COLOR_SIMD)
       case Tiled_LockFreeColor:
       {
          // printf("Elements:\n") ;
-         buildLockFreeColorIndexset( *domain->domElemList,
+         buildLockFreeColorIndexset( *domain->domElemList, defaultHostRes,
                                      domain->nodelist, domElems, 8, domNodes) ;
 
          /* Create a material indexset (entire domain same material for now) */
          // printf("Material:\n") ;
-         buildLockFreeColorIndexset ( *domain->matElemList,
+         buildLockFreeColorIndexset ( *domain->matElemList, defaultHostRes,
                                       domain->nodelist, domElems, 8, domNodes) ;
       }
       break;
@@ -3045,17 +3046,18 @@ int main(int argc, char *argv[])
          iperm = Allocate<Index_t>(domElems) ; /* inverse permutation */
 
          // printf("Elements:\n") ;
-         buildLockFreeColorIndexset( *domain->domElemList,
+         buildLockFreeColorIndexset( *domain->domElemList, defaultHostRes,
                                      domain->nodelist, domElems, 8, domNodes,
                                      perm, iperm) ;
 
          /* Create a material indexset (entire domain same material for now) */
          // printf("Material:\n") ;
-         buildLockFreeColorIndexset ( *domain->matElemList,
+         buildLockFreeColorIndexset ( *domain->matElemList, defaultHostRes,
                                       domain->nodelist, domElems, 8, domNodes,
                                       perm, iperm) ;
       }
       break;
+#endif
 
       default :
       {
@@ -3076,7 +3078,7 @@ int main(int argc, char *argv[])
          nset[nidx++] = planeInc + j*edgeNodes ;
        }
      }
-     domain->symmX->push_back( RAJA::ListSegment(nset, edgeNodes*edgeNodes) );
+     domain->symmX->push_back( RAJA::ListSegment(nset, edgeNodes*edgeNodes, defaultHostRes) );
      delete [] nset ;
    }
 
@@ -3090,7 +3092,7 @@ int main(int argc, char *argv[])
          nset[nidx++] = planeInc + j ;
        }
      }
-     domain->symmY->push_back( RAJA::ListSegment(nset, edgeNodes*edgeNodes) );
+     domain->symmY->push_back( RAJA::ListSegment(nset, edgeNodes*edgeNodes, defaultHostRes) );
      delete [] nset ;
    }
 
