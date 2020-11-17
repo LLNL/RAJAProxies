@@ -140,7 +140,7 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::Tile<0, RAJA::statement::tile_fixed<128>, RAJA::cuda_block_x_loop,
+    RAJA::statement::Tile<0, RAJA::tile_fixed<128>, RAJA::cuda_block_x_loop,
     RAJA::statement::For<0, RAJA::cuda_thread_x_loop,
     RAJA::statement::Lambda<0> > > > > redistributeKernel;
 

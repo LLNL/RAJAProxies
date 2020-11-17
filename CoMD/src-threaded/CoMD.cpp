@@ -235,6 +235,8 @@ SimFlat* initSimulation(Command cmd)
    // create lattice with desired temperature and displacement.
    createFccLattice(cmd.nx, cmd.ny, cmd.nz, latticeConstant, sim);
 
+   RAJA::resources::Resource defHostRes{RAJA::resources::Host::get_default()};
+
    /* Create Total IndexSets */
    sim->isTotal = new RAJA::TypedIndexSet<RAJA::RangeSegment>() ;
    for (int i=0; i<sim->boxes->nTotalBoxes; ++i) {
@@ -254,10 +256,10 @@ SimFlat* initSimulation(Command cmd)
            tmpBox[tmpCount++] = sim->boxes->nbrBoxes[i][j] ;
          }
        }
-         sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(tmpBox, tmpCount);
+         sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(tmpBox, tmpCount, defHostRes);
      }
      else {
-       sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(sim->boxes->nbrBoxes[i], 27);
+       sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(sim->boxes->nbrBoxes[i], 27, defHostRes);
      }
    }
 
