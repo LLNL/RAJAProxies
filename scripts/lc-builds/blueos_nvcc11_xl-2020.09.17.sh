@@ -24,7 +24,7 @@ cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_CXX_COMPILER=/usr/tce/packages/xl/xl-2020.09.17/bin/xlc++_r \
   -C ${RAJA_HOSTCONFIG} \
-  -DENABLE_OPENMP=On \
+  -DENABLE_OPENMP=Off \
   -DENABLE_CUDA=On \
   -DCUDA_TOOLKIT_ROOT_DIR=/usr/tce/packages/cuda/cuda-11.1.0 \
   -DCMAKE_CUDA_COMPILER=/usr/tce/packages/cuda/cuda-11.1.0/bin/nvcc \
