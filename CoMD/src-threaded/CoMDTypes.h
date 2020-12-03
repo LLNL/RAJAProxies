@@ -109,41 +109,6 @@ extern int nGlobal;   //!< total number of atoms in simulation
 
 /*
 ########################################################################
-########################## OpenMP Portion ##############################
-########################################################################
-*/
-
-#ifdef ENABLE_OPENMP
-typedef RAJA::omp_parallel_for_segit linkCellTraversal ;
-typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
-typedef RAJA::ExecPolicy<RAJA::omp_parallel_for_segit, RAJA::simd_exec> atomWork;
-typedef RAJA::omp_parallel_segit task_graph_policy;
-
-typedef RAJA::KernelPolicy<
-    RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
-    RAJA::statement::For<1, RAJA::simd_exec,
-    RAJA::statement::Lambda<0> > > > atomWorkKernel;
-
-typedef RAJA::KernelPolicy<
-    RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
-    RAJA::statement::Lambda<0> > > redistributeKernel;
-
-typedef RAJA::KernelPolicy<
-  RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
-  RAJA::statement::For<1, RAJA::seq_exec,
-  RAJA::statement::For<2, RAJA::seq_exec,
-  RAJA::statement::For<3, RAJA::simd_exec,
-  RAJA::statement::Lambda<0> > > > > > forcePolicyKernel;
-
-typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumReal;
-typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumRealKernel;
-typedef RAJA::ReduceSum<RAJA::omp_reduce, int> rajaReduceSumInt;
-
-typedef RAJA::builtin_atomic rajaAtomicPolicy;
-#endif
-
-/*
-########################################################################
 ########################### CUDA Portion ###############################
 ########################################################################
 */
@@ -175,7 +140,7 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::Tile<0, RAJA::statement::tile_fixed<128>, RAJA::cuda_block_x_loop,
+    RAJA::statement::Tile<0, RAJA::tile_fixed<128>, RAJA::cuda_block_x_loop,
     RAJA::statement::For<0, RAJA::cuda_thread_x_loop,
     RAJA::statement::Lambda<0> > > > > redistributeKernel;
 
@@ -196,7 +161,43 @@ typedef RAJA::ReduceSum<RAJA::cuda_reduce, real_t> rajaReduceSumRealKernel;
 typedef RAJA::ReduceSum<RAJA::cuda_reduce, int> rajaReduceSumInt;
 
 typedef RAJA::cuda_atomic rajaAtomicPolicy;
+//#endif
+
+/*
+########################################################################
+########################## OpenMP Portion ##############################
+########################################################################
+*/
+
+#elif ENABLE_OPENMP
+typedef RAJA::omp_parallel_for_segit linkCellTraversal ;
+typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
+typedef RAJA::ExecPolicy<RAJA::omp_parallel_for_segit, RAJA::simd_exec> atomWork;
+typedef RAJA::omp_parallel_segit task_graph_policy;
+
+typedef RAJA::KernelPolicy<
+    RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
+    RAJA::statement::For<1, RAJA::simd_exec,
+    RAJA::statement::Lambda<0> > > > atomWorkKernel;
+
+typedef RAJA::KernelPolicy<
+    RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
+    RAJA::statement::Lambda<0> > > redistributeKernel;
+
+typedef RAJA::KernelPolicy<
+  RAJA::statement::For<0, RAJA::omp_parallel_for_segit,
+  RAJA::statement::For<1, RAJA::seq_exec,
+  RAJA::statement::For<2, RAJA::seq_exec,
+  RAJA::statement::For<3, RAJA::simd_exec,
+  RAJA::statement::Lambda<0> > > > > > forcePolicyKernel;
+
+typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumReal;
+typedef RAJA::ReduceSum<RAJA::omp_reduce, real_t> rajaReduceSumRealKernel;
+typedef RAJA::ReduceSum<RAJA::omp_reduce, int> rajaReduceSumInt;
+
+typedef RAJA::builtin_atomic rajaAtomicPolicy;
 #endif
+
 
 /*
 ########################################################################

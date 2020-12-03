@@ -505,6 +505,7 @@ void IntegrateStressForElems( Domain* domain,
                               Real_t *sigxx, Real_t *sigyy, Real_t *sigzz,
                               Real_t *determ, Index_t numElem)
 {
+  RAJA_UNUSED_VAR(numElem);
 #if defined(OMP_FINE_SYNC)
   Real_t *fx_elem = elemMemPool.allocate(numElem*8) ;
   Real_t *fy_elem = elemMemPool.allocate(numElem*8) ;
@@ -718,6 +719,7 @@ void CalcFBHourglassForceForElems( Domain* domain,
    *
    *************************************************/
   
+   RAJA_UNUSED_VAR(numElem);
 #if defined(OMP_FINE_SYNC)
    Real_t *fx_elem = elemMemPool.allocate(numElem*8) ;
    Real_t *fy_elem = elemMemPool.allocate(numElem*8) ;
@@ -2531,7 +2533,7 @@ int main(int argc, char *argv[])
    if ((myRank == 0) && (opts.quiet == 0)) {
       printf("Running problem size %d^3 per domain until completion\n", opts.nx);
       printf("Num processors: %d\n", numRanks);
-#if defined(_OPENMP)
+#if ENABLE_OPENMP
       printf("Num threads: %d\n", omp_get_max_threads());
 #endif
       printf("Total number of elements: %lld\n\n", (long long int)(numRanks*opts.nx*opts.nx*opts.nx));

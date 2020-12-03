@@ -46,6 +46,17 @@ enum TilingMode
 #define USE_CASE   LULESH_CANONICAL
 #endif
 
+#if USE_CASE == LULESH_TILE_TASK
+using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment>;
+#elif (USE_CASE == LULESH_TILE_COLOR) or (USE_CASE == LULESH_TILE_COLOR_SIMD)
+using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
+                                        RAJA::ListSegment>;
+#else
+using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
+                                        RAJA::ListSegment,
+                                        RAJA::RangeStrideSegment>;
+#endif
+
 // ----------------------------------------------------
 #if USE_CASE == LULESH_SEQUENTIAL 
 

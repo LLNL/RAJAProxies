@@ -651,6 +651,7 @@ Domain::CreateRegionIndexSets(Int_t nr, Int_t balance)
 void
 Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
 {
+  RAJA::resources::Resource defHostRes{RAJA::resources::Host::get_default()};
   if (m_planeLoc == 0) {
     m_domZSymNodeISet.push_back( RAJA::RangeSegment(0, edgeNodes*edgeNodes) );
   }
@@ -663,7 +664,7 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
         nset[nidx++] = planeInc + j ;
       }
     }
-    m_domYSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes) );
+    m_domYSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes, defHostRes) );
     delete [] nset ;
   }
   if (m_colLoc == 0) {
@@ -675,7 +676,7 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
         nset[nidx++] = planeInc + j*edgeNodes ;
       }
     }
-    m_domXSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes) );
+    m_domXSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes, defHostRes) );
     delete [] nset ;
   }
 }
