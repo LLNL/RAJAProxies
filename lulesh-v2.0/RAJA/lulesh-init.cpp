@@ -651,7 +651,11 @@ Domain::CreateRegionIndexSets(Int_t nr, Int_t balance)
 void
 Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
 {
+#if USE_CASE == LULESH_CUDA_CANONICAL
+  RAJA::resources::Resource defHostRes{RAJA::resources::Cuda()};
+#else
   RAJA::resources::Resource defHostRes{RAJA::resources::Host::get_default()};
+#endif
   if (m_planeLoc == 0) {
     m_domZSymNodeISet.push_back( RAJA::RangeSegment(0, edgeNodes*edgeNodes) );
   }
