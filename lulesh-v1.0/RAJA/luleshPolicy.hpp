@@ -47,14 +47,14 @@ enum TilingMode
 #endif
 
 #if USE_CASE == LULESH_TILE_TASK
-using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment>;
+using LULESH_ISET = RAJA::TypedIndexSet<RAJA::TypedRangeSegment<RAJA::Index_type>>;
 #elif (USE_CASE == LULESH_TILE_COLOR) or (USE_CASE == LULESH_TILE_COLOR_SIMD)
-using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
-                                        RAJA::ListSegment>;
+using LULESH_ISET = RAJA::TypedIndexSet<RAJA::TypedRangeSegment<RAJA::Index_type>,
+                                        RAJA::TypedListSegment<RAJA::Index_type>>;
 #else
-using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
-                                        RAJA::ListSegment,
-                                        RAJA::RangeStrideSegment>;
+using LULESH_ISET = RAJA::TypedIndexSet<RAJA::TypedRangeSegment<RAJA::Index_type>,
+                                        RAJA::TypedListSegment<RAJA::Index_type>,
+                                        RAJA::TypedRangeStrideSegment<RAJA::Index_type>>;
 #endif
 
 // ----------------------------------------------------
