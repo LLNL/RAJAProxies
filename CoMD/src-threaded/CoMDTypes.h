@@ -90,9 +90,9 @@ typedef struct SimFlatSt
 
    HaloExchange* atomExchange;
 
-   RAJA::TypedIndexSet<RAJA::RangeSegment> *isTotal ;
-   RAJA::TypedIndexSet<RAJA::RangeSegment> *isLocal ;
-   RAJA::RangeSegment *isLocalSegment ;
+   RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *isTotal ;
+   RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *isLocal ;
+   RAJA::TypedRangeSegment<int> *isLocalSegment ;
 
 } SimFlat;
 

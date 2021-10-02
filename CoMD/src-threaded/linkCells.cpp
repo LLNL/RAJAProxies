@@ -125,7 +125,7 @@ LinkCell* initLinkCells(const Domain* domain, real_t cutoff)
    // Adding nbrSegments
    ll->nbrSegments = (RAJA::TypedListSegment<int> **)comdMalloc(ll->nTotalBoxes*sizeof(RAJA::TypedListSegment<int>*));
 
-   ll->neighbors = (RAJA::TypedIndexSet<RAJA::RangeSegment> **)comdMalloc(ll->nTotalBoxes*sizeof(RAJA::TypedIndexSet<RAJA::RangeSegment> *));
+   ll->neighbors = (RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> **)comdMalloc(ll->nTotalBoxes*sizeof(RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *));
 
    return ll;
 }
@@ -407,7 +407,7 @@ void emptyHaloCells(LinkCell* boxes)
 {
    RAJA::kernel<redistributeKernel>(
    RAJA::make_tuple(
-                    RAJA::RangeSegment(boxes->nLocalBoxes, boxes->nTotalBoxes)),
+                    RAJA::TypedRangeSegment<int>(boxes->nLocalBoxes, boxes->nTotalBoxes)),
    [=] RAJA_DEVICE (int ii) {
      boxes->nAtoms[ii] = 0;
    });
@@ -524,7 +524,7 @@ void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* ch
 
   RAJA::kernel<redistributeKernel>(
   RAJA::make_tuple(
-    RAJA::RangeSegment(0, nCells)),
+    RAJA::TypedRangeSegment<int>(0, nCells)),
   [=] RAJA_DEVICE (int iCell) {
     AtomMsg* buf = (AtomMsg*)(charBuf + size);
     int* offsets = (int*)(charBuf);

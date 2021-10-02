@@ -8,8 +8,8 @@
 #include "parallel.h"
 #include "performanceTimers.h"
 
-static void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt);
-static void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt);
+static void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *extent, real_t dt);
+static void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *extent, real_t dt);
 
 extern "C" int sortAtomsById(const void* a, const void* b);
 
@@ -67,12 +67,12 @@ void computeForce(SimFlat* s)
 }
 
 
-void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt)
+void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *extent, real_t dt)
 {
   RAJA::kernel<atomWorkKernel>(
   RAJA::make_tuple(
-    RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
-    RAJA::RangeSegment(0, MAXATOMS) ),
+    RAJA::TypedRangeSegment<int>(0, s->boxes->nLocalBoxes),
+    RAJA::TypedRangeSegment<int>(0, MAXATOMS) ),
     [=] COMD_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
       if(iOffLocal < nIBox) {
@@ -87,12 +87,12 @@ void advanceVelocity(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent
     } );
 }
 
-void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::RangeSegment> *extent, real_t dt)
+void advancePosition(SimFlat* s, RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *extent, real_t dt)
 {
   RAJA::kernel<atomWorkKernel>(
   RAJA::make_tuple(
-  RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
-    RAJA::RangeSegment(0, MAXATOMS) ),
+  RAJA::TypedRangeSegment<int>(0, s->boxes->nLocalBoxes),
+    RAJA::TypedRangeSegment<int>(0, MAXATOMS) ),
     [=] COMD_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
       if(iOffLocal < nIBox) {
@@ -122,8 +122,8 @@ void kineticEnergy(SimFlat* s)
 
   RAJA::kernel<atomWorkKernel>(
   RAJA::make_tuple(
-    RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
-    RAJA::RangeSegment(0, MAXATOMS) ),
+    RAJA::TypedRangeSegment<int>(0, s->boxes->nLocalBoxes),
+    RAJA::TypedRangeSegment<int>(0, MAXATOMS) ),
     [=] COMD_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
       if(iOffLocal < nIBox) {
@@ -272,7 +272,7 @@ void redistributeAtoms(SimFlat* sim)
    startTimer(atomSortTimer);
    RAJA::kernel<redistributeKernel>(
    RAJA::make_tuple(
-   RAJA::RangeSegment(0, sim->boxes->nTotalBoxes)),
+   RAJA::TypedRangeSegment<int>(0, sim->boxes->nTotalBoxes)),
    [=] COMD_DEVICE (int iBox) {
      sortAtomsInCell(sim->atoms, sim->boxes, iBox);
    } );
