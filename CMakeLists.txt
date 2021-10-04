@@ -19,9 +19,9 @@ option(ENABLE_LULESH_TWO "Build LULESH v2.0" On)
 option(ENABLE_KRIPKE "Build Kripke" On)
 option(ENABLE_COMD "Build CoMD" On)
 
-set (ENABLE_TESTS Off CACHE Bool "Don't build tests")
-set (ENABLE_EXAMPLES Off CACHE Bool "Don't build examples")
-set (ENABLE_EXERCISES Off CACHE Bool "Don't build exercises")
+set (ENABLE_TESTS Off CACHE BOOL "Don't build tests")
+set (ENABLE_EXAMPLES Off CACHE BOOL "Don't build examples")
+set (ENABLE_EXERCISES Off CACHE BOOL "Don't build exercises")
 
 if (PROXIES_ENABLE_WARNINGS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
