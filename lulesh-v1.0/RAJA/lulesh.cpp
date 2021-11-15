@@ -2921,7 +2921,7 @@ int main(int argc, char *argv[])
 
    /* always leave the nodes in a canonical ordering */
    domain->domNodeList = new LULESH_ISET() ;
-   domain->domNodeList->push_back( RAJA::RangeSegment(0, domNodes) ) ;
+   domain->domNodeList->push_back( RAJA::TypedRangeSegment<Index_t>(0, domNodes) ) ;
 
    domain->domElemList = new LULESH_ISET() ;
    domain->matElemList = new LULESH_ISET() ;
@@ -2930,16 +2930,20 @@ int main(int argc, char *argv[])
    const Index_t ytile = lulesh_ytile ;
    const Index_t ztile = lulesh_ztile ;
 
+#if USE_CASE == LULESH_CUDA_CANONICAL
+   RAJA::resources::Resource defaultHostRes{RAJA::resources::Cuda()};
+#else
    RAJA::resources::Resource defaultHostRes{RAJA::resources::Host::get_default()};
+#endif
 
    switch (lulesh_tiling_mode) {
 
       case Canonical:
       {
-         domain->domElemList->push_back( RAJA::RangeSegment(0, domElems) );
+         domain->domElemList->push_back( RAJA::TypedRangeSegment<Index_t>(0, domElems) );
 
          /* Create a material ISet (entire domain same material for now) */
-         domain->matElemList->push_back( RAJA::RangeSegment(0, domElems) ) ;
+         domain->matElemList->push_back( RAJA::TypedRangeSegment<Index_t>(0, domElems) ) ;
       }
       break ;
 
@@ -2967,8 +2971,8 @@ int main(int argc, char *argv[])
                         }
                      }
                   }
-                  domain->domElemList->push_back( RAJA::ListSegment(tileIdx, tileSize, defaultHostRes) );
-                  domain->matElemList->push_back( RAJA::ListSegment(tileIdx, tileSize, defaultHostRes) );
+                  domain->domElemList->push_back( RAJA::TypedListSegment<Index_t>(tileIdx, tileSize, defaultHostRes) );
+                  domain->matElemList->push_back( RAJA::TypedListSegment<Index_t>(tileIdx, tileSize, defaultHostRes) );
                }
             }
          }
@@ -3004,8 +3008,8 @@ int main(int argc, char *argv[])
                      }
                   }
                   Index_t tileEnd = tileBegin + tileSize ;
-                  domain->domElemList->push_back( RAJA::RangeSegment(tileBegin, tileEnd) );
-                  domain->matElemList->push_back( RAJA::RangeSegment(tileBegin, tileEnd) );
+                  domain->domElemList->push_back( RAJA::TypedRangeSegment<Index_t>(tileBegin, tileEnd) );
+                  domain->matElemList->push_back( RAJA::TypedRangeSegment<Index_t>(tileBegin, tileEnd) );
                   tileBegin = tileEnd ;
                }
             }
@@ -3078,7 +3082,7 @@ int main(int argc, char *argv[])
          nset[nidx++] = planeInc + j*edgeNodes ;
        }
      }
-     domain->symmX->push_back( RAJA::ListSegment(nset, edgeNodes*edgeNodes, defaultHostRes) );
+     domain->symmX->push_back( RAJA::TypedListSegment<Index_t>(nset, edgeNodes*edgeNodes, defaultHostRes) );
      delete [] nset ;
    }
 
@@ -3092,13 +3096,13 @@ int main(int argc, char *argv[])
          nset[nidx++] = planeInc + j ;
        }
      }
-     domain->symmY->push_back( RAJA::ListSegment(nset, edgeNodes*edgeNodes, defaultHostRes) );
+     domain->symmY->push_back( RAJA::TypedListSegment<Index_t>(nset, edgeNodes*edgeNodes, defaultHostRes) );
      delete [] nset ;
    }
 
    domain->symmZ = new LULESH_ISET() ;
    {
-     domain->symmZ->push_back( RAJA::RangeSegment(0, edgeNodes*edgeNodes) );
+     domain->symmZ->push_back( RAJA::TypedRangeSegment<Index_t>(0, edgeNodes*edgeNodes) );
    }
 
 

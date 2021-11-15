@@ -31,7 +31,7 @@ typedef struct LinkCellSt
    int* nAtoms;         //!< total number of atoms in each box
    int** nbrBoxes;      //!< neighbor boxes for each box
 
-  RAJA::TypedIndexSet<RAJA::RangeSegment> ** neighbors ; //!< neighbor IndexSets (Slices) for each box
+  RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> ** neighbors ; //!< neighbor IndexSets (Slices) for each box
   RAJA::TypedListSegment<int> ** nbrSegments ; //!< neighbor list per box, same indexing as boxes
 
 

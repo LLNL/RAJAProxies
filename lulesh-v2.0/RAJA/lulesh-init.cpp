@@ -490,8 +490,8 @@ void
 Domain::CreateMeshIndexSets()
 {
    // leave nodes and elems in canonical ordering for now...
-   m_domNodeISet.push_back( RAJA::RangeSegment(0, numNode()) );
-   m_domElemISet.push_back( RAJA::RangeSegment(0, numElem()) );
+   m_domNodeISet.push_back( RAJA::TypedRangeSegment< Index_t >(0, numNode()) );
+   m_domElemISet.push_back( RAJA::TypedRangeSegment< Index_t >(0, numElem()) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -520,8 +520,8 @@ Domain::CreateRegionIndexSets(Int_t nr, Int_t balance)
       }
       regElemSize(0) = numElem();
       m_domRegISet.resize(numReg());
-      m_domRegISet[0].push_back( RAJA::RangeSegment(0, regElemSize(0)) ) ;
-      m_domElemRegISet.push_back( RAJA::RangeSegment(0, regElemSize(0)) ) ;
+      m_domRegISet[0].push_back( RAJA::TypedRangeSegment< Index_t >(0, regElemSize(0)) ) ;
+      m_domElemRegISet.push_back( RAJA::TypedRangeSegment< Index_t >(0, regElemSize(0)) ) ;
 #if !defined(LULESH_LIST_INDEXSET)
       for (int i=0; i<numElem(); ++i) {
          perm(i) = i ;
@@ -616,15 +616,22 @@ Domain::CreateRegionIndexSets(Int_t nr, Int_t balance)
       // Create HybridISets for regions
       m_domRegISet.resize(numReg());
       int elemCount = 0 ;
+
+#if USE_CASE == LULESH_CUDA_CANONICAL
+      RAJA::resources::Resource erasedRes{RAJA::resources::Cuda()};
+#else
+      RAJA::resources::Resource erasedRes{RAJA::resources::Host::get_default()};
+#endif
+
       for (int r = 0; r < numReg(); ++r) {
 #if !defined(LULESH_LIST_INDEXSET)
          memcpy( &perm(elemCount), regElemlist(r), sizeof(Index_t)*regElemSize(r) ) ;
-         m_domRegISet[r].push_back( RAJA::RangeSegment(elemCount, elemCount+regElemSize(r)) );
-         m_domElemRegISet.push_back( RAJA::RangeSegment(elemCount, elemCount+regElemSize(r)) ) ;
+         m_domRegISet[r].push_back( RAJA::TypedRangeSegment< Index_t >(elemCount, elemCount+regElemSize(r)) );
+         m_domElemRegISet.push_back( RAJA::TypedRangeSegment< Index_t >(elemCount, elemCount+regElemSize(r)) ) ;
          elemCount += regElemSize(r) ;
 #else
-         m_domRegISet[r].push_back( RAJA::ListSegment(regElemlist(r), regElemSize(r)) );
-         m_domElemRegISet.push_back( RAJA::ListSegment(regElemlist(r), regElemSize(r)) ) ;
+         m_domRegISet[r].push_back( RAJA::TypedListSegment< Index_t >(regElemlist(r), regElemSize(r), erasedRes) );
+         m_domElemRegISet.push_back( RAJA::TypedListSegment< Index_t >(regElemlist(r), regElemSize(r), erasedRes) ) ;
 #endif
       }
 
@@ -651,9 +658,13 @@ Domain::CreateRegionIndexSets(Int_t nr, Int_t balance)
 void
 Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
 {
-  RAJA::resources::Resource defHostRes{RAJA::resources::Host::get_default()};
+#if USE_CASE == LULESH_CUDA_CANONICAL
+  RAJA::resources::Resource erasedRes{RAJA::resources::Cuda()};
+#else
+  RAJA::resources::Resource erasedRes{RAJA::resources::Host::get_default()};
+#endif
   if (m_planeLoc == 0) {
-    m_domZSymNodeISet.push_back( RAJA::RangeSegment(0, edgeNodes*edgeNodes) );
+    m_domZSymNodeISet.push_back( RAJA::TypedRangeSegment< Index_t >(0, edgeNodes*edgeNodes) );
   }
   if (m_rowLoc == 0) {
     Index_t *nset = new Index_t[edgeNodes*edgeNodes] ;
@@ -664,7 +675,7 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
         nset[nidx++] = planeInc + j ;
       }
     }
-    m_domYSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes, defHostRes) );
+    m_domYSymNodeISet.push_back( RAJA::TypedListSegment< Index_t >(nset, (Index_t) edgeNodes*edgeNodes, erasedRes) );
     delete [] nset ;
   }
   if (m_colLoc == 0) {
@@ -676,7 +687,7 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
         nset[nidx++] = planeInc + j*edgeNodes ;
       }
     }
-    m_domXSymNodeISet.push_back( RAJA::ListSegment(nset, (Index_t) edgeNodes*edgeNodes, defHostRes) );
+    m_domXSymNodeISet.push_back( RAJA::TypedListSegment< Index_t >(nset, (Index_t) edgeNodes*edgeNodes, erasedRes) );
     delete [] nset ;
   }
 }

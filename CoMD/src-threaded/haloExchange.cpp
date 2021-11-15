@@ -443,7 +443,7 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
    // TODO: Try to optimize this.
    RAJA::kernel<redistributeKernel>(
      RAJA::make_tuple(
-     RAJA::RangeSegment(0, nCells)),
+     RAJA::TypedRangeSegment<int>(0, nCells)),
    [=] RAJA_DEVICE (int iCell) {
        SimFlat* s = (SimFlat*) data;
        int* offsetBuf = (int*)charBuf;

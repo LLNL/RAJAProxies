@@ -4,9 +4,9 @@
 //
 //   RAJA IndexSet type used in loop traversals.
 //
-using LULESH_ISET = RAJA::TypedIndexSet<RAJA::RangeSegment,
-                                        RAJA::ListSegment,
-                                        RAJA::RangeStrideSegment>;
+using LULESH_ISET = RAJA::TypedIndexSet<RAJA::TypedRangeSegment< RAJA::Index_type >,
+                                        RAJA::TypedListSegment< RAJA::Index_type >,
+                                        RAJA::TypedRangeStrideSegment< RAJA::Index_type >>;
 
 #include "luleshPolicy.hpp"
 #include "luleshMemory.hpp"

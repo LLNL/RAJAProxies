@@ -235,12 +235,16 @@ SimFlat* initSimulation(Command cmd)
    // create lattice with desired temperature and displacement.
    createFccLattice(cmd.nx, cmd.ny, cmd.nz, latticeConstant, sim);
 
-   RAJA::resources::Resource defHostRes{RAJA::resources::Host::get_default()};
+#ifdef ENABLE_CUDA
+   RAJA::resources::Resource erasedRes{RAJA::resources::Cuda()};
+#else
+   RAJA::resources::Resource erasedRes{RAJA::resources::Host::get_default()};
+#endif
 
    /* Create Total IndexSets */
-   sim->isTotal = new RAJA::TypedIndexSet<RAJA::RangeSegment>() ;
+   sim->isTotal = new RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>>() ;
    for (int i=0; i<sim->boxes->nTotalBoxes; ++i) {
-     RAJA::RangeSegment myseg(i*MAXATOMS,i*MAXATOMS + sim->boxes->nAtoms[i]);
+     RAJA::TypedRangeSegment<int> myseg(i*MAXATOMS,i*MAXATOMS + sim->boxes->nAtoms[i]);
      sim->isTotal->push_back( myseg ) ;
    }
 
@@ -256,21 +260,21 @@ SimFlat* initSimulation(Command cmd)
            tmpBox[tmpCount++] = sim->boxes->nbrBoxes[i][j] ;
          }
        }
-         sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(tmpBox, tmpCount, defHostRes);
+         sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(tmpBox, tmpCount, erasedRes);
      }
      else {
-       sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(sim->boxes->nbrBoxes[i], 27, defHostRes);
+       sim->boxes->nbrSegments[i] = new RAJA::TypedListSegment<int>(sim->boxes->nbrBoxes[i], 27, erasedRes);
      }
    }
 
    /* Create Local IndexSet View */
-   sim->isLocal = new RAJA::TypedIndexSet<RAJA::RangeSegment>() ;
+   sim->isLocal = new RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>>() ;
    for(int i = 0; i < sim->boxes->nLocalBoxes; ++i) {
-     RAJA::RangeSegment myseg(i*MAXATOMS, i*MAXATOMS + sim->boxes->nAtoms[i]);
+     RAJA::TypedRangeSegment<int> myseg(i*MAXATOMS, i*MAXATOMS + sim->boxes->nAtoms[i]);
      sim->isLocal->push_back( myseg ) ;
    }
 
-   sim->isLocalSegment = new RAJA::RangeSegment(0, sim->boxes->nLocalBoxes);
+   sim->isLocalSegment = new RAJA::TypedRangeSegment<int>(0, sim->boxes->nLocalBoxes);
 
    setTemperature(sim, cmd.temperature);
 
@@ -412,7 +416,7 @@ void sumAtoms(SimFlat* s)
    */
   RAJA::kernel<redistributeKernel>(
   RAJA::make_tuple(
-    RAJA::RangeSegment(0, nLocalBoxes)),
+    RAJA::TypedRangeSegment<int>(0, nLocalBoxes)),
     [=] RAJA_DEVICE (int i)
     {
       nLocalReduce += s->boxes->nAtoms[i];

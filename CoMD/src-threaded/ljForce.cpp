@@ -160,8 +160,8 @@ int ljForce(SimFlat* s)
    profileStart(forceZeroingTimer);
   RAJA::kernel<atomWorkKernel>(
   RAJA::make_tuple(
-    RAJA::RangeSegment(0, s->boxes->nLocalBoxes),
-    RAJA::RangeSegment(0, MAXATOMS) ),
+    RAJA::TypedRangeSegment<int>(0, s->boxes->nLocalBoxes),
+    RAJA::TypedRangeSegment<int>(0, MAXATOMS) ),
     [=] COMD_DEVICE (int iBox, int iOffLocal) {
       const int nIBox = s->boxes->nAtoms[iBox];
       if(iOffLocal < nIBox) {
@@ -181,9 +181,9 @@ int ljForce(SimFlat* s)
      RAJA::kernel<forcePolicyKernel>(
        RAJA::make_tuple(
          *s->isLocalSegment,                // local boxes
-         RAJA::RangeSegment(0,27),          // 27 neighbor boxes
-         RAJA::RangeSegment(0, MAXATOMS),   // atoms i in local box
-         RAJA::RangeSegment(0, MAXATOMS) ), // atoms j in neighbor box
+         RAJA::TypedRangeSegment<int>(0,27),          // 27 neighbor boxes
+         RAJA::TypedRangeSegment<int>(0, MAXATOMS),   // atoms i in local box
+         RAJA::TypedRangeSegment<int>(0, MAXATOMS) ), // atoms j in neighbor box
        [=] COMD_DEVICE (int iBoxID, int nghb, int iOff, int jOff) {
          const int nLocalBoxes = s->boxes->nLocalBoxes;
          const int nIBox = s->boxes->nAtoms[iBoxID];

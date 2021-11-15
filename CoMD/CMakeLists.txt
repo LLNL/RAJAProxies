@@ -6,11 +6,11 @@ project(COMD LANGUAGES CXX)
 # Initialize the BLT build system
 #
 
-set(ENABLE_GTEST Off CACHE Bool "")
-set(ENABLE_TESTS Off CACHE Bool "")
-set(ENABLE_TBB Off CACHE Bool "")
-set(ENABLE_EXAMPLES Off CACHE Bool "")
-set(ENABLE_DOCUMENTATION Off CACHE Bool "")
+set(ENABLE_GTEST Off CACHE BOOL "")
+set(ENABLE_TESTS Off CACHE BOOL "")
+set(ENABLE_TBB Off CACHE BOOL "")
+set(ENABLE_EXAMPLES Off CACHE BOOL "")
+set(ENABLE_DOCUMENTATION Off CACHE BOOL "")
 
 #
 # Configure RAJA
