@@ -21,6 +21,7 @@ enum TilingMode
 #define LULESH_SEQUENTIAL       1 /* (possible SIMD vectorization applied) */
 #define LULESH_CANONICAL        2 /*  OMP forall applied to each for loop */
 #define LULESH_CUDA_CANONICAL   9 /*  CUDA launch applied to each loop */
+#define LULESH_HIP_CANONICAL   10 /*  HIP launch applied to each loop */
 #define LULESH_STREAM_EXPERIMENTAL 11 /* Work in progress... */
 
 #ifndef USE_CASE
@@ -84,6 +85,27 @@ typedef RAJA::ExecPolicy<Segment_Iter, Segment_Exec> mat_exec_policy;
 typedef RAJA::ExecPolicy<Segment_Iter, Segment_Exec> symnode_exec_policy;
 
 typedef RAJA::cuda_reduce reduce_policy;
+
+// ----------------------------------------------------
+#elif USE_CASE == LULESH_HIP_CANONICAL
+
+// Requires OMP_FINE_SYNC 
+#define OMP_FINE_SYNC 1
+
+TilingMode const lulesh_tiling_mode = Canonical;
+
+typedef RAJA::seq_segit         Segment_Iter;
+
+/// Define thread block size for HIP exec policy
+const size_t thread_block_size = 256;
+typedef RAJA::hip_exec<thread_block_size>    Segment_Exec;
+
+typedef RAJA::ExecPolicy<Segment_Iter, Segment_Exec> node_exec_policy;
+typedef RAJA::ExecPolicy<Segment_Iter, Segment_Exec> elem_exec_policy;
+typedef RAJA::ExecPolicy<Segment_Iter, Segment_Exec> mat_exec_policy;
+typedef RAJA::ExecPolicy<Segment_Iter, Segment_Exec> symnode_exec_policy;
+
+typedef RAJA::hip_reduce reduce_policy;
 
 // ----------------------------------------------------
 #else

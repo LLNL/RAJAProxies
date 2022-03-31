@@ -41,6 +41,9 @@ enum TilingMode
 #define LULESH_CUDA_CANONICAL   8 /*  CUDA launch applied to each loop */
 #define LULESH_CUDA_COLOR_SIMD  9 /*  Technique 7 on GPU to avoid */
                                   //  OMP_FINE_SYNC data movement.
+#define LULESH_HIP_CANONICAL   10 /*  HIP launch applied to each loop */
+#define LULESH_HIP_COLOR_SIMD  11 /*  Technique 7 on GPU to avoid */
+                                  //  OMP_FINE_SYNC data movement.
 
 #ifndef USE_CASE
 #define USE_CASE   LULESH_CANONICAL
@@ -233,6 +236,48 @@ typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> mat_exec_policy;
 typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> symnode_exec_policy;
 
 typedef RAJA::cuda_reduce<thread_block_size> reduce_policy; 
+
+// ----------------------------------------------------
+#elif USE_CASE == LULESH_HIP_CANONICAL
+
+// Requires OMP_FINE_SYNC 
+#define OMP_FINE_SYNC 1
+
+TilingMode const lulesh_tiling_mode = Canonical;
+
+typedef RAJA::seq_segit         Hybrid_Seg_Iter;
+
+/// Define thread block size for HIP exec policy
+const size_t thread_block_size = 256;
+typedef RAJA::hip_exec<thread_block_size>    Segment_Exec;
+
+typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> node_exec_policy;
+typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> elem_exec_policy;
+typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> mat_exec_policy;
+typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> symnode_exec_policy;
+
+typedef RAJA::hip_reduce reduce_policy; 
+
+// ----------------------------------------------------
+#elif USE_CASE == LULESH_HIP_COLOR_SIMD
+
+// Can be used with or without OMP_FINE_SYNC; without will have less data movement and memory use
+
+TilingMode const lulesh_tiling_mode = Tiled_LockFreeColorSIMD;
+
+typedef RAJA::seq_segit         Hybrid_Seg_Iter;
+
+/// Define thread block size for HIP exec policy
+const size_t thread_block_size = 256;
+typedef RAJA::hip_exec<thread_block_size>    Segment_Exec;
+
+typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> node_exec_policy;
+typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> elem_exec_policy;
+typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> mat_exec_policy;
+typedef RAJA::ExecPolicy<Hybrid_Seg_Iter, Segment_Exec> symnode_exec_policy;
+
+typedef RAJA::hip_reduce reduce_policy; 
+//typedef RAJA::hip_reduce<thread_block_size> reduce_policy; 
 
 #else
 

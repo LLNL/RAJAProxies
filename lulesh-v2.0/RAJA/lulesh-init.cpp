@@ -619,6 +619,8 @@ Domain::CreateRegionIndexSets(Int_t nr, Int_t balance)
 
 #if USE_CASE == LULESH_CUDA_CANONICAL
       RAJA::resources::Resource erasedRes{RAJA::resources::Cuda()};
+#elif USE_CASE == LULESH_HIP_CANONICAL
+      RAJA::resources::Resource erasedRes{RAJA::resources::Hip()};
 #else
       RAJA::resources::Resource erasedRes{RAJA::resources::Host::get_default()};
 #endif
@@ -660,6 +662,8 @@ Domain::CreateSymmetryIndexSets(Index_t edgeNodes)
 {
 #if USE_CASE == LULESH_CUDA_CANONICAL
   RAJA::resources::Resource erasedRes{RAJA::resources::Cuda()};
+#elif USE_CASE == LULESH_HIP_CANONICAL
+  RAJA::resources::Resource erasedRes{RAJA::resources::Hip()};
 #else
   RAJA::resources::Resource erasedRes{RAJA::resources::Host::get_default()};
 #endif

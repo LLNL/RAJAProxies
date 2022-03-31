@@ -158,6 +158,18 @@ class Domain {
    {
      cudaFree(ptr) ;
    }
+#elif defined(RAJA_ENABLE_HIP)
+   void *operator new(size_t size)
+   {
+     void *ptr ;
+     hipMalloc((void **)&ptr, size) ;
+     return ptr ;
+   }
+
+   void operator delete(void *ptr)
+   {
+     hipFree(ptr) ;
+   }
 #endif
 
    //
