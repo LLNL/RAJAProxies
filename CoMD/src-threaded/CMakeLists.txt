@@ -43,7 +43,7 @@ set_source_files_properties(cmdLineParser.cpp
   PROPERTIES
   LANGUAGE CXX)
 
-raja_add_executable(
+blt_add_executable(
   NAME coMD_threaded
   SOURCES
   cmdLineParser.cpp
