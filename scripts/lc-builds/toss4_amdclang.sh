@@ -15,7 +15,7 @@ if [[ $# -lt 2 ]]; then
   echo "   3...) optional arguments to cmake"
   echo
   echo "For example: "
-  echo "    toss4_amdclang.sh 4.5.2 gfx906"
+  echo "    toss4_amdclang.sh 4.5.2 gfx908"
   exit
 fi
 
