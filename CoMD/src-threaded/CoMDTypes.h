@@ -98,7 +98,7 @@ typedef struct SimFlatSt
 
 extern real_t ePotential;     //!< the total potential energy of the system
 extern real_t eKinetic;       //!< the total kinetic energy of the system
-#ifdef ENABLE_CUDA
+#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
 extern int nLocal;    //!< total number of atoms on this processor
 extern int nGlobal;   //!< total number of atoms in simulation
 // Allows for __device__ to be put before kernels only when CUDA is enabled
@@ -165,6 +165,61 @@ typedef RAJA::cuda_atomic rajaAtomicPolicy;
 
 /*
 ########################################################################
+########################### HIP Portion ###############################
+########################################################################
+*/
+
+#elif defined(ENABLE_HIP)
+// This changes all of the HIP kernels to asynchronous kernels
+// This should be a build option.
+//#define HIP_ASYNC
+
+// This assumes that OpenMP is not turned on as well
+typedef RAJA::seq_segit linkCellTraversal;
+typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
+typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
+typedef RAJA::seq_segit task_graph_policy;
+
+typedef RAJA::KernelPolicy<
+#ifdef HIP_ASYNC
+  RAJA::statement::HipKernelAsync<
+#else
+  RAJA::statement::HipKernel<
+#endif
+    RAJA::statement::For<0, RAJA::hip_block_x_loop,
+    RAJA::statement::For<1, RAJA::hip_thread_x_loop,
+    RAJA::statement::Lambda<0> > > > > atomWorkKernel;
+
+typedef RAJA::KernelPolicy<
+#ifdef HIP_ASYNC
+  RAJA::statement::HipKernelAsync<
+#else
+  RAJA::statement::HipKernel<
+#endif
+    RAJA::statement::Tile<0, RAJA::tile_fixed<128>, RAJA::hip_block_x_loop,
+    RAJA::statement::For<0, RAJA::hip_thread_x_loop,
+    RAJA::statement::Lambda<0> > > > > redistributeKernel;
+
+typedef RAJA::KernelPolicy<
+#ifdef HIP_ASYNC
+  RAJA::statement::HipKernelAsync<
+#else
+  RAJA::statement::HipKernel<
+#endif
+    RAJA::statement::For<0, RAJA::hip_block_x_loop,
+    RAJA::statement::For<1, RAJA::hip_block_y_loop,
+    RAJA::statement::For<2, RAJA::hip_thread_x_loop,
+    RAJA::statement::For<3, RAJA::hip_thread_y_loop,
+    RAJA::statement::Lambda<0> > > > > > > forcePolicyKernel;
+
+typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumReal;
+typedef RAJA::ReduceSum<RAJA::hip_reduce, real_t> rajaReduceSumRealKernel;
+typedef RAJA::ReduceSum<RAJA::hip_reduce, int> rajaReduceSumInt;
+
+typedef RAJA::hip_atomic rajaAtomicPolicy;
+
+/*
+########################################################################
 ########################## OpenMP Portion ##############################
 ########################################################################
 */
@@ -207,6 +262,7 @@ typedef RAJA::builtin_atomic rajaAtomicPolicy;
 
 #ifndef ENABLE_OPENMP
 #ifndef ENABLE_CUDA
+#ifndef ENABLE_HIP
 typedef RAJA::seq_segit linkCellTraversal;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> linkCellWork;
 typedef RAJA::ExecPolicy<RAJA::seq_segit, RAJA::simd_exec> atomWork;
@@ -233,6 +289,7 @@ typedef RAJA::ReduceSum<RAJA::seq_reduce, real_t> rajaReduceSumRealKernel;
 typedef RAJA::ReduceSum<RAJA::seq_reduce, int> rajaReduceSumInt;
 
 typedef RAJA::builtin_atomic rajaAtomicPolicy;
+#endif
 #endif
 #endif
 

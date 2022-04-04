@@ -179,10 +179,10 @@ int getNeighborBoxes(LinkCell* boxes, int iBox, int* nbrBoxes)
  * #######     This is due to CUDA build issues      #########
  * ###########################################################
  */
-void putAtomInBox(LinkCell* boxes, Atoms* atoms,
-                  const int gid, const int iType,
-                  const real_t x,  const real_t y,  const real_t z,
-                  const real_t px, const real_t py, const real_t pz)
+void COMD_HOST_DEVICE putAtomInBox(LinkCell* boxes, Atoms* atoms,
+                      const int gid, const int iType,
+                      const real_t x,  const real_t y,  const real_t z,
+                      const real_t px, const real_t py, const real_t pz)
 {
    real_t xyz[3] = {x,y,z};
 
@@ -213,7 +213,7 @@ void putAtomInBox(LinkCell* boxes, Atoms* atoms,
 /// Because of the order in which the local and halo link cells are
 /// stored the indices of the halo cells are special cases.
 /// \see initLinkCells for an explanation of storage order.
-COMD_DEVICE int getBoxFromTuple(LinkCell* boxes, int ix, int iy, int iz)
+COMD_HOST_DEVICE int getBoxFromTuple(LinkCell* boxes, int ix, int iy, int iz)
 {
    int iBox = 0;
    const int* gridSize = boxes->gridSize; // alias
@@ -266,7 +266,7 @@ COMD_DEVICE int getBoxFromTuple(LinkCell* boxes, int ix, int iy, int iz)
 /// \param iId [in]  The index with box iBox of the atom to be moved.
 /// \param iBox [in] The index of the link cell the particle is moving from.
 /// \param jBox [in] The index of the link cell the particle is moving to.
-COMD_DEVICE void moveAtom(LinkCell* boxes, Atoms* atoms, int iId, int iBox, int jBox)
+COMD_HOST_DEVICE void moveAtom(LinkCell* boxes, Atoms* atoms, int iId, int iBox, int jBox)
 {
    int nj = boxes->nAtoms[jBox];
    copyAtom(boxes, atoms, iId, iBox, nj, jBox);
@@ -304,6 +304,8 @@ void updateLinkCells(LinkCell* boxes, Atoms* atoms)
   //      asynchronous kernels and then suddenly needing that data on the CPU...
 #ifdef ENABLE_CUDA
   cudaStreamSynchronize(0);
+#elif defined(ENABLE_HIP)
+  hipStreamSynchronize(0);
 #endif
   startTimer(emptyHaloCellsTimer);
   emptyHaloCells(boxes);
@@ -408,7 +410,7 @@ void emptyHaloCells(LinkCell* boxes)
    RAJA::kernel<redistributeKernel>(
    RAJA::make_tuple(
                     RAJA::TypedRangeSegment<int>(boxes->nLocalBoxes, boxes->nTotalBoxes)),
-   [=] RAJA_DEVICE (int ii) {
+   [=] RAJA_HOST_DEVICE (int ii) {
      boxes->nAtoms[ii] = 0;
    });
 }
@@ -515,7 +517,7 @@ void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* ch
 
    int size = (nCells+1) * sizeof(int);
    // Make sure the buffer is alligned with AtomMsg's size
-#ifdef ENABLE_CUDA
+#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
    if( (size % sizeof(AtomMsg)) != 0 )
      size += sizeof(AtomMsg) - (size % sizeof(AtomMsg));
 #endif
@@ -525,7 +527,7 @@ void unloadAtomsBuffer(void* vparms, void* data, int face, int bufSize, char* ch
   RAJA::kernel<redistributeKernel>(
   RAJA::make_tuple(
     RAJA::TypedRangeSegment<int>(0, nCells)),
-  [=] RAJA_DEVICE (int iCell) {
+  [=] RAJA_HOST_DEVICE (int iCell) {
     AtomMsg* buf = (AtomMsg*)(charBuf + size);
     int* offsets = (int*)(charBuf);
 

@@ -416,12 +416,12 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
    int* bufferOffset = (int*)comdMalloc(nCells * sizeof(int));
    int size = (nCells+1) * sizeof(int);
    //Make sure the memory is alligned with AtomMsg size
-#ifdef ENABLE_CUDA
+#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
    if((size % sizeof(AtomMsg)) != 0)
      size += sizeof(AtomMsg) - (size % sizeof(AtomMsg));
 #else
    // This is more efficient for the CPU-side versions since this work
-   // only needs to be done once.  The CUDA version needs this to be on
+   // only needs to be done once.  The CUDA/HIP versions need this to be on
    // the GPU to avoid page faults.
    SimFlat* s = (SimFlat*) data;
    int* offsetBuf = (int*)charBuf;
@@ -444,11 +444,11 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
    RAJA::kernel<redistributeKernel>(
      RAJA::make_tuple(
      RAJA::TypedRangeSegment<int>(0, nCells)),
-   [=] RAJA_DEVICE (int iCell) {
+   [=] RAJA_HOST_DEVICE (int iCell) {
        SimFlat* s = (SimFlat*) data;
        int* offsetBuf = (int*)charBuf;
        /* All accesses to the simulation data structure should be on the GPU to avoid page faults */
-#ifdef ENABLE_CUDA
+#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
        real3 shift;
        shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
        shift[1] = pbcFactor[1] * s->domain->globalExtent[1];
