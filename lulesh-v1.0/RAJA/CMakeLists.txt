@@ -28,7 +28,10 @@ if (ENABLE_CUDA)
 elseif (ENABLE_HIP)
   set (lulesh_depends
     ${lulesh_depends}
-    hip)
+    blt::hip)
+  set (lulesh_depends
+    ${lulesh_depends}
+    blt::hip_runtime)
 else()
   set (lulesh_compile_options
     -Wno-unknown-pragmas)
