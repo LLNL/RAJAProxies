@@ -209,16 +209,6 @@ SimFlat* initSimulation(Command cmd)
    int device;
    cudaGetDevice(&device);
    cudaMemAdvise(sim, sizeof(SimFlat), cudaMemAdviseSetReadMostly, device);
-#elif defined(ENABLE_HIP)
-   /* This is a hint to the HIP runtime that this structure is mostly read only.  This
-    * creates read-only copies on the CPU and GPU to avoid unnecessary thrashing as this
-    * structure is needed throughout the code.  Technically, this structure should only
-    * be accessed (dereferenced) on the GPU once GPU code starts but this is apparently
-    * insufficient to avoid this thrashing.
-    */
-   //int device;
-   //hipGetDevice(&device);
-   // No hipMemAdvise available.
 #endif
 
    sim->pot = initPotential(cmd.doeam, cmd.potDir, cmd.potName, cmd.potType);
