@@ -63,41 +63,11 @@ blt_add_executable(
   DEPENDS_ON ${CoMD_depends})
 
 if(ENABLE_CUDA)
-  include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_BINARY_DIR}
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_BINARY_DIR}/src
-    ${CUDA_INCLUDE_PATH}
-    ${CUDA_CXXFLAGS})
-
   set (comd_compile_options
     --expt-extended-lambda -arch=${CUDA_ARCH})
 target_compile_options(
   coMD_threaded
   PUBLIC
   ${comd_compile_options})
-elseif(ENABLE_HIP)
-  include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_BINARY_DIR}
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_BINARY_DIR}/src
-    ${HIP_INCLUDE_PATH}
-    ${HIP_CXXFLAGS})
-
-target_compile_options(
-  coMD_threaded
-  PUBLIC)
-endif()
-
-if(ENABLE_MPI)
-  include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_BINARY_DIR}
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_BINARY_DIR}/src
-    ${MPI_INCLUDE_PATH}
-    ${MPI_CXXFLAGS})
 endif()
 
