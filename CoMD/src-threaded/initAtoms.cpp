@@ -22,16 +22,16 @@ static void computeVcm(SimFlat* s, real_t vcm[3]);
 /// initial atom positions and momenta.
 Atoms* initAtoms(LinkCell* boxes)
 {
-   Atoms* atoms = (Atoms*)comdMalloc(sizeof(Atoms));
+   Atoms* atoms = (Atoms*)comdMalloc(1, sizeof(Atoms));
 
    int maxTotalAtoms = MAXATOMS*boxes->nTotalBoxes;
 
-   atoms->gid =      (int*)   comdMalloc(maxTotalAtoms*sizeof(int));
-   atoms->iSpecies = (int*)   comdMalloc(maxTotalAtoms*sizeof(int));
-   atoms->r =        (real3*) comdMalloc(maxTotalAtoms*sizeof(real3));
-   atoms->p =        (real3*) comdMalloc(maxTotalAtoms*sizeof(real3));
-   atoms->f =        (real3*) comdMalloc(maxTotalAtoms*sizeof(real3));
-   atoms->U =        (real_t*)comdMalloc(maxTotalAtoms*sizeof(real_t));
+   atoms->gid =      (int*)   comdMalloc(maxTotalAtoms, sizeof(int));
+   atoms->iSpecies = (int*)   comdMalloc(maxTotalAtoms, sizeof(int));
+   atoms->r =        (real3*) comdMalloc(maxTotalAtoms, sizeof(real3));
+   atoms->p =        (real3*) comdMalloc(maxTotalAtoms, sizeof(real3));
+   atoms->f =        (real3*) comdMalloc(maxTotalAtoms, sizeof(real3));
+   atoms->U =        (real_t*)comdMalloc(maxTotalAtoms, sizeof(real_t));
 
    atoms->nLocal = 0;
    atoms->nGlobal = 0;

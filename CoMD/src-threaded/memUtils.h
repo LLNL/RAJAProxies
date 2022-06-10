@@ -13,15 +13,15 @@
 
 #define freeMe(s,element) {if(s->element) comdFree(s->element);  s->element = NULL;}
 
-static void* comdMalloc(size_t iSize)
+static void* comdMalloc(size_t num, size_t iSize)
 {
    void *localPtr ;
 #ifdef ENABLE_CUDA
-   cudaMallocManaged(&localPtr, iSize);
+   cudaMallocManaged(&localPtr, num*iSize);
 #elif defined(ENABLE_HIP)
-   hipMalloc(&localPtr, iSize);
+   hipMalloc(&localPtr, num*iSize);
 #else
-   posix_memalign(&localPtr, 64, iSize) ;
+   posix_memalign(&localPtr, 64, num*iSize) ;
 #endif
    return localPtr ;
 }
@@ -30,10 +30,10 @@ static void* comdCalloc(size_t num, size_t iSize)
 {
    void *localPtr ;
 #ifdef ENABLE_CUDA
-   cudaMallocManaged(&localPtr, iSize);
+   cudaMallocManaged(&localPtr, num*iSize);
    cudaMemset(localPtr, 0, num*iSize);
 #elif defined(ENABLE_HIP)
-   hipMalloc(&localPtr, iSize);
+   hipMalloc(&localPtr, num*iSize);
    hipMemset(localPtr, 0, num*iSize);
 #else
    posix_memalign(&localPtr, 64, num*iSize) ;

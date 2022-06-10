@@ -185,7 +185,7 @@ int main(int argc, char** argv)
 /// must be initialized before the atoms.
 SimFlat* initSimulation(Command cmd)
 {
-   SimFlat* sim = (SimFlat *) comdMalloc(sizeof(SimFlat));
+   SimFlat* sim = (SimFlat *) comdMalloc(1, sizeof(SimFlat));
    sim->nSteps = cmd.nSteps;
    sim->printRate = cmd.printRate;
    sim->dt = cmd.dt;
@@ -364,7 +364,7 @@ BasePotential* initPotential(
 
 SpeciesData* initSpecies(BasePotential* pot)
 {
-   SpeciesData* species = (SpeciesData*)comdMalloc(sizeof(SpeciesData));
+   SpeciesData* species = (SpeciesData*)comdMalloc(1, sizeof(SpeciesData));
 
    strcpy(species->name, pot->name);
    species->atomicNo = pot->atomicNo;
@@ -376,7 +376,7 @@ SpeciesData* initSpecies(BasePotential* pot)
 Validate* initValidate(SimFlat* sim)
 {
    sumAtoms(sim);
-   Validate* val = (Validate*)comdMalloc(sizeof(Validate));
+   Validate* val = (Validate*)comdMalloc(1, sizeof(Validate));
    val->eTot0 = (ePotential + eKinetic) / sim->atoms->nGlobal;
    val->nAtoms0 = sim->atoms->nGlobal;
 

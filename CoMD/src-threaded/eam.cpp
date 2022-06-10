@@ -171,7 +171,7 @@ static void typeNotSupported(const char* callSite, const char* type);
 /// \param [in] type  The file format of the potential file (setfl or funcfl).
 BasePotential* initEamPot(const char* dir, const char* file, const char* type)
 {
-   EamPotential* pot = (EamPotential*)comdMalloc(sizeof(EamPotential));
+   EamPotential* pot = (EamPotential*)comdMalloc(1, sizeof(EamPotential));
    assert(pot);
    pot->force = eamForce;
    pot->print = eamPrint;
@@ -225,10 +225,10 @@ int eamForce(SimFlat* s)
    if (pot->forceExchange == NULL)
    {
       int maxTotalAtoms = MAXATOMS*s->boxes->nTotalBoxes;
-      pot->dfEmbed = (real_t*)comdMalloc(maxTotalAtoms*sizeof(real_t));
-      pot->rhobar  = (real_t*)comdMalloc(maxTotalAtoms*sizeof(real_t));
+      pot->dfEmbed = (real_t*)comdMalloc(maxTotalAtoms, sizeof(real_t));
+      pot->rhobar  = (real_t*)comdMalloc(maxTotalAtoms, sizeof(real_t));
       pot->forceExchange = initForceHaloExchange(s->domain, s->boxes);
-      pot->forceExchangeData = (ForceExchangeData*)comdMalloc(sizeof(ForceExchangeData));
+      pot->forceExchangeData = (ForceExchangeData*)comdMalloc(1, sizeof(ForceExchangeData));
       pot->forceExchangeData->dfEmbed = pot->dfEmbed;
       pot->forceExchangeData->boxes = s->boxes;
    }
@@ -494,10 +494,10 @@ InterpolationObject* initInterpolationObject(
    int n, real_t x0, real_t dx, real_t* data)
 {
    InterpolationObject* table =
-      (InterpolationObject*)comdMalloc(sizeof(InterpolationObject));
+      (InterpolationObject*)comdMalloc(1, sizeof(InterpolationObject));
    assert(table);
 
-   table->values = (real_t*)comdCalloc(1, (n+3)*sizeof(real_t));
+   table->values = (real_t*)comdCalloc(n+3, sizeof(real_t));
    assert(table->values);
 
    table->values++;
@@ -607,11 +607,11 @@ void bcastInterpolationObject(InterpolationObject** table)
    if (getMyRank() != 0)
    {
       assert(*table == NULL);
-      *table = (InterpolationObject*)comdMalloc(sizeof(InterpolationObject));
+      *table = (InterpolationObject*)comdMalloc(1, sizeof(InterpolationObject));
       (*table)->n      = buf.n;
       (*table)->x0     = buf.x0;
       (*table)->invDx  = buf.invDx;
-      (*table)->values = (real_t *)comdMalloc(sizeof(real_t) * (buf.n+3) );
+      (*table)->values = (real_t *)comdMalloc(buf.n + 3, sizeof(real_t) );
       (*table)->values++;
    }
 
@@ -721,7 +721,7 @@ void eamReadSetfl(EamPotential* pot, const char* dir, const char* potName)
 
    // allocate read buffer
    int bufSize = MAX(nRho, nR);
-   real_t* buf = (real_t*)comdMalloc(bufSize * sizeof(real_t));
+   real_t* buf = (real_t*)comdMalloc(bufSize, sizeof(real_t));
    real_t x0 = 0.0;
 
    // Read embedding energy F(rhobar)
@@ -835,7 +835,7 @@ void eamReadFuncfl(EamPotential* pot, const char* dir, const char* potName)
 
    // allocate read buffer
    int bufSize = MAX(nRho, nR);
-   real_t* buf = (real_t *)comdMalloc(bufSize * sizeof(real_t));
+   real_t* buf = (real_t *)comdMalloc(bufSize, sizeof(real_t));
 
    // read embedding energy
    for (int ii=0; ii<nRho; ++ii)

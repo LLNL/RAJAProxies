@@ -84,7 +84,7 @@ static void getTuple(LinkCell* boxes, int iBox, int* ixp, int* iyp, int* izp);
 LinkCell* initLinkCells(const Domain* domain, real_t cutoff)
 {
    assert(domain);
-   LinkCell* ll = (LinkCell*)comdMalloc(sizeof(LinkCell));
+   LinkCell* ll = (LinkCell*)comdMalloc(1, sizeof(LinkCell));
 
    for (int i = 0; i < 3; i++)
    {
@@ -103,18 +103,18 @@ LinkCell* initLinkCells(const Domain* domain, real_t cutoff)
 
    ll->nTotalBoxes = ll->nLocalBoxes + ll->nHaloBoxes;
 
-   ll->nAtoms = (int *)comdMalloc(ll->nTotalBoxes*sizeof(int));
+   ll->nAtoms = (int *)comdMalloc(ll->nTotalBoxes, sizeof(int));
    for (int iBox=0; iBox<ll->nTotalBoxes; ++iBox)
       ll->nAtoms[iBox] = 0;
 
    assert ( (ll->gridSize[0] >= 2) && (ll->gridSize[1] >= 2) && (ll->gridSize[2] >= 2) );
 
    // Added creating neighbors once
-   ll->nbrBoxes = (int **)comdMalloc(ll->nTotalBoxes*sizeof(int*));
+   ll->nbrBoxes = (int **)comdMalloc(ll->nTotalBoxes, sizeof(int*));
 
    for (int iBox=0; iBox<ll->nTotalBoxes; ++iBox)
    {
-      ll->nbrBoxes[iBox] = (int *)comdMalloc(27*sizeof(int));
+      ll->nbrBoxes[iBox] = (int *)comdMalloc(27, sizeof(int));
    }
 
    for (int iBox=0; iBox<ll->nLocalBoxes; ++iBox)
@@ -123,9 +123,9 @@ LinkCell* initLinkCells(const Domain* domain, real_t cutoff)
    }
 
    // Adding nbrSegments
-   ll->nbrSegments = (RAJA::TypedListSegment<int> **)comdMalloc(ll->nTotalBoxes*sizeof(RAJA::TypedListSegment<int>*));
+   ll->nbrSegments = (RAJA::TypedListSegment<int> **)comdMalloc(ll->nTotalBoxes, sizeof(RAJA::TypedListSegment<int>*));
 
-   ll->neighbors = (RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> **)comdMalloc(ll->nTotalBoxes*sizeof(RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *));
+   ll->neighbors = (RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> **)comdMalloc(ll->nTotalBoxes, sizeof(RAJA::TypedIndexSet<RAJA::TypedRangeSegment<int>> *));
 
    return ll;
 }
