@@ -32,6 +32,13 @@ if (ENABLE_CUDA)
     cuda)
   set (lulesh_compile_options
     --expt-extended-lambda -arch=${CUDA_ARCH})
+elseif (ENABLE_HIP)
+  set (lulesh_depends
+    ${lulesh_depends}
+    blt::hip)
+  set (lulesh_depends
+    ${lulesh_depends}
+    blt::hip_runtime)
 else()
   set (lulesh_compile_options
     -Wno-unknown-pragmas)
@@ -132,6 +139,61 @@ if (ENABLE_CUDA)
 
   target_include_directories(
     lulesh-v2.0-RAJA-cuda.exe
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR})
+endif ()
+
+if (ENABLE_HIP)
+  configure_file(
+    lulesh.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-hip.cpp COPYONLY)
+
+  configure_file(
+    lulesh-comm.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-comm-hip.cpp COPYONLY)
+  configure_file(
+    lulesh-init.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-init-hip.cpp COPYONLY)
+  configure_file(
+    lulesh-util.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-util-hip.cpp COPYONLY)
+  configure_file(
+    lulesh-viz.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-viz-hip.cpp COPYONLY)
+
+  blt_add_executable(
+    NAME lulesh-v2.0-RAJA-hip.exe
+    SOURCES 
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-hip.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-comm-hip.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-init-hip.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-util-hip.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/lulesh-viz-hip.cpp
+    DEPENDS_ON ${lulesh_depends})
+
+  target_compile_options(
+    lulesh-v2.0-RAJA-hip.exe
+    PRIVATE
+    ${lulesh_compile_options})
+
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-hip.exe
+    PRIVATE
+    -DUSE_CASE=10)
+
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-hip.exe
+    PRIVATE 
+    -DUSE_MPI=0)
+
+  target_compile_definitions(
+    lulesh-v2.0-RAJA-hip.exe
+    PUBLIC
+    -DLULESH_DEVICE=__device__
+  )
+
+  target_include_directories(
+    lulesh-v2.0-RAJA-hip.exe
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR})
 endif ()

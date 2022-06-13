@@ -47,6 +47,46 @@ inline void Release(T * __restrict__ *ptr)
 }
 
 
+#elif defined(RAJA_ENABLE_HIP) // HIP managed memory allocate/release
+
+#include <hip/hip_runtime.h>
+
+template <typename T>
+inline T *Allocate(size_t size)
+{
+   T *retVal = nullptr;
+   hipErrchk( hipMalloc((void **)&retVal, sizeof(T)*size) ) ;
+   return retVal ;
+}
+
+template <typename EXEC_POLICY_T, typename T>
+inline T *AllocateTouch(LULESH_ISET *is, size_t size)
+{
+   T *retVal = nullptr;
+   hipErrchk( hipMalloc((void **)&retVal, sizeof(T)*size) ) ;
+   hipErrchk( hipMemset(retVal,0,sizeof(T)*size) );
+   return retVal ;
+}
+
+template <typename T>
+inline void Release(T **ptr)
+{
+   if (*ptr != NULL) {
+      hipErrchk( hipFree(*ptr) ) ;
+      *ptr = NULL ;
+   }
+}
+
+template <typename T>
+inline void Release(T * __restrict__ *ptr)
+{
+   if (*ptr != NULL) {
+      hipErrchk( hipFree(*ptr) ) ;
+      *ptr = NULL ;
+   }
+}
+
+
 #else  // Standard CPU memory allocate/release
 
 #include <cstdlib>

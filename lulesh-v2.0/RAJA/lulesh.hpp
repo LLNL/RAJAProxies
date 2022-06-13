@@ -14,6 +14,7 @@ using LULESH_ISET = RAJA::TypedIndexSet<RAJA::TypedRangeSegment< RAJA::Index_typ
 #define MAX(a, b) ( ((a) > (b)) ? (a) : (b))
 
 /* if luleshPolicy.hxx USE_CASE >= 9, must use lulesh_ptr.h */
+/* Note: USE_CASE >= includes HIP use case 10 */
 #if USE_CASE >= LULESH_CUDA_CANONICAL
 #if defined(LULESH_HEADER)
 #undef LULESH_HEADER

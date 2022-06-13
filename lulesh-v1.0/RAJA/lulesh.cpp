@@ -2932,6 +2932,8 @@ int main(int argc, char *argv[])
 
 #if USE_CASE == LULESH_CUDA_CANONICAL
    RAJA::resources::Resource defaultHostRes{RAJA::resources::Cuda()};
+#elif USE_CASE == LULESH_HIP_CANONICAL
+   RAJA::resources::Resource defaultHostRes{RAJA::resources::Hip()};
 #else
    RAJA::resources::Resource defaultHostRes{RAJA::resources::Host::get_default()};
 #endif

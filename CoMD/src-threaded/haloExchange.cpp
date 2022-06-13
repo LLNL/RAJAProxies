@@ -155,7 +155,7 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    hh->unloadBuffer = unloadAtomsBuffer;
    hh->destroy = destroyAtomsExchange;
 
-   AtomExchangeParms* parms = (AtomExchangeParms*) comdMalloc(sizeof(AtomExchangeParms));
+   AtomExchangeParms* parms = (AtomExchangeParms*) comdMalloc(1, sizeof(AtomExchangeParms));
 
    parms->nCells[HALO_X_MINUS] = 2*(boxes->gridSize[1]+2)*(boxes->gridSize[2]+2);
    parms->nCells[HALO_Y_MINUS] = 2*(boxes->gridSize[0]+2)*(boxes->gridSize[2]+2);
@@ -185,7 +185,7 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
 
    for (int ii=0; ii<6; ++ii)
    {
-      parms->pbcFactor[ii] = (real_t *)comdMalloc(3*sizeof(real_t));
+      parms->pbcFactor[ii] = (real_t *)comdMalloc(3, sizeof(real_t));
       for (int jj=0; jj<3; ++jj)
          parms->pbcFactor[ii][jj] = 0.0;
    }
@@ -198,10 +198,10 @@ HaloExchange* initAtomHaloExchange(Domain* domain, LinkCell* boxes)
    if (procCoord[HALO_Z_AXIS] == 0)                       parms->pbcFactor[HALO_Z_MINUS][HALO_Z_AXIS] = +1.0;
    if (procCoord[HALO_Z_AXIS] == procGrid[HALO_Z_AXIS]-1) parms->pbcFactor[HALO_Z_PLUS][HALO_Z_AXIS]  = -1.0;
 
-   parms->sendBufM = (char *) comdMalloc(hh->bufCapacity);
-   parms->sendBufP = (char *) comdMalloc(hh->bufCapacity);
-   parms->recvBufM = (char *) comdMalloc(hh->bufCapacity);
-   parms->recvBufP = (char *) comdMalloc(hh->bufCapacity);
+   parms->sendBufM = (char *) comdMalloc(hh->bufCapacity, sizeof(char));
+   parms->sendBufP = (char *) comdMalloc(hh->bufCapacity, sizeof(char));
+   parms->recvBufM = (char *) comdMalloc(hh->bufCapacity, sizeof(char));
+   parms->recvBufP = (char *) comdMalloc(hh->bufCapacity, sizeof(char));
 
    hh->parms = parms;
    return hh;
@@ -237,7 +237,7 @@ HaloExchange* initForceHaloExchange(Domain* domain, LinkCell* boxes)
    maxSize = MAX(size1, size2);
    hh->bufCapacity = (maxSize)*MAXATOMS*sizeof(ForceMsg);
 
-   ForceExchangeParms* parms = (ForceExchangeParms*) comdMalloc(sizeof(ForceExchangeParms));
+   ForceExchangeParms* parms = (ForceExchangeParms*) comdMalloc(1, sizeof(ForceExchangeParms));
 
    parms->nCells[HALO_X_MINUS] = (boxes->gridSize[1]  )*(boxes->gridSize[2]  );
    parms->nCells[HALO_Y_MINUS] = (boxes->gridSize[0]+2)*(boxes->gridSize[2]  );
@@ -252,10 +252,10 @@ HaloExchange* initForceHaloExchange(Domain* domain, LinkCell* boxes)
       parms->recvCells[ii] = mkForceRecvCellList(boxes, ii, parms->nCells[ii]);
    }
 
-   parms->sendBufM = (char *) comdMalloc(hh->bufCapacity);
-   parms->sendBufP = (char *) comdMalloc(hh->bufCapacity);
-   parms->recvBufM = (char *) comdMalloc(hh->bufCapacity);
-   parms->recvBufP = (char *) comdMalloc(hh->bufCapacity);
+   parms->sendBufM = (char *) comdMalloc(hh->bufCapacity, sizeof(char));
+   parms->sendBufP = (char *) comdMalloc(hh->bufCapacity, sizeof(char));
+   parms->recvBufM = (char *) comdMalloc(hh->bufCapacity, sizeof(char));
+   parms->recvBufP = (char *) comdMalloc(hh->bufCapacity, sizeof(char));
    hh->parms = parms;
 
    return hh;
@@ -283,7 +283,7 @@ void haloExchange(HaloExchange* haloExchange, void* data, int source)
 /// Base class constructor.
 HaloExchange* initHaloExchange(Domain* domain)
 {
-   HaloExchange* hh = (HaloExchange*) comdMalloc(sizeof(HaloExchange));
+   HaloExchange* hh = (HaloExchange*) comdMalloc(1, sizeof(HaloExchange));
 
    // Rank of neighbor task for each face.
    hh->nbrRank[HALO_X_MINUS] = processorNum(domain, -1,  0,  0);
@@ -373,7 +373,7 @@ void exchangeData(HaloExchange* haloExchange, void* data, int iAxis, int source)
 /// the list.
 int* mkAtomCellList(LinkCell* boxes, enum HaloFaceOrder iFace, const int nCells)
 {
-   int* list = (int *) comdMalloc(nCells*sizeof(int));
+   int* list = (int *) comdMalloc(nCells, sizeof(int));
    int xBegin = -1;
    int xEnd   = boxes->gridSize[0]+1;
    int yBegin = -1;
@@ -413,15 +413,15 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
    int* cellList = parms->cellList[face];
    real_t* pbcFactor = parms->pbcFactor[face];
 
-   int* bufferOffset = (int*)comdMalloc(nCells * sizeof(int));
+   int* bufferOffset = (int*)comdMalloc(nCells, sizeof(int));
    int size = (nCells+1) * sizeof(int);
    //Make sure the memory is alligned with AtomMsg size
-#ifdef ENABLE_CUDA
+#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
    if((size % sizeof(AtomMsg)) != 0)
      size += sizeof(AtomMsg) - (size % sizeof(AtomMsg));
 #else
    // This is more efficient for the CPU-side versions since this work
-   // only needs to be done once.  The CUDA version needs this to be on
+   // only needs to be done once.  The CUDA/HIP versions need this to be on
    // the GPU to avoid page faults.
    SimFlat* s = (SimFlat*) data;
    int* offsetBuf = (int*)charBuf;
@@ -444,11 +444,11 @@ int loadAtomsBuffer(void* vparms, void* data, int face, char* charBuf)
    RAJA::kernel<redistributeKernel>(
      RAJA::make_tuple(
      RAJA::TypedRangeSegment<int>(0, nCells)),
-   [=] RAJA_DEVICE (int iCell) {
+   [=] RAJA_HOST_DEVICE (int iCell) {
        SimFlat* s = (SimFlat*) data;
        int* offsetBuf = (int*)charBuf;
        /* All accesses to the simulation data structure should be on the GPU to avoid page faults */
-#ifdef ENABLE_CUDA
+#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
        real3 shift;
        shift[0] = pbcFactor[0] * s->domain->globalExtent[0];
        shift[1] = pbcFactor[1] * s->domain->globalExtent[1];
@@ -527,7 +527,7 @@ void destroyAtomsExchange(void* vparms)
 /// coordinates of link cells.
 int* mkForceSendCellList(LinkCell* boxes, int face, int nCells)
 {
-   int* list = (int *)comdMalloc(nCells*sizeof(int));
+   int* list = (int *)comdMalloc(nCells, sizeof(int));
    int xBegin, xEnd, yBegin, yEnd, zBegin, zEnd;
 
    int nx = boxes->gridSize[0];
@@ -576,7 +576,7 @@ int* mkForceSendCellList(LinkCell* boxes, int face, int nCells)
 /// coordinates of link cells.
 int* mkForceRecvCellList(LinkCell* boxes, int face, int nCells)
 {
-   int* list = (int *)comdMalloc(nCells*sizeof(int));
+   int* list = (int *)comdMalloc(nCells, sizeof(int));
    int xBegin, xEnd, yBegin, yEnd, zBegin, zEnd;
 
    int nx = boxes->gridSize[0];

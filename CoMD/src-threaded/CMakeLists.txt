@@ -15,6 +15,10 @@ endif ()
 if (ENABLE_CUDA)
   add_definitions(-DENABLE_CUDA)
   set (CoMD_depends ${CoMD_depends} cuda)
+elseif (ENABLE_HIP)
+  add_definitions(-DENABLE_HIP)
+  set (CoMD_depends ${CoMD_depends} blt::hip)
+  set (CoMD_depends ${CoMD_depends} blt::hip_runtime)
 endif ()
 
 set_source_files_properties( CoMD_info.h PROPERTIES GENERATED true)
@@ -39,7 +43,7 @@ set_source_files_properties(cmdLineParser.cpp
   PROPERTIES
   LANGUAGE CXX)
 
-raja_add_executable(
+blt_add_executable(
   NAME coMD_threaded
   SOURCES
   cmdLineParser.cpp
@@ -59,29 +63,11 @@ raja_add_executable(
   DEPENDS_ON ${CoMD_depends})
 
 if(ENABLE_CUDA)
-  include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_BINARY_DIR}
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_BINARY_DIR}/src
-    ${CUDA_INCLUDE_PATH}
-    ${CUDA_CXXFLAGS})
-
   set (comd_compile_options
     --expt-extended-lambda -arch=${CUDA_ARCH})
 target_compile_options(
   coMD_threaded
   PUBLIC
   ${comd_compile_options})
-endif()
-
-if(ENABLE_MPI)
-  include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${PROJECT_BINARY_DIR}
-    ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_BINARY_DIR}/src
-    ${MPI_INCLUDE_PATH}
-    ${MPI_CXXFLAGS})
 endif()
 

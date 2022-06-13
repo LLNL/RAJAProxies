@@ -146,6 +146,8 @@ int main(int argc, char** argv)
    // data used on those kernels in CPU-side code.
 #ifdef ENABLE_CUDA
    cudaStreamSynchronize(0);
+#elif defined(ENABLE_HIP)
+   hipStreamSynchronize(0);
 #endif
    profileStop(loopTimer);
 
@@ -183,7 +185,7 @@ int main(int argc, char** argv)
 /// must be initialized before the atoms.
 SimFlat* initSimulation(Command cmd)
 {
-   SimFlat* sim = (SimFlat *) comdMalloc(sizeof(SimFlat));
+   SimFlat* sim = (SimFlat *) comdMalloc(1, sizeof(SimFlat));
    sim->nSteps = cmd.nSteps;
    sim->printRate = cmd.printRate;
    sim->dt = cmd.dt;
@@ -237,6 +239,8 @@ SimFlat* initSimulation(Command cmd)
 
 #ifdef ENABLE_CUDA
    RAJA::resources::Resource erasedRes{RAJA::resources::Cuda()};
+#elif defined(ENABLE_HIP)
+   RAJA::resources::Resource erasedRes{RAJA::resources::Hip()};
 #else
    RAJA::resources::Resource erasedRes{RAJA::resources::Host::get_default()};
 #endif
@@ -350,7 +354,7 @@ BasePotential* initPotential(
 
 SpeciesData* initSpecies(BasePotential* pot)
 {
-   SpeciesData* species = (SpeciesData*)comdMalloc(sizeof(SpeciesData));
+   SpeciesData* species = (SpeciesData*)comdMalloc(1, sizeof(SpeciesData));
 
    strcpy(species->name, pot->name);
    species->atomicNo = pot->atomicNo;
@@ -362,7 +366,7 @@ SpeciesData* initSpecies(BasePotential* pot)
 Validate* initValidate(SimFlat* sim)
 {
    sumAtoms(sim);
-   Validate* val = (Validate*)comdMalloc(sizeof(Validate));
+   Validate* val = (Validate*)comdMalloc(1, sizeof(Validate));
    val->eTot0 = (ePotential + eKinetic) / sim->atoms->nGlobal;
    val->nAtoms0 = sim->atoms->nGlobal;
 
@@ -417,7 +421,7 @@ void sumAtoms(SimFlat* s)
   RAJA::kernel<redistributeKernel>(
   RAJA::make_tuple(
     RAJA::TypedRangeSegment<int>(0, nLocalBoxes)),
-    [=] RAJA_DEVICE (int i)
+    [=] RAJA_HOST_DEVICE (int i)
     {
       nLocalReduce += s->boxes->nAtoms[i];
     } );
