@@ -21,7 +21,7 @@ Notable changes include:
   * Bug fixes/improvements:
 
 
-Version 1.1.0 -- Release date 2022-06-15
+Version 2.0.0 -- Release date 2022-06-15
 ============================================
 
 This release contains new features, bug fixes, and build improvements.

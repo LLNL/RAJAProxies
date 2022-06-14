@@ -1,4 +1,4 @@
-# RAJAProxies 1.1.0
+# RAJAProxies 2.0.0
 
 Copyright (c) 2017-22, Lawrence Livermore National Security, LLC. 
 Produced at the Lawrence Livermore National Laboratory.
