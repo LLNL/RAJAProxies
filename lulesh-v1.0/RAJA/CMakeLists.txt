@@ -23,8 +23,9 @@ if (ENABLE_CUDA)
   set (lulesh_depends
     ${lulesh_depends}
     cuda)
+  set (CMAKE_CUDA_ARCHITECTURES "70")
   set (lulesh_compile_options
-    --expt-extended-lambda -arch=${CUDA_ARCH})
+    --expt-extended-lambda)
 elseif (ENABLE_HIP)
   set (lulesh_depends
     ${lulesh_depends}

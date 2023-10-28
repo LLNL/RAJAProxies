@@ -14,6 +14,7 @@ endif ()
 
 if (ENABLE_CUDA)
   add_definitions(-DENABLE_CUDA)
+  set (CMAKE_CUDA_ARCHITECTURES "70")
   set (CoMD_depends ${CoMD_depends} cuda)
 elseif (ENABLE_HIP)
   add_definitions(-DENABLE_HIP)
@@ -64,7 +65,7 @@ blt_add_executable(
 
 if(ENABLE_CUDA)
   set (comd_compile_options
-    --expt-extended-lambda -arch=${CUDA_ARCH})
+    --expt-extended-lambda)
 target_compile_options(
   coMD_threaded
   PUBLIC
