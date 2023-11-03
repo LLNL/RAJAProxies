@@ -4,7 +4,7 @@ set (CoMD_depends RAJA)
 
 if (ENABLE_MPI)
   add_definitions(-DENABLE_MPI)
-  set (CoMD_depends ${CoMD_depends} MPI)
+  set (CoMD_depends ${CoMD_depends} mpi)
 endif()
 
 if (ENABLE_OPENMP)
