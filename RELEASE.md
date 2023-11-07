@@ -1,8 +1,9 @@
 # RAJAProxies 2.0.0
 
-Copyright (c) 2017-22, Lawrence Livermore National Security, LLC. 
+Copyright (c) 2017-23, Lawrence Livermore National Security, LLC. 
 Produced at the Lawrence Livermore National Laboratory.
 All rights reserved. 
+This file is part of the RAJA Proxy App Suite.
 
 The proxy applications available in this repository have been relased
 individually. The release numbers and license are for each application are

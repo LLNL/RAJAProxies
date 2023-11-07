@@ -1,7 +1,8 @@
 [comment]: # (#################################################################)
-[comment]: # (Copyright 2017-22, Lawrence Livermore National Security, LLC)
+[comment]: # (Copyright (c) 2017-23, Lawrence Livermore National Security, LLC)
 [comment]: # (Produced at the Lawrence Livermore National Laboratory.)
 [comment]: # (All rights reserved.)
+[comment]: # (This file is part of the RAJA Proxy App Suite.)
 [comment]: # 
 [comment]: # (#################################################################)
 
