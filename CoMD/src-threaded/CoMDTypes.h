@@ -140,9 +140,8 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::CudaKernel<
 #endif
-    RAJA::statement::Tile<0, RAJA::tile_fixed<128>, RAJA::cuda_block_x_loop,
-    RAJA::statement::For<0, RAJA::cuda_thread_x_loop,
-    RAJA::statement::Lambda<0> > > > > redistributeKernel;
+    RAJA::statement::For<0, RAJA::cuda_global_size_x_direct<128>,
+    RAJA::statement::Lambda<0> > > > redistributeKernel;
 
 typedef RAJA::KernelPolicy<
 #ifdef CUDA_ASYNC
@@ -196,9 +195,8 @@ typedef RAJA::KernelPolicy<
 #else
   RAJA::statement::HipKernel<
 #endif
-    RAJA::statement::Tile<0, RAJA::tile_fixed<128>, RAJA::hip_block_x_loop,
-    RAJA::statement::For<0, RAJA::hip_thread_x_loop,
-    RAJA::statement::Lambda<0> > > > > redistributeKernel;
+    RAJA::statement::For<0, RAJA::hip_global_size_x_direct<128>,
+    RAJA::statement::Lambda<0> > > > redistributeKernel;
 
 typedef RAJA::KernelPolicy<
 #ifdef HIP_ASYNC
