@@ -27,6 +27,9 @@ if (ENABLE_CUDA)
   set (lulesh_compile_options
     --expt-extended-lambda)
 elseif (ENABLE_HIP)
+  set (CMAKE_HIP_ARCHITECTURES "--offload-arch=gfx90a")
+  set (GPU_TARGETS "gfx90a")
+  set (AMDGPU_TARGETS "gfx90a")
   set (lulesh_depends
     ${lulesh_depends}
     blt::hip)
