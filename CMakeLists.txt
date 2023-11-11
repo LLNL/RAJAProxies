@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Copyright (c) 2017-22, Lawrence Livermore National Security, LLC.
+# Copyright (c) 2017-23, Lawrence Livermore National Security, LLC.
 #
 # Produced at the Lawrence Livermore National Laboratory
 #
@@ -30,9 +30,7 @@ endif()
 ################################
 # BLT
 ################################
-if (ENABLE_KRIPKE)
-  set(BLT_CXX_STD "c++14" CACHE STRING "Version of C++ Standard")
-endif()
+set(BLT_CXX_STD "c++14" CACHE STRING "Version of C++ Standard")
 if (NOT EXISTS ${PROJECT_SOURCE_DIR}/blt/SetupBLT.cmake)
   message(FATAL_ERROR "\
   The BLT submodule is not present. \
@@ -60,9 +58,13 @@ endif ()
 
 if (ENABLE_KRIPKE)
   if (ENABLE_CUDA)
+    set(CMAKE_CUDA_ARCHITECTURES "70")
     set(KRIPKE_ARCH "Cuda")
-    set(kripke_compile_options --expt-extended-lambda -arch=${CUDA_ARCH})
+    set(kripke_compile_options --expt-extended-lambda)
   elseif (ENABLE_HIP)
+    set(CMAKE_HIP_ARCHITECTURES "--offload-arch=gfx90a")
+    set(GPU_TARGETS "gfx90a")
+    set(AMDGPU_TARGETS "gfx90a")
     set(ENABLE_CHAI On CACHE BOOL "")
     set(KRIPKE_ARCH "HIP")
   elseif (ENABLE_OPENMP)

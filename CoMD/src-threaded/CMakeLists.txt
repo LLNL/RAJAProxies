@@ -4,7 +4,7 @@ set (CoMD_depends RAJA)
 
 if (ENABLE_MPI)
   add_definitions(-DENABLE_MPI)
-  set (CoMD_depends ${CoMD_depends} MPI)
+  set (CoMD_depends ${CoMD_depends} mpi)
 endif()
 
 if (ENABLE_OPENMP)
@@ -14,9 +14,13 @@ endif ()
 
 if (ENABLE_CUDA)
   add_definitions(-DENABLE_CUDA)
+  set (CMAKE_CUDA_ARCHITECTURES "70")
   set (CoMD_depends ${CoMD_depends} cuda)
 elseif (ENABLE_HIP)
   add_definitions(-DENABLE_HIP)
+  set (CMAKE_HIP_ARCHITECTURES "--offload-arch=gfx90a")
+  set (GPU_TARGETS "gfx90a")
+  set (AMDGPU_TARGETS "gfx90a")
   set (CoMD_depends ${CoMD_depends} blt::hip)
   set (CoMD_depends ${CoMD_depends} blt::hip_runtime)
 endif ()
@@ -64,7 +68,7 @@ blt_add_executable(
 
 if(ENABLE_CUDA)
   set (comd_compile_options
-    --expt-extended-lambda -arch=${CUDA_ARCH})
+    --expt-extended-lambda)
 target_compile_options(
   coMD_threaded
   PUBLIC

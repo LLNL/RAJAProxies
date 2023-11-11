@@ -50,7 +50,7 @@ for i in `cat files2change`
 do
     echo $i
     cp $i $i.sed.bak
-    sed "s/Copyright (c) 2017/Copyright (c) 2017-20/" $i.sed.bak > $i
+    sed "s/Copyright (c) 2017-22/Copyright (c) 2017-23/" $i.sed.bak > $i
 done
 
 
